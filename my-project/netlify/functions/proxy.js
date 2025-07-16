@@ -70,13 +70,11 @@ exports.handler = async function(event, context) {
 
             const imageUrl = imgbbResult.data.url;
 
-            // ตอนนี้เราได้ imageUrl แล้ว ให้ส่งต่อไปที่ Google Script เพื่อบันทึก
             const googlePayload = {
-                action: 'uploadProfileImage',
-                studentId: body.studentId,
-                user: body.user, // ส่ง user object ไปด้วย
-                imageUrl: imageUrl // ส่งแค่ URL ไป ไม่ต้องส่งไฟล์แล้ว
-            };
+    		action: 'uploadProfileImage',
+  		  studentId: body.studentId,
+   		 imageUrl: imageUrl
+	};
 
             const googleResponse = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',

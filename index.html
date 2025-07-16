@@ -976,38 +976,74 @@
                                   
                                   container.innerHTML = missionHtml || '<div style="text-align:center; padding: 50px; color: #fff;">เยี่ยม! ไม่มีภารกิจที่ได้รับมอบหมายในขณะนี้</div>';
                                 }
-            
-            function showMissionDetail(topic) {
-                const mission = allMissions.find(m => m.topic === topic);
-                if (!mission) return;
-                const submission = currentUserSubmissions.find(s => s.task === topic);
-            
-                // --- แสดงข้อมูลพื้นฐาน ---
-                document.getElementById('modal-mission-topic').innerText = mission.topic;
-                // ... (ส่วนแสดง detail, maxPoints เหมือนเดิม) ...
-                document.getElementById('modal-mission-dueDate').innerHTML = `ส่งภายในวันที่: ${mission.dueDateString}`;
-                
-                // --- ตรรกะแสดงสถานะและปุ่มใหม่ ---
-                const userStatusEl = document.getElementById('modal-mission-user-status');
-                const actionsContainer = document.getElementById('modal-mission-actions');
-                let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
-                
-                if (submission) {
-                    // ... (ตรรกะสำหรับงานที่ส่งแล้ว เหมือนเดิม) ...
-                } else { // ยังไม่ส่ง
-                    if (mission.timingStatus === 'active') {
-                        userStatusEl.innerHTML = `<span style="font-weight: bold; color: var(--gold-color);">รอส่งงาน</span>`;
-                        actionsHtml = `<button class="btn-primary" onclick="alert('เปิดหน้าส่งงาน')">ส่งงาน</button>` + actionsHtml;
-                    } else if (mission.timingStatus === 'upcoming') {
-                        userStatusEl.innerHTML = `<span>ยังไม่ถึงเวลามอบหมาย (เริ่มวันที่ ${mission.assignedDateString})</span>`;
-                    } else { // past
-                        userStatusEl.innerHTML = `<span style="color: #e74c3c;">เลยกำหนดส่ง</span>`;
-                    }
-                }
-            
-                actionsContainer.innerHTML = actionsHtml;
-                openModal('mission-detail-modal');
-            }
+
+
+        
+    function showMissionDetail(topic) {
+    const mission = allMissions.find(m => m.topic === topic);
+    if (!mission) return;
+
+    const submission = currentUserSubmissions.find(s => s.task === topic);
+
+    // --- 1. ใส่ข้อมูลพื้นฐานลงใน Modal ---
+    document.getElementById('modal-mission-topic').innerText = mission.topic;
+    document.getElementById('modal-mission-detail').innerText = mission.detail || '(ไม่มีรายละเอียดเพิ่มเติม)';
+    document.getElementById('modal-mission-maxPoints').innerText = `${mission.maxPoints} คะแนน`;
+
+    // --- 2. แสดง DueDate พร้อมสถานะความเร่งด่วน! ---
+    const dueDateEl = document.getElementById('modal-mission-dueDate');
+    let deadlineText = `ส่งภายในวันที่: ${mission.dueDateString}`;
+    if (mission.urgency === 'urgent') {
+        deadlineText += ' <span style="color: #e74c3c; font-weight: bold;">(ใกล้หมดเขต!)</span>';
+    } else if (mission.timingStatus === 'past' && !submission) {
+        deadlineText += ' <span style="color: #95a5a6; font-weight: bold;">(เลยกำหนดส่ง)</span>';
+    }
+    dueDateEl.innerHTML = deadlineText;
+    
+    // --- 3. ตรรกะแสดง "สถานะ" และ "ปุ่ม" ที่ถูกต้อง ---
+    const userStatusEl = document.getElementById('modal-mission-user-status');
+    const actionsContainer = document.getElementById('modal-mission-actions');
+    
+    // เริ่มต้นด้วยปุ่ม "ปิด" เสมอ
+    let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
+    
+    if (submission) {
+        // --- กรณี: ส่งงานไปแล้ว ---
+        if (submission.status === 'ตรวจแล้ว') {
+            userStatusEl.innerHTML = `<span style="color: var(--status-graded); font-weight: bold;">ตรวจแล้ว (ได้ ${submission.score} / ${mission.maxPoints} คะแนน) ✔️</span>`;
+            // ไม่มีปุ่มอื่นนอกจากปุ่มปิด
+        } else { // สถานะ: รอตรวจ
+            userStatusEl.innerHTML = `<span style="color: var(--status-pending); font-weight: bold;">ส่งแล้ว (รอการตรวจสอบ) ⌛</span>`;
+            // เพิ่มปุ่ม "แก้ไข" ไว้ข้างหน้าปุ่ม "ปิด"
+            actionsHtml = `<button class="btn-primary" onclick="alert('นักเรียนจะแก้ไขการส่งงาน')">แก้ไขการส่ง</button>` + actionsHtml;
+        }
+    } else { 
+        // --- กรณี: ยังไม่ส่งงาน ---
+        if (mission.timingStatus === 'active') {
+            // **อยู่ในช่วงเวลาส่งงาน**
+            userStatusEl.innerHTML = `<span style="font-weight: bold; color: var(--gold-color);">รอส่งงาน</span>`;
+            // เพิ่มปุ่ม "ส่งงาน"
+            actionsHtml = `<button class="btn-primary" onclick="alert('เปิดหน้าส่งงาน / ลิงก์ไป Google Form')">ส่งงาน</button>` + actionsHtml;
+        } else if (mission.timingStatus === 'upcoming') {
+            // **ยังไม่ถึงเวลาส่ง**
+            userStatusEl.innerHTML = `<span>ยังไม่ถึงเวลามอบหมาย (เริ่มวันที่ ${mission.assignedDateString})</span>`;
+            // ไม่มีปุ่มส่งงาน
+        } else { // timingStatus === 'past'
+            // **เลยกำหนดส่งแล้ว**
+            userStatusEl.innerHTML = `<span style="color: #e74c3c;">เลยกำหนดส่งแล้ว</span>`;
+            // ไม่มีปุ่มส่งงาน
+        }
+    }
+
+    // --- 4. แสดงผลสถานะและปุ่มที่ตัดสินใจแล้ว ---
+    actionsContainer.innerHTML = actionsHtml;
+    
+    // --- 5. เปิด Modal ---
+    openModal('mission-detail-modal');
+}
+
+
+        
             
                   function filterStudentList() {
                     const searchTerm = document.getElementById('search-student').value.toLowerCase();

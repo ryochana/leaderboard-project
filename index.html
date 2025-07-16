@@ -779,7 +779,7 @@
     } else if (submission && submission.status === 'รอตรวจ') {
         // --- กรณี 2: ส่งแล้ว รอตรวจ ---
         userStatusEl.innerHTML = `<span style="color: var(--status-pending); font-weight: bold;">ส่งแล้ว (รอการตรวจสอบ) ⌛</span>`;
-        actionsHtml = `<button class="btn-primary" onclick="alert('นักเรียนจะแก้ไขการส่งงาน')">แก้ไขการส่ง</button>` + actionsHtml;
+        actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">แก้ไขการส่ง</button>` + actionsHtml;
     } else { 
         // --- กรณี 3: ยังไม่ส่ง (status คือ 'ยังไม่ส่ง' หรือเป็น Guest) ---
         if (mission.timingStatus === 'active') {
@@ -928,6 +928,111 @@ async function handleSubmitMission() {
     } catch (error) {
         errorEl.innerText = `เกิดข้อผิดพลาดตอนบันทึก: ${error.message}`;
         // คืนค่า UI ให้เหมือนเดิม
+        document.getElementById('submission-form-area').style.display = 'block';
+        document.getElementById('submission-buttons').style.display = 'block';
+        document.getElementById('submission-loader').style.display = 'none';
+    }
+}let currentMissionTopic = null; // สร้างตัวแปร global เพื่อเก็บ topic ที่กำลังจะส่ง
+
+function openSubmissionModal(topic) {
+    currentMissionTopic = topic; // เก็บ topic ไว้ใช้ตอนกด "ยืนยัน"
+    
+    document.getElementById('submission-form-area').style.display = 'block';
+    document.getElementById('submission-loader').style.display = 'none';
+    document.getElementById('submission-buttons').style.display = 'block';
+    document.getElementById('submission-link').value = '';
+    document.getElementById('submission-comment').value = '';
+    document.getElementById('submission-file').value = '';
+    document.getElementById('file-upload-status').innerText = '';
+    document.getElementById('submission-error').innerText = '';
+    document.getElementById('submission-modal-topic').innerText = topic;
+    
+    closeModal('mission-detail-modal');
+    openModal('submission-modal');
+}
+
+async function handleSubmitMission() {
+    const errorEl = document.getElementById('submission-error');
+    const link = document.getElementById('submission-link').value.trim();
+    const comment = document.getElementById('submission-comment').value.trim();
+    const fileInput = document.getElementById('submission-file');
+    const file = fileInput.files[0];
+
+    if (!link && !comment && !file) {
+        errorEl.innerText = 'กรุณากรอกลิงก์, ข้อความ, หรือแนบไฟล์อย่างน้อย 1 อย่าง';
+        return;
+    }
+
+    document.getElementById('submission-form-area').style.display = 'none';
+    document.getElementById('submission-buttons').style.display = 'none';
+    document.getElementById('submission-loader').style.display = 'block';
+    errorEl.innerText = '';
+    
+    let proofUrl = '';
+
+    if (file) {
+        try {
+            document.getElementById('submission-loader-text').innerText = 'กำลังขออนุญาตอัปโหลด...';
+            
+            const urlResponse = await postAdminAction('createUploadUrl', {
+                fileType: file.type,
+                missionTopic: currentMissionTopic
+            });
+
+            if (!urlResponse.success) throw new Error(urlResponse.error);
+            
+            document.getElementById('submission-loader-text').innerText = 'กำลังอัปโหลดไฟล์...';
+            const uploadResponse = await fetch(urlResponse.uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: { 'Content-Type': file.type }
+            });
+
+            if (!uploadResponse.ok) throw new Error('การอัปโหลดไฟล์ล้มเหลว');
+
+            const fileCheckUrl = `https://www.googleapis.com/drive/v2/files?q=title='${encodeURIComponent(urlResponse.newFileName)}'&fields=items(alternateLink)`;
+            const token = await new Promise((resolve, reject) => google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getOAuthToken());
+
+            let fileDetails;
+            for (let i = 0; i < 3; i++) { // ลองเช็กไฟล์ 3 ครั้ง ห่างกัน 2 วินาที
+                const fileDetailsResponse = await fetch(fileCheckUrl, { headers: { Authorization: "Bearer " + token }});
+                fileDetails = await fileDetailsResponse.json();
+                if (fileDetails.items && fileDetails.items.length > 0) {
+                    proofUrl = fileDetails.items[0].alternateLink;
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            if (!proofUrl) throw new Error("ไม่สามารถหาไฟล์ที่อัปโหลดพบใน Drive");
+
+        } catch (error) {
+            errorEl.innerText = `เกิดข้อผิดพลาดระหว่างอัปโหลด: ${error.message}`;
+            document.getElementById('submission-form-area').style.display = 'block';
+            document.getElementById('submission-buttons').style.display = 'block';
+            document.getElementById('submission-loader').style.display = 'none';
+            return;
+        }
+    }
+
+    try {
+        document.getElementById('submission-loader-text').innerText = 'กำลังบันทึกข้อมูล...';
+        
+        const submissionResult = await postAdminAction('submitMission', {
+            missionTopic: currentMissionTopic,
+            submissionLink: link,
+            submissionComment: comment,
+            proofUrl: proofUrl
+        });
+
+        if (submissionResult.success) {
+            showToast(submissionResult.message);
+            closeModal('submission-modal');
+            await loadInitialData();
+        } else {
+            throw new Error(submissionResult.error);
+        }
+    } catch (error) {
+        errorEl.innerText = `เกิดข้อผิดพลาดตอนบันทึก: ${error.message}`;
         document.getElementById('submission-form-area').style.display = 'block';
         document.getElementById('submission-buttons').style.display = 'block';
         document.getElementById('submission-loader').style.display = 'none';

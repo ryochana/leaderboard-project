@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <base target="_top">
     <meta charset="UTF-8">
@@ -14,39 +16,49 @@
     
     <!-- Your new stylesheet link -->
     <link rel="stylesheet" href="style.css">
-
 </head>
 <body>
+    <!-- App Container หลัก -->
     <div id="app-container">
         <div id="initial-loader" style="text-align: center; padding-top: 50px; font-size: 1.2em; color: white;">
           <i class="fas fa-spinner fa-spin"></i> กำลังโหลดข้อมูล...
         </div>
         <div id="main-content-wrapper" class="main-wrapper" style="display: none;">
-             <!-- Content will be built by JavaScript -->
+             <!-- Content หลักจะถูกสร้างโดย JS ที่นี่ -->
         </div>
     </div>
-    <script>
-      // ======================================================
-      // CONFIGURATION
-      // ======================================================
-      const API_URL = "/.netlify/functions/proxy";
+    
+    <!-- Container สำหรับ Modals และ Toast จะถูกสร้างโดย JS -->
+    <div id="modals-container"></div>
+    <div id="toast-container"></div>
 
-      // ======================================================
-      // GLOBAL VARIABLES
-      // ======================================================
-      let currentUser = null;
-      let fullSummaryData = [];
-      let filteredSummaryData = [];
-      let allMissions = [];
-      let missionsLoaded = false;
-      let adminData = { students: [], missions: [] };
-      
-      // ======================================================
-      // API & DATA FETCHING
-      // ======================================================
-      
-      // NEW function for GET requests via proxy
-      const fetchGet = async (params = {}) => {
+    <script>
+    // ======================================================
+    // CONFIGURATION
+    // ======================================================
+    const API_URL = "/.netlify/functions/proxy";
+
+    // ======================================================
+    // GLOBAL VARIABLES
+    // ======================================================
+    let currentUser = null;
+    let fullSummaryData = [];
+    let filteredSummaryData = [];
+    let allMissions = [];
+    let missionsLoaded = false;
+    let adminData = { students: [], missions: [] };
+    let currentUserSubmissions = [];
+    let currentMissionTopic = null;
+
+    // ======================================================
+    // INITIALIZATION
+    // ======================================================
+    window.addEventListener('load', loadInitialData);
+
+    // ======================================================
+    // API & DATA FETCHING
+    // ======================================================
+    const fetchGet = async (params = {}) => {
         const queryString = new URLSearchParams(params).toString();
         const fullUrl = `${API_URL}?${queryString}`;
         const response = await fetch(fullUrl);
@@ -55,10 +67,9 @@
             throw new Error(`Network response was not ok: ${errorText}`);
         }
         return response.json();
-      };
-      
-      // NEW function for POST requests via proxy
-      const postAdminAction = async (action, params) => {
+    };
+    
+    const postAdminAction = async (action, params) => {
         if (!currentUser) throw new Error("กรุณาเข้าสู่ระบบก่อนดำเนินการ");
         
         const payload = { action, ...params, user: currentUser };
@@ -76,810 +87,798 @@
         }
         
         return result;
-      }
-
-      window.addEventListener('load', loadInitialData);
-
-     // คัดลอกทั้งหมดนี้ไปวางทับฟังก์ชัน loadInitialData() เดิม
-
-        async function loadInitialData() {
-            showLoader(true, "กำลังโหลดข้อมูลหลัก...");
-            try {
-                // 1. โหลดข้อมูลอันดับและภารกิจพร้อมกัน
-                const [summaryResult, missionsResult] = await Promise.all([
-                  fetchGet({ action: 'getSummary' }),
-                  fetchGet({ action: 'getMissions' })
-                ]);
-        
-                // --- จัดการข้อมูลที่ได้มา ---
-                if (summaryResult.error) throw new Error(`API Error (Summary): ${summaryResult.error}`);
-                fullSummaryData = summaryResult.data || [];
-                filteredSummaryData = fullSummaryData;
-        
-                if (missionsResult.error) console.error(`API Error (Missions): ${missionsResult.error}`);
-                allMissions = missionsResult.data || [];
-                missionsLoaded = true;
-                
-                // --- สร้าง UI และโหลดข้อมูลผู้ใช้ ---
-                // ======================================================
-// UI BUILDING AND RENDERING
-// ======================================================
-
-function buildApp() {
-    const appContainer = document.getElementById('app-container');
-    if (!appContainer) return;
-
-    // เราจะสร้าง Element ที่จำเป็นแล้ว append เข้าไป แทนการใช้ innerHTML ทั้งก้อน
-    // เพื่อป้องกันปัญหาการโหลดซ้ำซ้อน
-    
-    // สร้าง Main Content Wrapper
-    const mainContentWrapper = document.getElementById('main-content-wrapper');
-    mainContentWrapper.innerHTML = `
-        <div class="leaderboard-container">
-            <div class="header-bar">
-                <div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/6y4jMWT/default-avatar.png" alt="User"><span id="login-text">เข้าสู่ระบบ</span></button></div>
-                <div class="header-trophy">🏆</div>
-                <div class="header-titles"><div class="title-main">ติดตามการส่งงานภาษาอังกฤษ ม.3 เทอม 1 ปี 68</div><div class="title-sub">โรงเรียนบ้านโนนผักชี</div></div>
-            </div>
-            <div class="tabs">
-                <div class="tab active" onclick="switchView('leaderboard-view')"><i class="fas fa-trophy"></i> อันดับ</div>
-                <div id="mission-tab" class="tab" onclick="switchView('map-view-container')"><i class="fas fa-map-signs"></i> แผนที่</div>
-                <div id="admin-tab" class="tab admin-tab" onclick="switchView('admin-view')"><i class="fas fa-user-shield"></i> จัดการ</div>
-            </div>
-            <div id="leaderboard-view" class="content-view active"><input type="text" id="search-student" placeholder="🔍 ค้นหาชื่อนักเรียน..." onkeyup="filterStudentList()"><ul class="student-list" id="student-list-container"></ul></div>
-            <div id="map-view-container" class="content-view"></div>
-            <div id="admin-view" class="content-view"></div>
-        </div>
-    `;
-
-    // สร้าง Modals Container และ Toast Container
-    if (!document.getElementById('modals-container')) {
-        const modalsDiv = document.createElement('div');
-        modalsDiv.id = 'modals-container';
-        appContainer.appendChild(modalsDiv);
-    }
-    if (!document.getElementById('toast-container')) {
-        const toastDiv = document.createElement('div');
-        toastDiv.id = 'toast-container';
-        appContainer.appendChild(toastDiv);
     }
 
-    const modalsContainer = document.getElementById('modals-container');
-    modalsContainer.innerHTML = `
-        <div id="student-detail-modal" class="modal-overlay">
-            <div class="modal-box">
-                <div class="detail-modal-close" onclick="closeModal('student-detail-modal')">×</div>
-                <div class="detail-modal-header">
-                    <img id="detail-modal-pic" src="" class="detail-modal-pic">
-                    <div class="detail-modal-info">
-                        <h3 id="detail-modal-name"></h3>
-                        <p id="detail-modal-score"></p>
-                    </div>
-                </div>
-                <div id="detail-modal-badges" class="badges-container" style="padding: 0 10px 15px 10px;"></div>
-                <div id="detail-modal-body" class="detail-modal-body"></div>
-            </div>
-        </div>
-        <div id="login-modal" class="modal-overlay">
-            <div class="modal-box">
-                <h2>ล็อกอิน</h2>
-                <div id="login-error" class="modal-error"></div>
-                <input type="text" id="username-input" placeholder="ชื่อผู้ใช้">
-                <input type="password" id="password-input" placeholder="รหัสผ่าน">
-                <button class="btn-primary" onclick="handleLogin()">เข้าสู่ระบบ</button>
-                <button class="btn-secondary" onclick="closeModal('login-modal')">ปิด</button>
-            </div>
-        </div>
-        <div id="profile-modal" class="modal-overlay">
-            <div class="modal-box">
-                <h2>โปรไฟล์</h2>
-                <img id="profile-preview" src="">
-                <h3 id="profile-name"></h3>
-                <p id="profile-score-text"></p>
-                <div id="profile-message" class="modal-message"></div>
-                <label for="image-upload-input" class="btn-primary">เปลี่ยนรูปโปรไฟล์</label>
-                <input type="file" id="image-upload-input" accept="image/png, image/jpeg">
-                <button class="btn-danger" onclick="handleLogout()">ออกจากระบบ</button>
-                <button class="btn-secondary" onclick="closeModal('profile-modal')">ปิด</button>
-            </div>
-        </div>
-        <div id="mission-detail-modal" class="modal-overlay">
-            <div class="modal-box" style="text-align: left; max-width: 550px;">
-                <div class="detail-modal-close" onclick="closeModal('mission-detail-modal')">×</div>
-                <h2 id="modal-mission-topic" style="margin-top: 0; color: var(--gold-color);"></h2>
-                <div id="modal-mission-body">
-                    <p><strong>คำสั่ง:</strong> <span id="modal-mission-detail"></span></p>
-                    <p><strong>กำหนดส่ง:</strong> <span id="modal-mission-dueDate"></span></p>
-                    <p><strong>คะแนนเต็ม:</strong> <span id="modal-mission-maxPoints"></span></p>
-                    <hr style="border-color: rgba(255,255,255,0.2);">
-                    <p><strong>สถานะของคุณ:</strong> <span id="modal-mission-user-status"></span></p>
-                </div>
-                <div id="modal-mission-actions" style="margin-top: 20px;"></div>
-            </div>
-        </div>
-        <div id="submission-modal" class="modal-overlay">
-            <div class="modal-box">
-                <div class="detail-modal-close" onclick="closeModal('submission-modal')">×</div>
-                <h2 style="margin-top:0;">ส่งภารกิจ: <span id="submission-modal-topic"></span></h2>
-                <div id="submission-form-area">
-                    <p style="font-size: 0.9em; opacity: 0.8; margin-top: -10px; margin-bottom: 20px;">กรอกข้อมูลและแนบไฟล์เพื่อส่งงาน (เลือกอย่างน้อย 1 อย่าง)</p>
-                    <label for="submission-link">ลิงก์ผลงาน (ถ้ามี)</label>
-                    <input type="url" id="submission-link" placeholder="เช่น https://www.canva.com/design/...">
-                    <label for="submission-comment">ข้อความถึงครู (ถ้ามี)</label>
-                    <textarea id="submission-comment" rows="3" placeholder="ฝากข้อความสั้นๆ..."></textarea>
-                    <label for="submission-file">แนบไฟล์ (ถ้ามี)</label>
-                    <input type="file" id="submission-file">
-                    <small id="file-upload-status" style="margin-top: -10px; display: block; min-height: 1.2em;"></small>
-                    <div id="submission-error" class="modal-error"></div>
-                </div>
-                <div id="submission-loader" style="display:none; text-align:center; padding: 40px 0;">
-                    <i class="fas fa-spinner fa-spin fa-2x"></i>
-                    <p id="submission-loader-text" style="margin-top: 15px;">กำลังอัปโหลดไฟล์...</p>
-                </div>
-                <div id="submission-buttons">
-                    <button class="btn-primary" onclick="handleSubmitMission()">ยืนยันการส่ง</button>
-                    <button class="btn-secondary" onclick="closeModal('submission-modal')">ยกเลิก</button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // เพิ่ม Event Listeners หลังจากสร้าง Element แล้ว
-    document.getElementById('user-area-btn').addEventListener('click', handleUserAreaClick);
-    document.getElementById('image-upload-input').addEventListener('change', handleFileSelect);
-    
-    // Render ข้อมูลครั้งแรก
-    renderStudentList();
-}
-
-function renderStudentList() {
-    const container = document.getElementById('student-list-container');
-    if (!container) return;
-    if (!filteredSummaryData || filteredSummaryData.length === 0) {
-      container.innerHTML = '<p style="text-align: center; padding: 20px;">ไม่พบข้อมูลนักเรียน</p>';
-      return;
-    }
-    container.innerHTML = filteredSummaryData.map(student => {
-      const rankDisplay = student.rank === 1 ? '🥇' : student.rank === 2 ? '🥈' : student.rank === 3 ? '🥉' : student.rank;
-      const profilePic = student.profileUrl || 'https://i.ibb.co/6y4jMWT/default-avatar.png';
-      const rankClass = student.rank <= 3 ? `rank-${student.rank}` : '';
-      const badgesHtml = (student.earnedBadges || []).map(badge => `<div class="badge-tooltip"><img src="${badge.iconUrl}" alt="${badge.name}" class="badge-icon"><span class="tooltip-text"><b>${badge.name}</b><br>${badge.description}</span></div>`).join('');
-      
-      return `<li>
-                <div class="student-item" onclick="showStudentDetailModal('${student.studentId}')">
-                    <div class="rank">${rankDisplay}</div>
-                    <img src="${profilePic}" class="student-pic ${rankClass}" alt="${student.name}">
-                    <div class="student-info">
-                        <div class="student-name">${student.name}</div>
-                        <div class="student-score">${student.totalScore} <span class="student-score-label">คะแนน</span></div>
-                        <div class="badges-container">${badgesHtml}</div>
-                        <div class="progress-container">
-                            <div class="progress-bar" style="width: ${student.progress}%;">${student.progress > 15 ? student.progress + '%' : ''}</div>
-                        </div>
-                    </div>
-                </div>
-              </li>`;
-    }).join('');
-}
-
-function renderMissionView() {
-    const missionsView = document.getElementById('missions-view');
-    if (!missionsView) return;
-    
-    if (!missionsLoaded) {
-        missionsView.innerHTML = '<ul class="mission-list"><li><i class="fas fa-spinner fa-spin"></i> กำลังโหลดภารกิจ...</li></ul>';
-    } else if (!allMissions || allMissions.length === 0) {
-        missionsView.innerHTML = '<ul class="mission-list"><li style="text-align:center; padding: 20px;">ไม่พบรายการภารกิจ</li></ul>';
-    } else {
-        missionsView.innerHTML = `<ul class="mission-list">${allMissions.map(mission => 
-          `<li class="mission-item">
-             <div class="mission-info">
-               <div class="mission-topic">${mission.topic}</div>
-               <div class="mission-meta">กำหนดส่ง: ${mission.dueDate}</div>
-             </div>
-             <div class="mission-actions">
-                <span class="mission-points">${mission.maxPoints} คะแนน</span>
-             </div>
-           </li>`
-        ).join('')}</ul>`;
-    }
-}
-
-function renderAdminView() {
-    const container = document.getElementById('admin-view');
-    const studentOptions = adminData.students.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-    const missionOptions = adminData.missions.map(m => `<option value="${m}">${m}</option>`).join('');
-
-    container.innerHTML = `
-        <div class="admin-section">
-            <h3><i class="fas fa-clipboard-check"></i> ให้คะแนน</h3>
-            <form id="grade-form" class="admin-form grade-form" onsubmit="handleGradeSubmission(event)">
-                <div><label for="student-select">เลือกนักเรียน</label><select id="student-select" required>${studentOptions}</select></div>
-                <div><label for="mission-select">เลือกภารกิจ</label><select id="mission-select" required>${missionOptions}</select></div>
-                <div class="full-width"><label for="score-input">คะแนนที่ให้</label><input type="number" id="score-input" placeholder="เช่น 10" required></div>
-                <button type="submit" class="btn-primary full-width">บันทึกคะแนน</button>
-            </form>
-        </div>
-        <div class="admin-section">
-            <h3><i class="fas fa-plus-circle"></i> จัดการภารกิจ</h3>
-            <form id="mission-form" class="admin-form" onsubmit="handleAddMission(event)">
-                <div class="full-width"><label for="mission-topic">หัวข้อภารกิจ (Topic)</label><input type="text" id="mission-topic" required></div>
-                <div class="full-width"><label for="mission-detail">รายละเอียด (Detail)</label><input type="text" id="mission-detail"></div>
-                <div><label for="mission-due">กำหนดส่ง (Due Date)</label><input type="date" id="mission-due"></div>
-                <div><label for="mission-points">คะแนนเต็ม (Max Points)</label><input type="number" id="mission-points" required></div>
-                <button type="submit" class="btn-primary full-width">เพิ่มภารกิจ</button>
-            </form>
-            <h4 style="margin-top: 20px;">รายการภารกิจปัจจุบัน</h4>
-            <ul id="admin-mission-list">
-                ${allMissions.map(m => `<li class="admin-mission-item"><span>${m.topic}</span><button class="btn-delete" onclick="handleDeleteMission('${m.topic}')">ลบ</button></li>`).join('')}
-            </ul>
-        </div>
-        <div class="admin-section">
-            <h3><i class="fas fa-magic"></i> เครื่องมือซ่อมแซมข้อมูล</h3>
-            <div id="repair-tool-status">
-                <p>กดปุ่ม "วิเคราะห์ข้อมูล" เพื่อตรวจสอบความผิดพลาดในชีต Submissions</p>
-                <button class="btn-primary" onclick="runAnalysis()"><i class="fas fa-search"></i> วิเคราะห์ข้อมูล</button>
-            </div>
-            <div id="repair-tool-results" style="display:none;"></div>
-        </div>`;
-}
-
-// ======================================================
-// USER MANAGEMENT & UI UPDATES
-// ======================================================
-let currentUserSubmissions = [];
-
-async function initializeUser() {
-    const storedUsername = localStorage.getItem('leaderboardUser');
-    if (storedUsername) {
-      try {
-        const sessionResult = await fetchGet({ action: 'checkUserSession', username: storedUsername });
-        currentUser = (sessionResult && sessionResult.user) ? sessionResult.user : null;
-        if (!currentUser) localStorage.removeItem('leaderboardUser');
-      } catch(err) {
-        console.error("Session check failed:", err);
-        localStorage.removeItem('leaderboardUser');
-        currentUser = null;
-      }
-    }
-    updateUserUI();
-}
-
-function updateUserUI() {
-    const userPic = document.getElementById('user-area-pic');
-    const loginText = document.getElementById('login-text');
-    const adminTab = document.getElementById('admin-tab');
-
-    if(!userPic || !loginText || !adminTab) return;
-
-    const defaultPic = 'https://i.ibb.co/6y4jMWT/default-avatar.png';
-    
-    if (currentUser) {
-        userPic.src = currentUser.profileUrl || defaultPic;
-        loginText.style.display = 'none';
-        
-        const userRecord = fullSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
-        
-        document.getElementById('profile-preview').src = userPic.src;
-        document.getElementById('profile-name').innerText = currentUser.name;
-        document.getElementById('profile-score-text').innerText = userRecord ? `คะแนนรวม: ${userRecord.totalScore}` : 'ไม่พบข้อมูลคะแนน';
-        
-        if (currentUser.role === 'admin') {
-            adminTab.classList.add('visible');
-        } else {
-            adminTab.classList.remove('visible');
-        }
-    } else {
-        userPic.src = defaultPic;
-        loginText.style.display = 'inline';
-        adminTab.classList.remove('visible');
-    }
-}
-
-async function handleLogin() {
-    const username = document.getElementById('username-input').value.trim();
-    const password = document.getElementById('password-input').value.trim();
-    const errorEl = document.getElementById('login-error');
-
-    if (!username || !password) {
-        errorEl.innerText = "กรุณากรอกข้อมูลให้ครบถ้วน";
-        return;
-    }
-    errorEl.innerText = "กำลังตรวจสอบ...";
-
-    try {
-        const result = await fetchGet({ action: 'userLogin', username: username, password: password });
-        if (result.success) {
-            currentUser = result.user;
-            localStorage.setItem('leaderboardUser', currentUser.username);
-            closeModal('login-modal');
-            document.getElementById('username-input').value = '';
-            document.getElementById('password-input').value = '';
-            errorEl.innerText = "";
-            
-            // Reload ข้อมูลทั้งหมดหลังจากล็อกอินสำเร็จ
-            await loadInitialData(); 
-            
-        } else {
-            errorEl.innerText = result.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
-        }
-    } catch (error) {
-        console.error("Login failed:", error);
-        errorEl.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
-    }
-}
-
-async function handleLogout() {
-  localStorage.removeItem('leaderboardUser');
-  currentUser = null;
-  currentUserSubmissions = []; // เคลียร์ข้อมูลการส่งงาน
-  
-  // Reload ข้อมูลทั้งหมดเพื่อให้แสดงผลแบบ Guest
-  await loadInitialData(); 
-}
-
-function handleFileSelect(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (file.size > 1 * 1024 * 1024) { // 1MB limit for profile picture via this method
-        showToast("ขนาดไฟล์ต้องไม่เกิน 1MB", true);
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = async function() {
-        const fileData = reader.result;
-        const profileMessage = document.getElementById('profile-message');
-        
-        profileMessage.innerText = 'กำลังอัปโหลด...';
-        showLoader(true, "กำลังอัปโหลดรูปภาพ...");
-
+    async function loadInitialData() {
+        showLoader(true, "กำลังโหลดข้อมูลหลัก...");
         try {
-            // Note: This is an old method for profile pics, not for submissions
-            const params = {
-                studentId: currentUser.studentId,
-                fileName: file.name,
-                fileData: fileData // This sends base64, only for small profile pics
-            };
-
-            const result = await postAdminAction('uploadProfileImage', params);
+            const [summaryResult, missionsResult] = await Promise.all([
+              fetchGet({ action: 'getSummary' }),
+              fetchGet({ action: 'getMissions' })
+            ]);
+    
+            if (summaryResult.error) throw new Error(`API Error (Summary): ${summaryResult.error}`);
+            fullSummaryData = summaryResult.data || [];
+            filteredSummaryData = fullSummaryData;
+    
+            if (missionsResult.error) console.error(`API Error (Missions): ${missionsResult.error}`);
+            allMissions = missionsResult.data || [];
+            missionsLoaded = true;
             
-            if (result.success) {
-                showToast(result.message);
-                profileMessage.innerText = '';
-                
-                document.getElementById('profile-preview').src = result.imageUrl;
-                document.getElementById('user-area-pic').src = result.imageUrl;
-                currentUser.profileUrl = result.imageUrl;
-                
-                const studentInLeaderboard = fullSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
-                if(studentInLeaderboard) {
-                    studentInLeaderboard.profileUrl = result.imageUrl;
-                    renderStudentList();
-                }
+            buildApp(); 
+            await initializeUser();
+    
+            if (currentUser) {
+              const detailResult = await fetchGet({ action: "getStudentDetail", studentId: currentUser.studentId });
+              if (detailResult && detailResult.data) {
+                currentUserSubmissions = detailResult.data.tasks || [];
+              }
             } else {
-                throw new Error(result.error);
+              currentUserSubmissions = [];
             }
+            
+            if (document.getElementById('map-view-container')?.classList.contains('active')) {
+                renderMapView();
+            }
+    
         } catch (error) {
-            profileMessage.innerText = '';
-            showToast(`อัปโหลดล้มเหลว: ${error.message}`, true);
+            showError(error);
         } finally {
             showLoader(false);
-            event.target.value = ''; 
         }
-    };
-    reader.readAsDataURL(file);
-}
-
-// ======================================================
-// ADMIN ACTIONS
-// ======================================================
-async function handleAddMission(event) {
-    event.preventDefault();
-    const params = {
-        topic: document.getElementById('mission-topic').value,
-        detail: document.getElementById('mission-detail').value,
-        dueDate: document.getElementById('mission-due').value,
-        maxPoints: document.getElementById('mission-points').value
-    };
-    showLoader(true, "กำลังเพิ่มภารกิจ...");
-    try {
-        const result = await postAdminAction('addMission', params);
-        showToast(result.message || result.error, !result.success);
-        if (result.success) {
-            document.getElementById('mission-form').reset();
-            await loadInitialData();
-        }
-    } catch (error) { showToast(error.message, true); }
-    finally { showLoader(false); }
-}
-
-async function handleDeleteMission(topic) {
-    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจ "${topic}"?`)) return;
-    showLoader(true, "กำลังลบภารกิจ...");
-    try {
-        const result = await postAdminAction('deleteMission', { topic: topic });
-        showToast(result.message || result.error, !result.success);
-        if (result.success) {
-            await loadInitialData();
-        }
-    } catch (error) { showToast(error.message, true); }
-    finally { showLoader(false); }
-}
-
-async function handleGradeSubmission(event) {
-    event.preventDefault();
-    const params = {
-        studentId: document.getElementById('student-select').value,
-        missionTopic: document.getElementById('mission-select').value,
-        score: document.getElementById('score-input').value
-    };
-    showLoader(true, "กำลังบันทึกคะแนน...");
-    try {
-        const result = await postAdminAction('gradeSubmission', params);
-        showToast(result.message || result.error, !result.success);
-        if (result.success) {
-            document.getElementById('grade-form').reset();
-            await loadInitialData();
-        }
-    } catch (error) { showToast(error.message, true); }
-    finally { showLoader(false); }
-}
-
-// ======================================================
-// ADMIN REPAIR TOOL FUNCTIONS
-// ======================================================
-async function runAnalysis() {
-    showLoader(true, "กำลังวิเคราะห์ข้อมูลในชีต...");
-    const statusDiv = document.getElementById('repair-tool-status');
-    const resultsDiv = document.getElementById('repair-tool-results');
-    try {
-        const result = await fetchGet({ action: 'analyzeData' });
-        if (result.error) throw new Error(result.error);
-        statusDiv.style.display = 'none';
-        resultsDiv.style.display = 'block';
-        displayAnalysisResults(result.data);
-    } catch (error) {
-        resultsDiv.innerHTML = `<p class="modal-error">เกิดข้อผิดพลาด: ${error.message}</p>`;
-        resultsDiv.style.display = 'block';
-    } finally {
-        showLoader(false);
     }
-}
 
-function displayAnalysisResults(data) {
-    const resultsDiv = document.getElementById('repair-tool-results');
-    let html = `<p>ผลการวิเคราะห์: พบข้อมูลที่อาจผิดพลาด <strong>${data.errorCount}</strong> จากทั้งหมด ${data.totalRows} รายการ</p>`;
-    if (data.errorCount > 0) {
-        html += `<div style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; margin-bottom: 15px;"><table class="detail-table"><thead><tr><th>แถวที่</th><th>ตัวอย่างข้อมูลที่ผิด</th></tr></thead><tbody>${data.errors.map(err => `<tr><td style="text-align:center;">${err.rowNumber}</td><td><small>${err.originalData.map(d => d instanceof Date ? d.toLocaleString('sv-SE') : d).join(', ')}</small></td></tr>`).join('')}</tbody></table></div><p style="font-size:0.9em; opacity:0.8;">การกดปุ่มด้านล่างจะสร้างชีต Backup อัตโนมัติก่อนทำการแก้ไข</p><button class="btn-danger" onclick="handleRepairData()"><i class="fas fa-exclamation-triangle"></i> ใช่, ดำเนินการซ่อมแซม ${data.errorCount} รายการ</button>`;
-    } else {
-        html += `<p style="color:var(--status-graded);"><strong>เยี่ยม!</strong> ไม่พบข้อมูลที่ผิดพลาดในชีตของคุณ</p>`;
+    async function loadAdminData() {
+        if (adminData.students.length > 0) {
+            renderAdminView();
+            return;
+        }
+        showLoader(true, "กำลังโหลดข้อมูลสำหรับ Admin...");
+        try {
+            const [studentsResult, missionsResult] = await Promise.all([
+                fetchGet({ action: 'getAllStudents' }),
+                fetchGet({ action: 'getAllMissionsForDropdown' })
+            ]);
+
+            if (studentsResult.error || missionsResult.error) {
+                throw new Error(studentsResult.error || missionsResult.error);
+            }
+            adminData.students = studentsResult.data || [];
+            adminData.missions = missionsResult.data || [];
+            renderAdminView();
+        } catch (error) {
+            document.getElementById('admin-view').innerHTML = `<p style="color:var(--danger-color)">เกิดข้อผิดพลาด: ${error.message}</p>`;
+        } finally {
+            showLoader(false);
+        }
     }
-    html += `<button class="btn-secondary" style="margin-top:10px;" onclick="resetRepairTool()">กลับ</button>`;
-    resultsDiv.innerHTML = html;
-}
 
-function resetRepairTool() {
-    document.getElementById('repair-tool-status').style.display = 'block';
-    document.getElementById('repair-tool-results').style.display = 'none';
-    document.getElementById('repair-tool-results').innerHTML = '';
-}
-
-async function handleRepairData() {
-    if (!confirm("ยืนยันการซ่อมแซมข้อมูล?\n\nระบบจะสร้างชีต Backup ให้โดยอัตโนมัติก่อนเริ่ม")) return;
-    showLoader(true, "กำลังสร้าง Backup และซ่อมแซมข้อมูล...");
-    try {
-        const result = await fetchGet({ action: 'repairData' });
-        showToast(result.message || result.error, !result.success);
-        if (result.success && result.backupName) {
-            document.getElementById('repair-tool-results').innerHTML = `<p style="color:var(--status-graded);">${result.message}</p><p>หากผลลัพธ์ไม่ถูกต้อง คุณสามารถย้อนกลับได้ 1 ครั้ง</p><button class="btn-primary" onclick="handleUndo()"><i class="fas fa-undo"></i> ย้อนกลับ (Undo)</button><button class="btn-secondary" style="margin-top:10px;" onclick="resetRepairTool()">เสร็จสิ้น</button>`;
-            await loadInitialData();
-        } else if (result.success) {
-           resetRepairTool();
-        }
-    } catch (error) { showToast(error.message, true); }
-    finally { showLoader(false); }
-}
-
-async function handleUndo() {
-    if (!confirm("คุณต้องการย้อนกลับการแก้ไขล่าสุดใช่หรือไม่?")) return;
-    showLoader(true, "กำลังย้อนกลับข้อมูล...");
-    try {
-        const result = await fetchGet({ action: 'undoRepair' });
-        showToast(result.message || result.error, !result.success);
-        if (result.success) {
-            resetRepairTool();
-            await loadInitialData();
-        }
-    } catch (error) { showToast(error.message, true); }
-    finally { showLoader(false); }
-}
-
-// ======================================================
-// EVENT HANDLERS & UTILITIES
-// ======================================================
-
-function renderMapView() {
-    const container = document.getElementById('map-view-container');
-    if (!container) return;
-    if (!missionsLoaded) {
-        container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
-        return;
+    // ======================================================
+    // UI BUILDING AND RENDERING
+    // ======================================================
+    function buildApp() {
+        const mainContent = document.getElementById('main-content-wrapper');
+        mainContent.innerHTML = `
+            <div class="leaderboard-container">
+                <div class="header-bar">
+                    <div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/6y4jMWT/default-avatar.png" alt="User"><span id="login-text">เข้าสู่ระบบ</span></button></div>
+                    <div class="header-trophy">🏆</div>
+                    <div class="header-titles"><div class="title-main">ติดตามการส่งงานภาษาอังกฤษ ม.3 เทอม 1 ปี 68</div><div class="title-sub">โรงเรียนบ้านโนนผักชี</div></div>
+                </div>
+                <div class="tabs">
+                    <div class="tab active" onclick="switchView('leaderboard-view')"><i class="fas fa-trophy"></i> อันดับ</div>
+                    <div id="mission-tab" class="tab" onclick="switchView('map-view-container')"><i class="fas fa-map-signs"></i> แผนที่</div>
+                    <div id="admin-tab" class="tab admin-tab" onclick="switchView('admin-view')"><i class="fas fa-user-shield"></i> จัดการ</div>
+                </div>
+                <div id="leaderboard-view" class="content-view active"><input type="text" id="search-student" placeholder="🔍 ค้นหาชื่อนักเรียน..." onkeyup="filterStudentList()"><ul class="student-list" id="student-list-container"></ul></div>
+                <div id="map-view-container" class="content-view"></div>
+                <div id="admin-view" class="content-view"></div>
+            </div>`;
+        
+        const modalsContainer = document.getElementById('modals-container');
+        modalsContainer.innerHTML = `
+            <div id="student-detail-modal" class="modal-overlay">
+                <div class="modal-box">
+                    <div class="detail-modal-close" onclick="closeModal('student-detail-modal')">×</div>
+                    <div class="detail-modal-header">
+                        <img id="detail-modal-pic" src="" class="detail-modal-pic">
+                        <div class="detail-modal-info">
+                            <h3 id="detail-modal-name"></h3>
+                            <p id="detail-modal-score"></p>
+                        </div>
+                    </div>
+                    <div id="detail-modal-badges" class="badges-container" style="padding: 0 10px 15px 10px;"></div>
+                    <div id="detail-modal-body" class="detail-modal-body"></div>
+                </div>
+            </div>
+            <div id="login-modal" class="modal-overlay">
+                <div class="modal-box">
+                    <h2>ล็อกอิน</h2>
+                    <div id="login-error" class="modal-error"></div>
+                    <input type="text" id="username-input" placeholder="ชื่อผู้ใช้">
+                    <input type="password" id="password-input" placeholder="รหัสผ่าน">
+                    <button class="btn-primary" onclick="handleLogin()">เข้าสู่ระบบ</button>
+                    <button class="btn-secondary" onclick="closeModal('login-modal')">ปิด</button>
+                </div>
+            </div>
+            <div id="profile-modal" class="modal-overlay">
+                <div class="modal-box">
+                    <h2>โปรไฟล์</h2>
+                    <img id="profile-preview" src="">
+                    <h3 id="profile-name"></h3>
+                    <p id="profile-score-text"></p>
+                    <div id="profile-message" class="modal-message"></div>
+                    <label for="image-upload-input" class="btn-primary">เปลี่ยนรูปโปรไฟล์</label>
+                    <input type="file" id="image-upload-input" accept="image/png, image/jpeg">
+                    <button class="btn-danger" onclick="handleLogout()">ออกจากระบบ</button>
+                    <button class="btn-secondary" onclick="closeModal('profile-modal')">ปิด</button>
+                </div>
+            </div>
+            <div id="mission-detail-modal" class="modal-overlay">
+                <div class="modal-box" style="text-align: left; max-width: 550px;">
+                    <div class="detail-modal-close" onclick="closeModal('mission-detail-modal')">×</div>
+                    <h2 id="modal-mission-topic" style="margin-top: 0; color: var(--gold-color);"></h2>
+                    <div id="modal-mission-body">
+                        <p><strong>คำสั่ง:</strong> <span id="modal-mission-detail"></span></p>
+                        <p><strong>กำหนดส่ง:</strong> <span id="modal-mission-dueDate"></span></p>
+                        <p><strong>คะแนนเต็ม:</strong> <span id="modal-mission-maxPoints"></span></p>
+                        <hr style="border-color: rgba(255,255,255,0.2);">
+                        <p><strong>สถานะของคุณ:</strong> <span id="modal-mission-user-status"></span></p>
+                    </div>
+                    <div id="modal-mission-actions" style="margin-top: 20px;"></div>
+                </div>
+            </div>
+            <div id="submission-modal" class="modal-overlay">
+                <div class="modal-box">
+                    <div class="detail-modal-close" onclick="closeModal('submission-modal')">×</div>
+                    <h2 style="margin-top:0;">ส่งภารกิจ: <span id="submission-modal-topic"></span></h2>
+                    <div id="submission-form-area">
+                        <p style="font-size: 0.9em; opacity: 0.8; margin-top: -10px; margin-bottom: 20px;">กรอกข้อมูลและแนบไฟล์เพื่อส่งงาน (เลือกอย่างน้อย 1 อย่าง)</p>
+                        <label for="submission-link">ลิงก์ผลงาน (ถ้ามี)</label>
+                        <input type="url" id="submission-link" placeholder="เช่น https://www.canva.com/design/...">
+                        <label for="submission-comment">ข้อความถึงครู (ถ้ามี)</label>
+                        <textarea id="submission-comment" rows="3" placeholder="ฝากข้อความสั้นๆ..."></textarea>
+                        <label for="submission-file">แนบไฟล์ (ถ้ามี)</label>
+                        <input type="file" id="submission-file">
+                        <small id="file-upload-status" style="margin-top: -10px; display: block; min-height: 1.2em;"></small>
+                        <div id="submission-error" class="modal-error"></div>
+                    </div>
+                    <div id="submission-loader" style="display:none; text-align:center; padding: 40px 0;">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p id="submission-loader-text" style="margin-top: 15px;">กำลังอัปโหลดไฟล์...</p>
+                    </div>
+                    <div id="submission-buttons">
+                        <button class="btn-primary" onclick="handleSubmitMission()">ยืนยันการส่ง</button>
+                        <button class="btn-secondary" onclick="closeModal('submission-modal')">ยกเลิก</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('user-area-btn').addEventListener('click', handleUserAreaClick);
+        document.getElementById('image-upload-input').addEventListener('change', handleFileSelect);
+        
+        renderStudentList();
     }
-    
-    const submissionMap = currentUserSubmissions.length > 0 
-        ? new Map(currentUserSubmissions.map(task => [task.task, task]))
-        : new Map();
 
-    const sortedMissions = [...allMissions].sort((a, b) => {
-        const aSub = submissionMap.get(a.topic);
-        const bSub = submissionMap.get(b.topic);
-        
-        const aIsSubmitted = aSub && aSub.status !== 'ยังไม่ส่ง';
-        const bIsSubmitted = bSub && bSub.status !== 'ยังไม่ส่ง';
-        
-        if (!aIsSubmitted && bIsSubmitted) return -1;
-        if (aIsSubmitted && !bIsSubmitted) return 1;
+    function renderStudentList() {
+        const container = document.getElementById('student-list-container');
+        if (!container) return;
+        if (!filteredSummaryData || filteredSummaryData.length === 0) {
+          container.innerHTML = '<p style="text-align: center; padding: 20px;">ไม่พบข้อมูลนักเรียน</p>';
+          return;
+        }
+        container.innerHTML = filteredSummaryData.map(student => {
+          const rankDisplay = student.rank === 1 ? '🥇' : student.rank === 2 ? '🥈' : student.rank === 3 ? '🥉' : student.rank;
+          const profilePic = student.profileUrl || 'https://i.ibb.co/6y4jMWT/default-avatar.png';
+          const rankClass = student.rank <= 3 ? `rank-${student.rank}` : '';
+          const badgesHtml = (student.earnedBadges || []).map(badge => `<div class="badge-tooltip"><img src="${badge.iconUrl}" alt="${badge.name}" class="badge-icon"><span class="tooltip-text"><b>${badge.name}</b><br>${badge.description}</span></div>`).join('');
+          
+          return `<li>
+                    <div class="student-item" onclick="showStudentDetailModal('${student.studentId}')">
+                        <div class="rank">${rankDisplay}</div>
+                        <img src="${profilePic}" class="student-pic ${rankClass}" alt="${student.name}">
+                        <div class="student-info">
+                            <div class="student-name">${student.name}</div>
+                            <div class="student-score">${student.totalScore} <span class="student-score-label">คะแนน</span></div>
+                            <div class="badges-container">${badgesHtml}</div>
+                            <div class="progress-container">
+                                <div class="progress-bar" style="width: ${student.progress}%;">${student.progress > 15 ? student.progress + '%' : ''}</div>
+                            </div>
+                        </div>
+                    </div>
+                  </li>`;
+        }).join('');
+    }
 
-        if (!aIsSubmitted && !bIsSubmitted) {
-            if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
-            if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
-            return a.dueDate - b.dueDate;
+    function renderAdminView() {
+        const container = document.getElementById('admin-view');
+        if (!adminData || !adminData.students || !adminData.missions) {
+            container.innerHTML = "<p>กำลังโหลดข้อมูล Admin...</p>";
+            return;
+        }
+        const studentOptions = adminData.students.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        const missionOptions = adminData.missions.map(m => `<option value="${m}">${m}</option>`).join('');
+
+        container.innerHTML = `
+            <div class="admin-section">
+                <h3><i class="fas fa-clipboard-check"></i> ให้คะแนน</h3>
+                <form id="grade-form" class="admin-form grade-form" onsubmit="handleGradeSubmission(event)">
+                    <div><label for="student-select">เลือกนักเรียน</label><select id="student-select" required>${studentOptions}</select></div>
+                    <div><label for="mission-select">เลือกภารกิจ</label><select id="mission-select" required>${missionOptions}</select></div>
+                    <div class="full-width"><label for="score-input">คะแนนที่ให้</label><input type="number" id="score-input" placeholder="เช่น 10" required></div>
+                    <button type="submit" class="btn-primary full-width">บันทึกคะแนน</button>
+                </form>
+            </div>
+            <div class="admin-section">
+                <h3><i class="fas fa-plus-circle"></i> จัดการภารกิจ</h3>
+                <form id="mission-form" class="admin-form" onsubmit="handleAddMission(event)">
+                    <div class="full-width"><label for="mission-topic">หัวข้อภารกิจ (Topic)</label><input type="text" id="mission-topic" required></div>
+                    <div class="full-width"><label for="mission-detail">รายละเอียด (Detail)</label><input type="text" id="mission-detail"></div>
+                    <div><label for="mission-due">กำหนดส่ง (Due Date)</label><input type="date" id="mission-due"></div>
+                    <div><label for="mission-points">คะแนนเต็ม (Max Points)</label><input type="number" id="mission-points" required></div>
+                    <button type="submit" class="btn-primary full-width">เพิ่มภารกิจ</button>
+                </form>
+                <h4 style="margin-top: 20px;">รายการภารกิจปัจจุบัน</h4>
+                <ul id="admin-mission-list">
+                    ${allMissions.map(m => `<li class="admin-mission-item"><span>${m.topic}</span><button class="btn-delete" onclick="handleDeleteMission('${m.topic}')">ลบ</button></li>`).join('')}
+                </ul>
+            </div>
+            <div class="admin-section">
+                <h3><i class="fas fa-magic"></i> เครื่องมือซ่อมแซมข้อมูล</h3>
+                <div id="repair-tool-status">
+                    <p>กดปุ่ม "วิเคราะห์ข้อมูล" เพื่อตรวจสอบความผิดพลาดในชีต Submissions</p>
+                    <button class="btn-primary" onclick="runAnalysis()"><i class="fas fa-search"></i> วิเคราะห์ข้อมูล</button>
+                </div>
+                <div id="repair-tool-results" style="display:none;"></div>
+            </div>`;
+    }
+
+    // ======================================================
+    // USER MANAGEMENT & UI UPDATES
+    // ======================================================
+    async function initializeUser() {
+        const storedUsername = localStorage.getItem('leaderboardUser');
+        if (storedUsername) {
+          try {
+            const sessionResult = await fetchGet({ action: 'checkUserSession', username: storedUsername });
+            currentUser = (sessionResult && sessionResult.user) ? sessionResult.user : null;
+            if (!currentUser) localStorage.removeItem('leaderboardUser');
+          } catch(err) {
+            console.error("Session check failed:", err);
+            localStorage.removeItem('leaderboardUser');
+            currentUser = null;
+          }
+        }
+        updateUserUI();
+    }
+  
+    function updateUserUI() {
+        const userPic = document.getElementById('user-area-pic');
+        const loginText = document.getElementById('login-text');
+        const adminTab = document.getElementById('admin-tab');
+
+        if(!userPic || !loginText || !adminTab) return;
+
+        const defaultPic = 'https://i.ibb.co/6y4jMWT/default-avatar.png';
+        
+        if (currentUser) {
+            userPic.src = currentUser.profileUrl || defaultPic;
+            loginText.style.display = 'none';
+            
+            const userRecord = fullSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
+            
+            document.getElementById('profile-preview').src = userPic.src;
+            document.getElementById('profile-name').innerText = currentUser.name;
+            document.getElementById('profile-score-text').innerText = userRecord ? `คะแนนรวม: ${userRecord.totalScore}` : 'ไม่พบข้อมูลคะแนน';
+            
+            if (currentUser.role === 'admin') {
+                adminTab.classList.add('visible');
+            } else {
+                adminTab.classList.remove('visible');
+            }
+        } else {
+            userPic.src = defaultPic;
+            loginText.style.display = 'inline';
+            adminTab.classList.remove('visible');
+        }
+    }
+  
+    async function handleLogin() {
+        const username = document.getElementById('username-input').value.trim();
+        const password = document.getElementById('password-input').value.trim();
+        const errorEl = document.getElementById('login-error');
+
+        if (!username || !password) {
+            errorEl.innerText = "กรุณากรอกข้อมูลให้ครบถ้วน";
+            return;
+        }
+        errorEl.innerText = "กำลังตรวจสอบ...";
+
+        try {
+            const result = await fetchGet({ action: 'userLogin', username: username, password: password });
+            if (result.success) {
+                currentUser = result.user;
+                localStorage.setItem('leaderboardUser', currentUser.username);
+                closeModal('login-modal');
+                document.getElementById('username-input').value = '';
+                document.getElementById('password-input').value = '';
+                errorEl.innerText = "";
+                await loadInitialData();
+            } else {
+                errorEl.innerText = result.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
+            }
+        } catch (error) {
+            console.error("Login failed:", error);
+            errorEl.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
+        }
+    }
+  
+    async function handleLogout() {
+        localStorage.removeItem('leaderboardUser');
+        currentUser = null;
+        currentUserSubmissions = [];
+        await loadInitialData();
+        closeModal('profile-modal');
+    }
+
+    function handleFileSelect(event) {
+        // This is for Profile Picture upload, using the old base64 method.
+        // It's separate from the mission submission system.
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (file.size > 1 * 1024 * 1024) {
+            showToast("ขนาดไฟล์ต้องไม่เกิน 1MB", true);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = async function() {
+            const fileData = reader.result;
+            const profileMessage = document.getElementById('profile-message');
+            
+            profileMessage.innerText = 'กำลังอัปโหลด...';
+            showLoader(true, "กำลังอัปโหลดรูปภาพ...");
+
+            try {
+                const params = {
+                    studentId: currentUser.studentId,
+                    fileName: file.name,
+                    fileData: fileData
+                };
+                const result = await postAdminAction('uploadProfileImage', params);
+                if (result.success) {
+                    showToast(result.message);
+                    profileMessage.innerText = '';
+                    document.getElementById('profile-preview').src = result.imageUrl;
+                    document.getElementById('user-area-pic').src = result.imageUrl;
+                    currentUser.profileUrl = result.imageUrl;
+                    const studentInLeaderboard = fullSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
+                    if(studentInLeaderboard) {
+                        studentInLeaderboard.profileUrl = result.imageUrl;
+                        renderStudentList();
+                    }
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                profileMessage.innerText = '';
+                showToast(`อัปโหลดล้มเหลว: ${error.message}`, true);
+            } finally {
+                showLoader(false);
+                event.target.value = ''; 
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // ======================================================
+    // ADMIN ACTIONS
+    // ======================================================
+    async function handleAddMission(event) {
+        event.preventDefault();
+        const params = {
+            topic: document.getElementById('mission-topic').value,
+            detail: document.getElementById('mission-detail').value,
+            dueDate: document.getElementById('mission-due').value,
+            maxPoints: document.getElementById('mission-points').value
+        };
+        showLoader(true, "กำลังเพิ่มภารกิจ...");
+        try {
+            const result = await postAdminAction('addMission', params);
+            showToast(result.message || result.error, !result.success);
+            if (result.success) {
+                document.getElementById('mission-form').reset();
+                await loadInitialData();
+            }
+        } catch (error) { showToast(error.message, true); }
+        finally { showLoader(false); }
+    }
+
+    async function handleDeleteMission(topic) {
+        if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจ "${topic}"?`)) return;
+        showLoader(true, "กำลังลบภารกิจ...");
+        try {
+            const result = await postAdminAction('deleteMission', { topic: topic });
+            showToast(result.message || result.error, !result.success);
+            if (result.success) {
+                await loadInitialData();
+            }
+        } catch (error) { showToast(error.message, true); }
+        finally { showLoader(false); }
+    }
+
+    async function handleGradeSubmission(event) {
+        event.preventDefault();
+        const params = {
+            studentId: document.getElementById('student-select').value,
+            missionTopic: document.getElementById('mission-select').value,
+            score: document.getElementById('score-input').value
+        };
+        showLoader(true, "กำลังบันทึกคะแนน...");
+        try {
+            const result = await postAdminAction('gradeSubmission', params);
+            showToast(result.message || result.error, !result.success);
+            if (result.success) {
+                document.getElementById('grade-form').reset();
+                await loadInitialData();
+            }
+        } catch (error) { showToast(error.message, true); }
+        finally { showLoader(false); }
+    }
+
+    // ======================================================
+    // ADMIN REPAIR TOOL FUNCTIONS
+    // ======================================================
+    async function runAnalysis() {
+        showLoader(true, "กำลังวิเคราะห์ข้อมูลในชีต...");
+        const statusDiv = document.getElementById('repair-tool-status');
+        const resultsDiv = document.getElementById('repair-tool-results');
+        try {
+            const result = await fetchGet({ action: 'analyzeData' });
+            if (result.error) throw new Error(result.error);
+            statusDiv.style.display = 'none';
+            resultsDiv.style.display = 'block';
+            displayAnalysisResults(result.data);
+        } catch (error) {
+            resultsDiv.innerHTML = `<p class="modal-error">เกิดข้อผิดพลาด: ${error.message}</p>`;
+            resultsDiv.style.display = 'block';
+        } finally {
+            showLoader(false);
+        }
+    }
+
+    function displayAnalysisResults(data) {
+        const resultsDiv = document.getElementById('repair-tool-results');
+        let html = `<p>ผลการวิเคราะห์: พบข้อมูลที่อาจผิดพลาด <strong>${data.errorCount}</strong> จากทั้งหมด ${data.totalRows} รายการ</p>`;
+        if (data.errorCount > 0) {
+            html += `<div style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; margin-bottom: 15px;"><table class="detail-table"><thead><tr><th>แถวที่</th><th>ตัวอย่างข้อมูลที่ผิด</th></tr></thead><tbody>${data.errors.map(err => `<tr><td style="text-align:center;">${err.rowNumber}</td><td><small>${err.originalData.map(d => d instanceof Date ? d.toLocaleString('sv-SE') : d).join(', ')}</small></td></tr>`).join('')}</tbody></table></div><p style="font-size:0.9em; opacity:0.8;">การกดปุ่มด้านล่างจะสร้างชีต Backup อัตโนมัติก่อนทำการแก้ไข</p><button class="btn-danger" onclick="handleRepairData()"><i class="fas fa-exclamation-triangle"></i> ใช่, ดำเนินการซ่อมแซม ${data.errorCount} รายการ</button>`;
+        } else {
+            html += `<p style="color:var(--status-graded);"><strong>เยี่ยม!</strong> ไม่พบข้อมูลที่ผิดพลาดในชีตของคุณ</p>`;
+        }
+        html += `<button class="btn-secondary" style="margin-top:10px;" onclick="resetRepairTool()">กลับ</button>`;
+        resultsDiv.innerHTML = html;
+    }
+
+    function resetRepairTool() {
+        document.getElementById('repair-tool-status').style.display = 'block';
+        document.getElementById('repair-tool-results').style.display = 'none';
+        document.getElementById('repair-tool-results').innerHTML = '';
+    }
+
+    async function handleRepairData() {
+        if (!confirm("ยืนยันการซ่อมแซมข้อมูล?\n\nระบบจะสร้างชีต Backup ให้โดยอัตโนมัติก่อนเริ่ม")) return;
+        showLoader(true, "กำลังสร้าง Backup และซ่อมแซมข้อมูล...");
+        try {
+            const result = await fetchGet({ action: 'repairData' });
+            showToast(result.message || result.error, !result.success);
+            if (result.success && result.backupName) {
+                document.getElementById('repair-tool-results').innerHTML = `<p style="color:var(--status-graded);">${result.message}</p><p>หากผลลัพธ์ไม่ถูกต้อง คุณสามารถย้อนกลับได้ 1 ครั้ง</p><button class="btn-primary" onclick="handleUndo()"><i class="fas fa-undo"></i> ย้อนกลับ (Undo)</button><button class="btn-secondary" style="margin-top:10px;" onclick="resetRepairTool()">เสร็จสิ้น</button>`;
+                await loadInitialData();
+            } else if (result.success) {
+               resetRepairTool();
+            }
+        } catch (error) { showToast(error.message, true); }
+        finally { showLoader(false); }
+    }
+
+    async function handleUndo() {
+        if (!confirm("คุณต้องการย้อนกลับการแก้ไขล่าสุดใช่หรือไม่?")) return;
+        showLoader(true, "กำลังย้อนกลับข้อมูล...");
+        try {
+            const result = await fetchGet({ action: 'undoRepair' });
+            showToast(result.message || result.error, !result.success);
+            if (result.success) {
+                resetRepairTool();
+                await loadInitialData();
+            }
+        } catch (error) { showToast(error.message, true); }
+        finally { showLoader(false); }
+    }
+      
+    // ======================================================
+    // EVENT HANDLERS & UTILITIES
+    // ======================================================
+    function renderMapView() {
+        const container = document.getElementById('map-view-container');
+        if (!container) return;
+        if (!missionsLoaded) {
+            container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
+            return;
         }
         
-        if (aIsSubmitted && bIsSubmitted) {
-            return b.dueDate - a.dueDate;
+        const submissionMap = currentUserSubmissions.length > 0 
+            ? new Map(currentUserSubmissions.map(task => [task.task, task]))
+            : new Map();
+
+        const sortedMissions = [...allMissions].sort((a, b) => {
+            const aSub = submissionMap.get(a.topic);
+            const bSub = submissionMap.get(b.topic);
+            
+            const aIsSubmitted = aSub && aSub.status !== 'ยังไม่ส่ง';
+            const bIsSubmitted = bSub && bSub.status !== 'ยังไม่ส่ง';
+            
+            if (!aIsSubmitted && bIsSubmitted) return -1;
+            if (aIsSubmitted && !bIsSubmitted) return 1;
+
+            if (!aIsSubmitted && !bIsSubmitted) {
+                if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
+                if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
+                return a.dueDate - b.dueDate;
+            }
+            
+            if (aIsSubmitted && bIsSubmitted) {
+                return b.dueDate - a.dueDate;
+            }
+
+            return 0;
+        });
+        
+        let missionHtml = '';
+        sortedMissions.forEach((mission, index) => {
+            let statusClass = '';
+            let iconHtml = '...';
+
+            const sub = submissionMap.get(mission.topic);
+
+            if (sub && sub.status === 'ตรวจแล้ว') {
+                statusClass = 'completed';
+                iconHtml = `✔️ ${sub.score}`;
+            } else if (sub && sub.status === 'รอตรวจ') {
+                statusClass = 'completed pending';
+                iconHtml = '⌛';
+            } else { 
+                if (mission.timingStatus === 'active') {
+                    statusClass = 'available';
+                    if (mission.urgency === 'urgent') statusClass += ' urgent-node';
+                    iconHtml = `<b>${mission.maxPoints}</b><small>pt</small>`;
+                } else {
+                    statusClass = 'locked';
+                    if (mission.timingStatus === 'past') statusClass += ' overdue-node';
+                    iconHtml = '🔒';
+                }
+            }
+            
+            const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
+            missionHtml += `
+              <div class="mission-row ${rowClass}">
+                <div class="mission-node ${statusClass}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
+                  <div class="mission-node-topic">${mission.topic}</div>
+                  <div class="mission-node-points">${iconHtml}</div> 
+                </div>
+              </div>
+            `;
+        });
+        
+        container.innerHTML = missionHtml || '<div style="text-align:center; padding: 50px; color: #fff;">เยี่ยม! ไม่มีภารกิจที่ได้รับมอบหมายในขณะนี้</div>';
+    }
+            
+    function showMissionDetail(topic) {
+        const mission = allMissions.find(m => m.topic === topic);
+        if (!mission) return;
+
+        const submission = currentUserSubmissions.find(s => s.task === topic);
+
+        document.getElementById('modal-mission-topic').innerText = mission.topic;
+        document.getElementById('modal-mission-detail').innerText = mission.detail || '(ไม่มีรายละเอียดเพิ่มเติม)';
+        document.getElementById('modal-mission-maxPoints').innerText = `${mission.maxPoints} คะแนน`;
+
+        const isActuallySubmitted = submission && submission.status !== 'ยังไม่ส่ง';
+        const dueDateEl = document.getElementById('modal-mission-dueDate');
+        let deadlineText = `ส่งภายในวันที่: ${mission.dueDateString}`;
+        if (mission.urgency === 'urgent' && !isActuallySubmitted) {
+            deadlineText += ' <span style="color: #e74c3c; font-weight: bold;">(ใกล้หมดเขต!)</span>';
+        } else if (mission.timingStatus === 'past' && !isActuallySubmitted) {
+            deadlineText += ' <span style="color: #95a5a6; font-weight: bold;">(เลยกำหนดส่ง)</span>';
         }
-
-        return 0;
-    });
-    
-    let missionHtml = '';
-    sortedMissions.forEach((mission, index) => {
-        let statusClass = '';
-        let iconHtml = '...';
-
-        const sub = submissionMap.get(mission.topic);
-
-        if (sub && sub.status === 'ตรวจแล้ว') {
-            statusClass = 'completed';
-            iconHtml = `✔️ ${sub.score}`;
-        } else if (sub && sub.status === 'รอตรวจ') {
-            statusClass = 'completed pending';
-            iconHtml = '⌛';
+        dueDateEl.innerHTML = deadlineText;
+        
+        const userStatusEl = document.getElementById('modal-mission-user-status');
+        const actionsContainer = document.getElementById('modal-mission-actions');
+        
+        let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
+        
+        if (submission && submission.status === 'ตรวจแล้ว') {
+            userStatusEl.innerHTML = `<span style="color: var(--status-graded); font-weight: bold;">ตรวจแล้ว (ได้ ${submission.score} / ${mission.maxPoints} คะแนน) ✔️</span>`;
+        } else if (submission && submission.status === 'รอตรวจ') {
+            userStatusEl.innerHTML = `<span style="color: var(--status-pending); font-weight: bold;">ส่งแล้ว (รอการตรวจสอบ) ⌛</span>`;
+            actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">แก้ไขการส่ง</button>` + actionsHtml;
         } else { 
             if (mission.timingStatus === 'active') {
-                statusClass = 'available';
-                if (mission.urgency === 'urgent') statusClass += ' urgent-node';
-                iconHtml = `<b>${mission.maxPoints}</b><small>pt</small>`;
+                userStatusEl.innerHTML = `<span style="font-weight: bold; color: var(--gold-color);">รอส่งงาน</span>`;
+                actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">ส่งงาน</button>` + actionsHtml;
+            } else if (mission.timingStatus === 'upcoming') {
+                userStatusEl.innerHTML = `<span>ยังไม่ถึงเวลามอบหมาย (เริ่มวันที่ ${mission.assignedDateString})</span>`;
             } else {
-                statusClass = 'locked';
-                if (mission.timingStatus === 'past') statusClass += ' overdue-node';
-                iconHtml = '🔒';
+                userStatusEl.innerHTML = `<span style="color: #e74c3c;">เลยกำหนดส่งแล้ว</span>`;
             }
         }
+
+        actionsContainer.innerHTML = actionsHtml;
         
-        const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
-        missionHtml += `
-          <div class="mission-row ${rowClass}">
-            <div class="mission-node ${statusClass}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
-              <div class="mission-node-topic">${mission.topic}</div>
-              <div class="mission-node-points">${iconHtml}</div> 
-            </div>
-          </div>
-        `;
-    });
-    
-    container.innerHTML = missionHtml || '<div style="text-align:center; padding: 50px; color: #fff;">เยี่ยม! ไม่มีภารกิจที่ได้รับมอบหมายในขณะนี้</div>';
-}
-        
-function showMissionDetail(topic) {
-    const mission = allMissions.find(m => m.topic === topic);
-    if (!mission) return;
-
-    const submission = currentUserSubmissions.find(s => s.task === topic);
-
-    document.getElementById('modal-mission-topic').innerText = mission.topic;
-    document.getElementById('modal-mission-detail').innerText = mission.detail || '(ไม่มีรายละเอียดเพิ่มเติม)';
-    document.getElementById('modal-mission-maxPoints').innerText = `${mission.maxPoints} คะแนน`;
-
-    const isActuallySubmitted = submission && submission.status !== 'ยังไม่ส่ง';
-    const dueDateEl = document.getElementById('modal-mission-dueDate');
-    let deadlineText = `ส่งภายในวันที่: ${mission.dueDateString}`;
-    if (mission.urgency === 'urgent' && !isActuallySubmitted) {
-        deadlineText += ' <span style="color: #e74c3c; font-weight: bold;">(ใกล้หมดเขต!)</span>';
-    } else if (mission.timingStatus === 'past' && !isActuallySubmitted) {
-        deadlineText += ' <span style="color: #95a5a6; font-weight: bold;">(เลยกำหนดส่ง)</span>';
+        openModal('mission-detail-modal');
     }
-    dueDateEl.innerHTML = deadlineText;
-    
-    const userStatusEl = document.getElementById('modal-mission-user-status');
-    const actionsContainer = document.getElementById('modal-mission-actions');
-    
-    let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
-    
-    if (submission && submission.status === 'ตรวจแล้ว') {
-        userStatusEl.innerHTML = `<span style="color: var(--status-graded); font-weight: bold;">ตรวจแล้ว (ได้ ${submission.score} / ${mission.maxPoints} คะแนน) ✔️</span>`;
-    } else if (submission && submission.status === 'รอตรวจ') {
-        userStatusEl.innerHTML = `<span style="color: var(--status-pending); font-weight: bold;">ส่งแล้ว (รอการตรวจสอบ) ⌛</span>`;
-        actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">แก้ไขการส่ง</button>` + actionsHtml;
-    } else { 
-        if (mission.timingStatus === 'active') {
-            userStatusEl.innerHTML = `<span style="font-weight: bold; color: var(--gold-color);">รอส่งงาน</span>`;
-            actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">ส่งงาน</button>` + actionsHtml;
-        } else if (mission.timingStatus === 'upcoming') {
-            userStatusEl.innerHTML = `<span>ยังไม่ถึงเวลามอบหมาย (เริ่มวันที่ ${mission.assignedDateString})</span>`;
-        } else {
-            userStatusEl.innerHTML = `<span style="color: #e74c3c;">เลยกำหนดส่งแล้ว</span>`;
+
+    function openSubmissionModal(topic) {
+        currentMissionTopic = topic;
+        
+        document.getElementById('submission-form-area').style.display = 'block';
+        document.getElementById('submission-loader').style.display = 'none';
+        document.getElementById('submission-buttons').style.display = 'block';
+        document.getElementById('submission-link').value = '';
+        document.getElementById('submission-comment').value = '';
+        document.getElementById('submission-file').value = '';
+        document.getElementById('file-upload-status').innerText = '';
+        document.getElementById('submission-error').innerText = '';
+        document.getElementById('submission-modal-topic').innerText = topic;
+        
+        closeModal('mission-detail-modal');
+        openModal('submission-modal');
+    }
+
+    async function handleSubmitMission() {
+        const errorEl = document.getElementById('submission-error');
+        const link = document.getElementById('submission-link').value.trim();
+        const comment = document.getElementById('submission-comment').value.trim();
+        const fileInput = document.getElementById('submission-file');
+        const file = fileInput.files[0];
+
+        if (!link && !comment && !file) {
+            errorEl.innerText = 'กรุณากรอกลิงก์, ข้อความ, หรือแนบไฟล์อย่างน้อย 1 อย่าง';
+            return;
         }
-    }
 
-    actionsContainer.innerHTML = actionsHtml;
-    
-    openModal('mission-detail-modal');
-}
+        document.getElementById('submission-form-area').style.display = 'none';
+        document.getElementById('submission-buttons').style.display = 'none';
+        document.getElementById('submission-loader').style.display = 'block';
+        errorEl.innerText = '';
+        
+        let proofUrl = '';
 
-let currentMissionTopic = null;
+        if (file) {
+            try {
+                document.getElementById('submission-loader-text').innerText = 'กำลังขออนุญาตอัปโหลด...';
+                
+                const urlResponse = await postAdminAction('createUploadUrl', {
+                    fileType: file.type,
+                    missionTopic: currentMissionTopic
+                });
 
-function openSubmissionModal(topic) {
-    currentMissionTopic = topic;
-    
-    document.getElementById('submission-form-area').style.display = 'block';
-    document.getElementById('submission-loader').style.display = 'none';
-    document.getElementById('submission-buttons').style.display = 'block';
-    document.getElementById('submission-link').value = '';
-    document.getElementById('submission-comment').value = '';
-    document.getElementById('submission-file').value = '';
-    document.getElementById('file-upload-status').innerText = '';
-    document.getElementById('submission-error').innerText = '';
-    document.getElementById('submission-modal-topic').innerText = topic;
-    
-    closeModal('mission-detail-modal');
-    openModal('submission-modal');
-}
+                if (!urlResponse.success) throw new Error(urlResponse.error);
+                
+                document.getElementById('submission-loader-text').innerText = 'กำลังอัปโหลดไฟล์...';
+                const uploadResponse = await fetch(urlResponse.uploadUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: { 'Content-Type': file.type }
+                });
 
-async function handleSubmitMission() {
-    const errorEl = document.getElementById('submission-error');
-    const link = document.getElementById('submission-link').value.trim();
-    const comment = document.getElementById('submission-comment').value.trim();
-    const fileInput = document.getElementById('submission-file');
-    const file = fileInput.files[0];
+                if (!uploadResponse.ok) throw new Error('การอัปโหลดไฟล์ล้มเหลว');
 
-    if (!link && !comment && !file) {
-        errorEl.innerText = 'กรุณากรอกลิงก์, ข้อความ, หรือแนบไฟล์อย่างน้อย 1 อย่าง';
-        return;
-    }
+                const fileCheckUrl = `https://www.googleapis.com/drive/v2/files?q=title='${encodeURIComponent(urlResponse.newFileName)}'&fields=items(alternateLink)`;
+                const token = await new Promise((resolve, reject) => google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getOAuthToken());
 
-    document.getElementById('submission-form-area').style.display = 'none';
-    document.getElementById('submission-buttons').style.display = 'none';
-    document.getElementById('submission-loader').style.display = 'block';
-    errorEl.innerText = '';
-    
-    let proofUrl = '';
-
-    if (file) {
-        try {
-            document.getElementById('submission-loader-text').innerText = 'กำลังขออนุญาตอัปโหลด...';
-            
-            const urlResponse = await postAdminAction('createUploadUrl', {
-                fileType: file.type,
-                missionTopic: currentMissionTopic
-            });
-
-            if (!urlResponse.success) throw new Error(urlResponse.error);
-            
-            document.getElementById('submission-loader-text').innerText = 'กำลังอัปโหลดไฟล์...';
-            const uploadResponse = await fetch(urlResponse.uploadUrl, {
-                method: 'PUT',
-                body: file,
-                headers: { 'Content-Type': file.type }
-            });
-
-            if (!uploadResponse.ok) throw new Error('การอัปโหลดไฟล์ล้มเหลว');
-
-            const fileCheckUrl = `https://www.googleapis.com/drive/v2/files?q=title='${encodeURIComponent(urlResponse.newFileName)}'&fields=items(alternateLink)`;
-            const token = await new Promise((resolve, reject) => google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getOAuthToken());
-
-            let fileDetails;
-            for (let i = 0; i < 3; i++) {
-                const fileDetailsResponse = await fetch(fileCheckUrl, { headers: { Authorization: "Bearer " + token }});
-                fileDetails = await fileDetailsResponse.json();
-                if (fileDetails.items && fileDetails.items.length > 0) {
-                    proofUrl = fileDetails.items[0].alternateLink;
-                    break;
+                let fileDetails;
+                for (let i = 0; i < 3; i++) {
+                    const fileDetailsResponse = await fetch(fileCheckUrl, { headers: { Authorization: "Bearer " + token }});
+                    fileDetails = await fileDetailsResponse.json();
+                    if (fileDetails.items && fileDetails.items.length > 0) {
+                        proofUrl = fileDetails.items[0].alternateLink;
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                 }
-                await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-            if (!proofUrl) throw new Error("ไม่สามารถหาไฟล์ที่อัปโหลดพบใน Drive");
+                if (!proofUrl) throw new Error("ไม่สามารถหาไฟล์ที่อัปโหลดพบใน Drive");
 
+            } catch (error) {
+                errorEl.innerText = `เกิดข้อผิดพลาดระหว่างอัปโหลด: ${error.message}`;
+                document.getElementById('submission-form-area').style.display = 'block';
+                document.getElementById('submission-buttons').style.display = 'block';
+                document.getElementById('submission-loader').style.display = 'none';
+                return;
+            }
+        }
+
+        try {
+            document.getElementById('submission-loader-text').innerText = 'กำลังบันทึกข้อมูล...';
+            
+            const submissionResult = await postAdminAction('submitMission', {
+                missionTopic: currentMissionTopic,
+                submissionLink: link,
+                submissionComment: comment,
+                proofUrl: proofUrl
+            });
+
+            if (submissionResult.success) {
+                showToast(submissionResult.message);
+                closeModal('submission-modal');
+                await loadInitialData();
+            } else {
+                throw new Error(submissionResult.error);
+            }
         } catch (error) {
-            errorEl.innerText = `เกิดข้อผิดพลาดระหว่างอัปโหลด: ${error.message}`;
+            errorEl.innerText = `เกิดข้อผิดพลาดตอนบันทึก: ${error.message}`;
             document.getElementById('submission-form-area').style.display = 'block';
             document.getElementById('submission-buttons').style.display = 'block';
             document.getElementById('submission-loader').style.display = 'none';
-            return;
+        }
+    }
+    
+    function filterStudentList() {
+        const searchTerm = document.getElementById('search-student').value.toLowerCase();
+        filteredSummaryData = searchTerm ? fullSummaryData.filter(s => s.name.toLowerCase().includes(searchTerm)) : [...fullSummaryData];
+        renderStudentList();
+    }
+
+    function handleUserAreaClick(){ currentUser ? openModal("profile-modal") : openModal("login-modal"); }
+    function openModal(id){ document.getElementById(id)?.classList.add("visible"); }
+    function closeModal(id){ document.getElementById(id)?.classList.remove("visible"); }
+
+    async function showStudentDetailModal(studentId) {
+        const student = fullSummaryData.find(s => String(s.studentId) === String(studentId));
+        if (!student) return;
+
+        document.getElementById('detail-modal-pic').src = student.profileUrl || 'https://i.ibb.co/6y4jMWT/default-avatar.png';
+        document.getElementById('detail-modal-name').innerText = student.name;
+        document.getElementById('detail-modal-score').innerText = `คะแนนรวม: ${student.totalScore}`;
+        document.getElementById('detail-modal-badges').innerHTML = (student.earnedBadges || []).map(b => `<div class="badge-tooltip"><img src="${b.iconUrl}" alt="${b.name}" class="badge-icon"><span class="tooltip-text"><b>${b.name}</b><br>${b.description}</span></div>`).join('');
+        
+        const body = document.getElementById('detail-modal-body');
+        body.innerHTML = '<div style="text-align:center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> กำลังโหลดรายละเอียด...</div>';
+        openModal('student-detail-modal');
+        
+        try {
+            const result = await fetchGet({ action: "getStudentDetail", studentId: studentId });
+            if (result.error) throw new Error(result.error);
+            displayDetailsInModal(result.data);
+        } catch(err) {
+            body.innerHTML = `<p style="color: var(--danger-color); text-align: center;">เกิดข้อผิดพลาด: ${err.message}</p>`;
         }
     }
 
-    try {
-        document.getElementById('submission-loader-text').innerText = 'กำลังบันทึกข้อมูล...';
-        
-        const submissionResult = await postAdminAction('submitMission', {
-            missionTopic: currentMissionTopic,
-            submissionLink: link,
-            submissionComment: comment,
-            proofUrl: proofUrl
-        });
-
-        if (submissionResult.success) {
-            showToast(submissionResult.message);
-            closeModal('submission-modal');
-            await loadInitialData();
-        } else {
-            throw new Error(submissionResult.error);
+    function switchView(viewId) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        const tabElement = document.querySelector(`.tab[onclick="switchView('${viewId}')"]`);
+        if (tabElement) {
+            tabElement.classList.add('active');
         }
-    } catch (error) {
-        errorEl.innerText = `เกิดข้อผิดพลาดตอนบันทึก: ${error.message}`;
-        document.getElementById('submission-form-area').style.display = 'block';
-        document.getElementById('submission-buttons').style.display = 'block';
-        document.getElementById('submission-loader').style.display = 'none';
+    
+        document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
+        const viewElement = document.getElementById(viewId);
+        if (viewElement) {
+            viewElement.classList.add('active');
+        }
+    
+        if (viewId === 'map-view-container') {
+            renderMapView();
+        } 
+        else if (viewId === 'admin-view') {
+            loadAdminData();
+        }
     }
-}
-                  function filterStudentList() {
-                    const searchTerm = document.getElementById('search-student').value.toLowerCase();
-                    filteredSummaryData = searchTerm ? fullSummaryData.filter(s => s.name.toLowerCase().includes(searchTerm)) : [...fullSummaryData];
-                    renderStudentList();
-                  }
-            
-                  function handleUserAreaClick(){ currentUser ? openModal("profile-modal") : openModal("login-modal"); }
-                  function openModal(id){ document.getElementById(id)?.classList.add("visible"); }
-                  function closeModal(id){ document.getElementById(id)?.classList.remove("visible"); }
-            
-                  async function showStudentDetailModal(studentId) {
-                      const student = fullSummaryData.find(s => String(s.studentId) === String(studentId));
-                      if (!student) return;
-            
-                      document.getElementById('detail-modal-pic').src = student.profileUrl || 'https://i.ibb.co/6y4jMWT/default-avatar.png';
-                      document.getElementById('detail-modal-name').innerText = student.name;
-                      document.getElementById('detail-modal-score').innerText = `คะแนนรวม: ${student.totalScore}`;
-                      document.getElementById('detail-modal-badges').innerHTML = (student.earnedBadges || []).map(b => `<div class="badge-tooltip"><img src="${b.iconUrl}" alt="${b.name}" class="badge-icon"><span class="tooltip-text"><b>${b.name}</b><br>${b.description}</span></div>`).join('');
-                      
-                      const body = document.getElementById('detail-modal-body');
-                      body.innerHTML = '<div style="text-align:center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> กำลังโหลดรายละเอียด...</div>';
-                      openModal('student-detail-modal');
-                      
-                      try {
-                          const result = await fetchGet({ action: "getStudentDetail", studentId: studentId });
-                          if (result.error) throw new Error(result.error);
-                          displayDetailsInModal(result.data);
-                      } catch(err) {
-                          body.innerHTML = `<p style="color: var(--danger-color); text-align: center;">เกิดข้อผิดพลาด: ${err.message}</p>`;
-                      }
-                  }
 
-                function switchView(viewId) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            const tabElement = document.querySelector(`.tab[onclick="switchView('${viewId}')"]`);
-            if (tabElement) {
-                tabElement.classList.add('active');
-            }
-        
-            document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
-            const viewElement = document.getElementById(viewId);
-            if (viewElement) {
-                viewElement.classList.add('active');
-            }
-        
-            if (viewId === 'map-view-container') {
-                renderMapView();
-            } 
-            else if (viewId === 'admin-view') {
-                loadAdminData();
-            }
-        }
-
-      function displayDetailsInModal(data) {
+    function displayDetailsInModal(data) {
         if (!data || !data.tasks) {
             document.getElementById('detail-modal-body').innerHTML = '<p>ไม่พบข้อมูลรายละเอียด</p>';
             return;
@@ -897,9 +896,9 @@ async function handleSubmitMission() {
         });
         tableHtml += '</tbody></table>';
         document.getElementById('detail-modal-body').innerHTML = tableHtml;
-      }
-      
-      function showLoader(show, text = "กำลังโหลด...") {
+    }
+  
+    function showLoader(show, text = "กำลังโหลด...") {
         const loader = document.getElementById('initial-loader');
         const mainContent = document.getElementById('main-content-wrapper');
         if (show) {
@@ -910,18 +909,18 @@ async function handleSubmitMission() {
           if(loader) loader.style.display = 'none';
           if(mainContent) mainContent.style.display = 'block';
         }
-      }
+    }
 
-      function showError(error) {
+    function showError(error) {
         console.error(error);
         const errorMsg = (error && error.message) ? error.message : "เกิดข้อผิดพลาดไม่ทราบสาเหตุ";
         const appContainer = document.getElementById('app-container');
         if (appContainer) {
           appContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: #ffb8b8; background: rgba(0,0,0,0.3); border-radius: 10px;"><h3>เกิดข้อผิดพลาด</h3><p>${errorMsg}</p></div>`;
         }
-      }
+    }
 
-      function showToast(message, isError = false) {
+    function showToast(message, isError = false) {
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');
@@ -936,7 +935,7 @@ async function handleSubmitMission() {
             toast.classList.remove('show');
             setTimeout(() => { if (container.contains(toast)) container.removeChild(toast); }, 300);
         }, 4000);
-      }
+    }
     </script>
 </body>
 </html>

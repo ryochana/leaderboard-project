@@ -1,4 +1,6 @@
 // นี่คือโค้ดที่จะรันบนเซิร์ฟเวอร์ของ Netlify (Node.js)
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const FormData = require('form-data');
 
 exports.handler = async function(event, context) {
     // 1. ดึง URL ของ Google Apps Script มาจาก Environment Variable เพื่อความปลอดภัย
@@ -35,25 +37,79 @@ exports.handler = async function(event, context) {
             return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
         }
 
-    } else if (event.httpMethod === "POST") {
-        // สำหรับ POST, เราส่งต่อ body ที่ได้รับมา
+    // proxy.js -> ส่วนของ POST
+} else if (event.httpMethod === "POST") {
+    const body = JSON.parse(event.body);
+    const action = body.action;
+
+    // --- ส่วนที่เพิ่มเข้ามา ---
+    if (action === 'uploadProfileImage') {
+        // ถ้าเป็นการอัปโหลดรูป ให้จัดการที่นี่โดยตรง
         try {
-            const fetch = (await import('node-fetch')).default;
-            const response = await fetch(GOOGLE_SCRIPT_URL, {
+            const IMGBB_API_KEY = process.env.VITE_IMGBB_API_KEY;
+            if (!IMGBB_API_KEY) throw new Error("IMGBB API Key is not configured in Netlify.");
+
+            // data:image/jpeg;base64,/9j/4AAQSkZJRg...
+            // เราต้องการแค่ส่วนที่เป็น base64
+            const base64Data = body.fileData.split(',')[1];
+            
+            const form = new FormData();
+            form.append('image', base64Data);
+            form.append('name', body.fileName);
+
+            const imgbbResponse = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                method: 'POST',
+                body: form
+            });
+
+            const imgbbResult = await imgbbResponse.json();
+
+            if (!imgbbResult.success) {
+                throw new Error(`ImgBB upload failed: ${imgbbResult.error.message}`);
+            }
+
+            const imageUrl = imgbbResult.data.url;
+
+            // ตอนนี้เราได้ imageUrl แล้ว ให้ส่งต่อไปที่ Google Script เพื่อบันทึก
+            const googlePayload = {
+                action: 'uploadProfileImage',
+                studentId: body.studentId,
+                user: body.user, // ส่ง user object ไปด้วย
+                imageUrl: imageUrl // ส่งแค่ URL ไป ไม่ต้องส่งไฟล์แล้ว
+            };
+
+            const googleResponse = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: event.body // ส่ง body ต่อไปตรงๆ
+                body: JSON.stringify(googlePayload)
             });
-            const data = await response.json();
-            return {
-                statusCode: 200,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data)
-            };
+
+            const googleResult = await googleResponse.json();
+            return { statusCode: 200, body: JSON.stringify(googleResult) };
+
         } catch (error) {
-            return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+            return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) };
         }
     }
+    // --- สิ้นสุดส่วนที่เพิ่มเข้ามา ---
+
+    // ถ้าเป็น action อื่นๆ ให้ทำงานเหมือนเดิม
+    try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: event.body
+        });
+        const data = await response.json();
+        return {
+            statusCode: 200,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        };
+    } catch (error) {
+        return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    }
+}
 
     // ถ้าไม่ใช่ GET หรือ POST
     return {

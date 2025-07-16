@@ -269,7 +269,29 @@
     </div>
     
     <div id="modals-container">
-        <!-- Modals will be built by JavaScript -->
+                <div id="mission-detail-modal" class="modal-overlay">
+          <div class="modal-box" style="text-align: left; max-width: 550px;">
+            <div class="detail-modal-close" onclick="closeModal('mission-detail-modal')">×</div>
+            
+            <!-- ส่วนหัวของ Modal -->
+            <h2 id="modal-mission-topic" style="margin-top: 0; color: var(--gold-color);">ชื่องาน</h2>
+            
+            <!-- ส่วนเนื้อหา -->
+            <div id="modal-mission-body">
+              <p><strong>คำสั่ง:</strong> <span id="modal-mission-detail"></span></p>
+              <p><strong>กำหนดส่ง:</strong> <span id="modal-mission-dueDate"></span></p>
+              <p><strong>คะแนนเต็ม:</strong> <span id="modal-mission-maxPoints"></span></p>
+              <hr style="border-color: rgba(255,255,255,0.2);">
+              <p><strong>สถานะของคุณ:</strong> <span id="modal-mission-user-status"></span></p>
+            </div>
+        
+            <!-- ส่วนปุ่ม (Action) -->
+            <div id="modal-mission-actions" style="margin-top: 20px;">
+              <!-- ปุ่มจะถูกสร้างโดย JavaScript -->
+            </div>
+        
+          </div>
+        </div>
     </div>
     <div id="toast-container"></div>
 
@@ -866,18 +888,41 @@
           container.innerHTML = missionHtml;
         }
         
-        function showMissionDetail(topic) {
+          function showMissionDetail(topic) {
             const mission = allMissions.find(m => m.topic === topic);
             if (!mission) return;
+        
+            // หาข้อมูลการส่งงานของภารกิจนี้โดยเฉพาะ
+            const submission = currentUserSubmissions.find(s => s.task === topic);
+        
+            // --- ใส่ข้อมูลลงใน Modal ---
+            document.getElementById('modal-mission-topic').innerText = mission.topic;
+            document.getElementById('modal-mission-detail').innerText = mission.detail || '(ไม่มีรายละเอียดเพิ่มเติม)';
+            document.getElementById('modal-mission-dueDate').innerText = mission.dueDate;
+            document.getElementById('modal-mission-maxPoints').innerText = `${mission.maxPoints} คะแนน`;
+        
+            // --- แสดงสถานะของนักเรียน ---
+            const userStatusEl = document.getElementById('modal-mission-user-status');
+            if (submission) {
+                if (submission.status === 'ตรวจแล้ว') {
+                    userStatusEl.innerHTML = `<span style="color: var(--status-graded); font-weight: bold;">ตรวจแล้ว (ได้ ${submission.score} / ${mission.maxPoints} คะแนน)</span>`;
+                } else { // รอตรวจ
+                    userStatusEl.innerHTML = `<span style="color: var(--status-pending); font-weight: bold;">ส่งแล้ว (รอตรวจ)</span>`;
+                }
+            } else {
+                userStatusEl.innerHTML = `<span>ยังไม่ส่ง</span>`;
+            }
+        
+            // --- สร้างปุ่ม Action (ตัวอย่าง) ---
+            // ในอนาคตเราจะทำให้ปุ่มนี้ฉลาดขึ้น
+            const actionsContainer = document.getElementById('modal-mission-actions');
+            actionsContainer.innerHTML = `
+                <button class="btn-primary" onclick="alert('จะลิงก์ไป Google Form หรือเปิดหน้าส่งงาน')">ทำภารกิจ</button>
+                <button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>
+            `;
             
-            // เราจะใช้ alert ไปก่อน เพื่อทดสอบว่ากดได้
-            alert(
-              `ภารกิจ: ${mission.topic}\n` +
-              `--------------------\n` +
-              `คำสั่ง: ${mission.detail || '(ไม่มี)'}\n` +
-              `คะแนนเต็ม: ${mission.maxPoints}\n` +
-              `กำหนดส่ง: ${mission.dueDate}`
-            );
+            // --- เปิด Modal ---
+            openModal('mission-detail-modal');
         }
 
       function filterStudentList() {

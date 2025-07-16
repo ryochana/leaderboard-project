@@ -1,9 +1,5 @@
 [build]
-  # บอกว่าไฟล์หน้าเว็บของเราอยู่ที่ root
-  publish = "/" 
+  publish = "."
 
 [functions]
-  # บอกว่า function ของเราอยู่ที่โฟลเดอร์ netlify/functions
   directory = "netlify/functions"
-  # เพิ่ม timeout เพื่อความปลอดภัย
-  timeout = 26

@@ -116,6 +116,18 @@
         grid-template-columns: 1fr auto; align-items: center; color: var(--text-light);
         gap: 15px;
       }
+textarea {
+  width: 100%;
+  background: var(--bg-color);
+  color: var(--text-light);
+  padding: 12px;
+  margin-bottom: 15px;
+  border-radius: 10px;
+  border: 1px solid var(--text-light);
+  font-family: 'Kanit', sans-serif;
+  resize: vertical;
+  font-size: 1em;
+}
       .mission-info .mission-topic { font-weight: 600; }
       .mission-info .mission-meta { font-size: 0.85em; opacity: 0.8; margin-top: 5px; }
       #login-modal, #profile-modal { z-index: 200; }

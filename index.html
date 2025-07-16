@@ -235,7 +235,10 @@
                     <div id="submission-form-area">
                         <p style="font-size: 0.9em; opacity: 0.8; margin-top: -10px; margin-bottom: 20px;">กรอกข้อมูลและแนบไฟล์เพื่อส่งงาน (เลือกอย่างน้อย 1 อย่าง)</p>
                         <label for="submission-link">ลิงก์ผลงาน (ถ้ามี)</label>
-                        <input type="url" id="submission-link" placeholder="">
+                        <input type="url" id="submission-link" placeholder="เช่น https://www.canva.com/design/...">
+                        
+                        <!-- ช่องคอมเมนต์ถูกลบไปแล้ว -->
+
                         <label for="submission-file">แนบไฟล์ (ถ้ามี)</label>
                         <input type="file" id="submission-file">
                         <small id="file-upload-status" style="margin-top: -10px; display: block; min-height: 1.2em;"></small>
@@ -247,7 +250,7 @@
                     </div>
                     <div id="submission-buttons">
                         <button class="btn-primary" onclick="handleSubmitMission()">ยืนยันการส่ง</button>
-                        <button class="btn-secondary" onclick="closeModal('submission-modal')">ยกเลิก</button>
+                        <button class="btn-secondary" onclick="closeModal('submission-modal')">ปิด</button>
                     </div>
                 </div>
             </div>
@@ -416,13 +419,11 @@
         localStorage.removeItem('leaderboardUser');
         currentUser = null;
         currentUserSubmissions = [];
-        await loadInitialData();
         closeModal('profile-modal');
+        await loadInitialData();
     }
 
     function handleFileSelect(event) {
-        // This is for Profile Picture upload, using the old base64 method.
-        // It's separate from the mission submission system.
         const file = event.target.files[0];
         if (!file) return;
 
@@ -725,7 +726,6 @@
         document.getElementById('submission-loader').style.display = 'none';
         document.getElementById('submission-buttons').style.display = 'block';
         document.getElementById('submission-link').value = '';
-        document.getElementById('submission-comment').value = '';
         document.getElementById('submission-file').value = '';
         document.getElementById('file-upload-status').innerText = '';
         document.getElementById('submission-error').innerText = '';
@@ -738,12 +738,11 @@
     async function handleSubmitMission() {
         const errorEl = document.getElementById('submission-error');
         const link = document.getElementById('submission-link').value.trim();
-        const comment = document.getElementById('submission-comment').value.trim();
         const fileInput = document.getElementById('submission-file');
         const file = fileInput.files[0];
 
-        if (!link && !comment && !file) {
-            errorEl.innerText = 'กรุณากรอกลิงก์, ข้อความ, หรือแนบไฟล์อย่างน้อย 1 อย่าง';
+        if (!link && !file) {
+            errorEl.innerText = 'กรุณากรอกลิงก์ หรือแนบไฟล์อย่างน้อย 1 อย่าง';
             return;
         }
 
@@ -804,7 +803,6 @@
             const submissionResult = await postAdminAction('submitMission', {
                 missionTopic: currentMissionTopic,
                 submissionLink: link,
-                submissionComment: comment,
                 proofUrl: proofUrl
             });
 

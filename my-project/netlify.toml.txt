@@ -5,3 +5,6 @@
 [functions]
   # บอก Netlify ว่าฟังก์ชันของเราจะอยู่ในโฟลเดอร์ชื่อ netlify/functions
   directory = "netlify/functions"
+
+[functions]
+  timeout = 26

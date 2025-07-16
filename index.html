@@ -27,6 +27,39 @@
     </div>
     
     <div id="modals-container">
+<div id="submission-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="detail-modal-close" onclick="closeModal('submission-modal')">×</div>
+        <h2 style="margin-top:0;">ส่งภารกิจ: <span id="submission-modal-topic"></span></h2>
+        
+        <div id="submission-form-area">
+            <p style="font-size: 0.9em; opacity: 0.8; margin-top: -10px; margin-bottom: 20px;">กรอกข้อมูลและแนบไฟล์เพื่อส่งงาน (เลือกอย่างน้อย 1 อย่าง)</p>
+            
+            <label for="submission-link">ลิงก์ผลงาน (ถ้ามี)</label>
+            <input type="url" id="submission-link" placeholder="เช่น https://www.canva.com/design/...">
+            
+            <label for="submission-comment">ข้อความถึงครู (ถ้ามี)</label>
+            <textarea id="submission-comment" rows="3" placeholder="ฝากข้อความสั้นๆ..."></textarea>
+            
+            <label for="submission-file">แนบไฟล์ (ถ้ามี)</label>
+            <input type="file" id="submission-file">
+            <small id="file-upload-status" style="margin-top: -10px; display: block; min-height: 1.2em;"></small>
+            
+            <div id="submission-error" class="modal-error"></div>
+        </div>
+
+        <div id="submission-loader" style="display:none; text-align:center; padding: 40px 0;">
+             <i class="fas fa-spinner fa-spin fa-2x"></i>
+             <p id="submission-loader-text" style="margin-top: 15px;">กำลังอัปโหลดไฟล์...</p>
+        </div>
+        
+        <div id="submission-buttons">
+            <button class="btn-primary" onclick="handleSubmitMission()">ยืนยันการส่ง</button>
+            <button class="btn-secondary" onclick="closeModal('submission-modal')">ยกเลิก</button>
+        </div>
+    </div>
+</div>
+        
     </div>
     <div id="toast-container"></div>
 

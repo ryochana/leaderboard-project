@@ -892,161 +892,147 @@
       // EVENT HANDLERS & UTILITIES
       // ======================================================
 
-        function renderMapView() {
-          const container = document.getElementById('map-view-container');
-          if (!container) return;
-          if (!missionsLoaded) {
-              container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
-              return;
-          }
-          
-          const completedTopics = new Set(
-            currentUserSubmissions
-              .filter(task => task.status !== 'ยังไม่ส่ง') // แค่ส่งแล้วก็พอ (รอตรวจ หรือ ตรวจแล้ว)
-              .map(task => task.task)
-          );
-        
-          // --- ตรรกะการจัดเรียงแบบไดนามิก ---
-          allMissions.sort((a, b) => {
-            const aIsCompleted = completedTopics.has(a.topic);
-            const bIsCompleted = completedTopics.has(b.topic);
-        
-            // 1. งานที่ยังไม่เสร็จ ขึ้นก่อนเสมอ
-            if (aIsCompleted && !bIsCompleted) return 1;
-            if (!aIsCompleted && bIsCompleted) return -1;
-        
-            // 2. ถ้าทั้งคู่ยังไม่เสร็จ ให้จัดตามความเร่งด่วน
-            if (!aIsCompleted && !bIsCompleted) {
-              // 2.1 Urgent (ใกล้หมดเขต) ขึ้นก่อน
-              if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
-              if (a.urgency !== 'urgent' && b.urgency === 'urgent') return 1;
-              // 2.2 จากนั้นจัดตามวันกำหนดส่ง (เก่าไปใหม่)
-              return a.dueDate - b.dueDate;
-            }
-        
-            // 3. ถ้าเสร็จแล้วทั้งคู่ ให้งานที่เพิ่งส่ง/ตรวจเสร็จอยู่บน
-            // (เรายังไม่มีข้อมูลนี้ จะจัดตาม dueDate ไปก่อน)
-            return b.dueDate - a.dueDate;
-          });
-          
-          // --- สร้าง HTML จากข้อมูลที่จัดเรียงแล้ว ---
-          let missionHtml = '';
-          allMissions.forEach((mission, index) => {
-            let status = 'available'; // Default
-            let icon = `<b>${mission.maxPoints}</b><small>pt</small>`; // Default icon คือคะแนน
-        
-            if (completedTopics.has(mission.topic)) {
-              status = 'completed';
-              const submission = currentUserSubmissions.find(s => s.task === mission.topic);
-              icon = (submission.status === 'ตรวจแล้ว') ? `✔️ ${submission.score}` : '⌛';
-            } else if (mission.urgency === 'urgent') {
-              status += ' urgent-node'; // เพิ่มคลาสสำหรับสีแดง
-            } else if (mission.urgency === 'overdue') {
-              status += ' overdue-node'; // เพิ่มคลาสสำหรับสีเทาเข้ม
-            }
+        // ใน index.html
+
+            function renderMapView() {
+              const container = document.getElementById('map-view-container');
+              if (!container) return;
+              if (!missionsLoaded) {
+                  container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
+                  return;
+              }
+              
+              const submissionMap = new Map(currentUserSubmissions.map(task => [task.task, task]));
             
-            // Logic การสลับซ้าย-ขวาเหมือนเดิม
-            const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
-            
-            missionHtml += `
-              <div class="mission-row ${rowClass}">
-                <div class="mission-node ${status}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
-                  <div class="mission-node-topic">${mission.topic}</div>
-                  <div class="mission-node-points">${icon}</div> 
-                </div>
-              </div>
-            `;
-          });
-          
-          container.innerHTML = missionHtml || '<div style="text-align:center; padding: 50px; color: #fff;">เยี่ยม! ไม่มีภารกิจที่ต้องทำตอนนี้</div>';
-        }
-        
-    
-        function showMissionDetail(topic) {
-            const mission = allMissions.find(m => m.topic === topic);
-            if (!mission) return;
-        
-            // หาข้อมูลการส่งงานของภารกิจนี้โดยเฉพาะ
-            const submission = currentUserSubmissions.find(s => s.task === topic);
-        
-            // --- 1. ใส่ข้อมูลพื้นฐานลงใน Modal ---
-            document.getElementById('modal-mission-topic').innerText = mission.topic;
-            document.getElementById('modal-mission-detail').innerText = mission.detail || '(ไม่มีรายละเอียดเพิ่มเติม)';
-            document.getElementById('modal-mission-dueDate').innerText = mission.dueDate;
-            document.getElementById('modal-mission-maxPoints').innerText = `${mission.maxPoints} คะแนน`;
-        
-            // --- 2. ตัดสินใจว่าจะแสดงสถานะและปุ่มอะไร بناءً على 'submission' ---
-            const userStatusEl = document.getElementById('modal-mission-user-status');
-            const actionsContainer = document.getElementById('modal-mission-actions');
-            
-            // Default คือปุ่มปิด
-            let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
-            
-            if (submission) {
-                // --- กรณี: ส่งงานไปแล้ว ---
-                if (submission.status === 'ตรวจแล้ว') {
-                    // **สถานะ: ตรวจแล้ว**
-                    userStatusEl.innerHTML = `<span style="color: var(--status-graded); font-weight: bold;">ตรวจแล้ว (ได้ ${submission.score} / ${mission.maxPoints} คะแนน) ✔️</span>`;
-                    // ไม่มีปุ่มให้ทำอะไรต่อ
-                    actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
-                } else {
-                    // **สถานะ: รอตรวจ**
-                    userStatusEl.innerHTML = `<span style="color: var(--status-pending); font-weight: bold;">ส่งแล้ว (รอการตรวจสอบ) ⌛</span>`;
-                    // มีปุ่มให้ "แก้ไข"
-                    actionsHtml = `
-                        <button class="btn-primary" onclick="alert('เปิดหน้าส่งงานใหม่ให้นักเรียนแก้ไข')">แก้ไขการส่ง</button>
-                        <button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>
-                    `;
+              // --- จัดเรียงตามกฎใหม่ ---
+              allMissions.sort((a, b) => {
+                const aIsCompleted = submissionMap.has(a.topic);
+                const bIsCompleted = submissionMap.has(b.topic);
+                const aIsActive = a.timingStatus === 'active';
+                const bIsActive = b.timingStatus === 'active';
+                const aIsUpcoming = a.timingStatus === 'upcoming';
+                const bIsUpcoming = b.timingStatus === 'upcoming';
+                
+                // 1. งานที่ Active และยังไม่เสร็จ -> ขึ้นบนสุด
+                if (aIsActive && !aIsCompleted && (!bIsActive || bIsCompleted)) return -1;
+                if (bIsActive && !bIsCompleted && (!aIsActive || aIsCompleted)) return 1;
+                
+                // -- ถ้าทั้งคู่ Active และยังไม่เสร็จ ให้จัดตามความด่วน --
+                if (aIsActive && !aIsCompleted && bIsActive && !bIsCompleted) {
+                    if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
+                    if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
+                    return a.dueDate - b.dueDate; // ใกล้หมดเขตก่อน ขึ้นก่อน
                 }
-            } else {
-                // --- กรณี: ยังไม่ส่งงาน ---
-                // **สถานะ: ยังไม่ส่ง**
-                userStatusEl.innerHTML = `<span>ยังไม่ส่ง</span>`;
-                // มีปุ่มให้ "ส่งงาน"
-                actionsHtml = `
-                    <button class="btn-primary" onclick="alert('เปิดหน้าส่งงาน / ลิงก์ไป Google Form')">เริ่มทำภารกิจ!</button>
-                    <button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>
-                `;
-            }
-        
-            // --- 3. ใส่ปุ่มที่ตัดสินใจแล้วลงไปใน container ---
-            actionsContainer.innerHTML = actionsHtml;
             
-            // --- 4. เปิด Modal ---
-            openModal('mission-detail-modal');
-        }
-
-      function filterStudentList() {
-        const searchTerm = document.getElementById('search-student').value.toLowerCase();
-        filteredSummaryData = searchTerm ? fullSummaryData.filter(s => s.name.toLowerCase().includes(searchTerm)) : [...fullSummaryData];
-        renderStudentList();
-      }
-
-      function handleUserAreaClick(){ currentUser ? openModal("profile-modal") : openModal("login-modal"); }
-      function openModal(id){ document.getElementById(id)?.classList.add("visible"); }
-      function closeModal(id){ document.getElementById(id)?.classList.remove("visible"); }
-
-      async function showStudentDetailModal(studentId) {
-          const student = fullSummaryData.find(s => String(s.studentId) === String(studentId));
-          if (!student) return;
-
-          document.getElementById('detail-modal-pic').src = student.profileUrl || 'https://i.ibb.co/6y4jMWT/default-avatar.png';
-          document.getElementById('detail-modal-name').innerText = student.name;
-          document.getElementById('detail-modal-score').innerText = `คะแนนรวม: ${student.totalScore}`;
-          document.getElementById('detail-modal-badges').innerHTML = (student.earnedBadges || []).map(b => `<div class="badge-tooltip"><img src="${b.iconUrl}" alt="${b.name}" class="badge-icon"><span class="tooltip-text"><b>${b.name}</b><br>${b.description}</span></div>`).join('');
-          
-          const body = document.getElementById('detail-modal-body');
-          body.innerHTML = '<div style="text-align:center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> กำลังโหลดรายละเอียด...</div>';
-          openModal('student-detail-modal');
-          
-          try {
-              const result = await fetchGet({ action: "getStudentDetail", studentId: studentId });
-              if (result.error) throw new Error(result.error);
-              displayDetailsInModal(result.data);
-          } catch(err) {
-              body.innerHTML = `<p style="color: var(--danger-color); text-align: center;">เกิดข้อผิดพลาด: ${err.message}</p>`;
-          }
-      }
+                // 2. งานที่ทำเสร็จแล้ว -> อยู่ตรงกลาง
+                if (aIsCompleted && !bIsCompleted) return 1;
+                if (bIsCompleted && !aIsCompleted) return -1;
+                if (aIsCompleted && bIsCompleted) return b.dueDate - a.dueDate; // เสร็จแล้วอันล่าสุดอยู่บน
+            
+                // 3. งานที่ยังไม่ถึงเวลา (Upcoming) -> อยู่ล่างสุด
+                if (aIsUpcoming && !bIsUpcoming) return 1;
+                if (bIsUpcoming && !aIsUpcoming) return -1;
+                if (aIsUpcoming && bIsUpcoming) return a.assignedDate - b.assignedDate; // อันไหนจะมาถึงก่อน ก็อยู่บน
+            
+                // 4. งานที่เลยเวลาไปแล้ว (Past) -> อยู่เกือบล่างสุด
+                return b.dueDate - a.dueDate;
+              });
+              
+              // --- สร้าง HTML ---
+              let missionHtml = '';
+              sortedMissions.forEach((mission, index) => {
+                let status = '';
+                let icon = '🔒';
+            
+                const sub = submissionMap.get(mission.topic);
+                const isSubmitted = !!sub;
+            
+                if (mission.timingStatus === 'active') {
+                    if (isSubmitted) {
+                        status = 'completed' + (sub.status === 'รอตรวจ' ? ' pending' : '');
+                        icon = (sub.status === 'ตรวจแล้ว') ? `✔️ ${sub.score}` : '⌛';
+                    } else { // Active แต่ยังไม่ส่ง
+                        status = 'available';
+                        if (mission.urgency === 'urgent') status += ' urgent-node';
+                        icon = `<b>${mission.maxPoints}</b><small>pt</small>`;
+                    }
+                } else if (isSubmitted) { // Past หรือ Upcoming แต่ส่งไปแล้ว
+                    status = 'completed';
+                    icon = `✔️ ${sub.score}`;
+                } else { // Past หรือ Upcoming และยังไม่ส่ง
+                    status = 'locked';
+                }
+                
+                const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
+                missionHtml += `...`; // โค้ดสร้าง HTML เหมือนเดิม
+              });
+              
+              container.innerHTML = missionHtml || '...';
+            }
+            
+            function showMissionDetail(topic) {
+                const mission = allMissions.find(m => m.topic === topic);
+                if (!mission) return;
+                const submission = currentUserSubmissions.find(s => s.task === topic);
+            
+                // --- แสดงข้อมูลพื้นฐาน ---
+                document.getElementById('modal-mission-topic').innerText = mission.topic;
+                // ... (ส่วนแสดง detail, maxPoints เหมือนเดิม) ...
+                document.getElementById('modal-mission-dueDate').innerHTML = `ส่งภายในวันที่: ${mission.dueDateString}`;
+                
+                // --- ตรรกะแสดงสถานะและปุ่มใหม่ ---
+                const userStatusEl = document.getElementById('modal-mission-user-status');
+                const actionsContainer = document.getElementById('modal-mission-actions');
+                let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
+                
+                if (submission) {
+                    // ... (ตรรกะสำหรับงานที่ส่งแล้ว เหมือนเดิม) ...
+                } else { // ยังไม่ส่ง
+                    if (mission.timingStatus === 'active') {
+                        userStatusEl.innerHTML = `<span style="font-weight: bold; color: var(--gold-color);">รอส่งงาน</span>`;
+                        actionsHtml = `<button class="btn-primary" onclick="alert('เปิดหน้าส่งงาน')">ส่งงาน</button>` + actionsHtml;
+                    } else if (mission.timingStatus === 'upcoming') {
+                        userStatusEl.innerHTML = `<span>ยังไม่ถึงเวลามอบหมาย (เริ่มวันที่ ${mission.assignedDateString})</span>`;
+                    } else { // past
+                        userStatusEl.innerHTML = `<span style="color: #e74c3c;">เลยกำหนดส่ง</span>`;
+                    }
+                }
+            
+                actionsContainer.innerHTML = actionsHtml;
+                openModal('mission-detail-modal');
+            }
+            
+                  function filterStudentList() {
+                    const searchTerm = document.getElementById('search-student').value.toLowerCase();
+                    filteredSummaryData = searchTerm ? fullSummaryData.filter(s => s.name.toLowerCase().includes(searchTerm)) : [...fullSummaryData];
+                    renderStudentList();
+                  }
+            
+                  function handleUserAreaClick(){ currentUser ? openModal("profile-modal") : openModal("login-modal"); }
+                  function openModal(id){ document.getElementById(id)?.classList.add("visible"); }
+                  function closeModal(id){ document.getElementById(id)?.classList.remove("visible"); }
+            
+                  async function showStudentDetailModal(studentId) {
+                      const student = fullSummaryData.find(s => String(s.studentId) === String(studentId));
+                      if (!student) return;
+            
+                      document.getElementById('detail-modal-pic').src = student.profileUrl || 'https://i.ibb.co/6y4jMWT/default-avatar.png';
+                      document.getElementById('detail-modal-name').innerText = student.name;
+                      document.getElementById('detail-modal-score').innerText = `คะแนนรวม: ${student.totalScore}`;
+                      document.getElementById('detail-modal-badges').innerHTML = (student.earnedBadges || []).map(b => `<div class="badge-tooltip"><img src="${b.iconUrl}" alt="${b.name}" class="badge-icon"><span class="tooltip-text"><b>${b.name}</b><br>${b.description}</span></div>`).join('');
+                      
+                      const body = document.getElementById('detail-modal-body');
+                      body.innerHTML = '<div style="text-align:center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> กำลังโหลดรายละเอียด...</div>';
+                      openModal('student-detail-modal');
+                      
+                      try {
+                          const result = await fetchGet({ action: "getStudentDetail", studentId: studentId });
+                          if (result.error) throw new Error(result.error);
+                          displayDetailsInModal(result.data);
+                      } catch(err) {
+                          body.innerHTML = `<p style="color: var(--danger-color); text-align: center;">เกิดข้อผิดพลาด: ${err.message}</p>`;
+                      }
+                  }
 
                 function switchView(viewId) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));

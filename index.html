@@ -538,22 +538,35 @@ async function loadInitialData() {
       // ======================================================
       // USER MANAGEMENT & UI UPDATES
       // ======================================================
-      async function initializeUser() {
-        const storedUsername = localStorage.getItem('leaderboardUser');
-        if (storedUsername) {
-          try {
-            // Use fetchGet for userLogin now
-            const sessionResult = await fetchGet({ action: 'checkUserSession', username: storedUsername });
-            currentUser = (sessionResult && sessionResult.user) ? sessionResult.user : null;
-            if (!currentUser) localStorage.removeItem('leaderboardUser');
-          } catch(err) {
-            console.error("Session check failed:", err);
-            localStorage.removeItem('leaderboardUser');
-            currentUser = null;
+      let currentUserSubmissions = [];
+
+async function initializeUser() {
+    const storedUsername = localStorage.getItem('leaderboardUser');
+    if (storedUsername) {
+      try {
+        const sessionResult = await fetchGet({ action: 'checkUserSession', username: storedUsername });
+        currentUser = (sessionResult && sessionResult.user) ? sessionResult.user : null;
+        
+        // --- ส่วนที่เพิ่มเข้ามา ---
+        if (currentUser) {
+          // ถ้ามีผู้ใช้, ให้ดึงข้อมูลการส่งงานของเขามาเก็บไว้
+          const detailResult = await fetchGet({ action: "getStudentDetail", studentId: currentUser.studentId });
+          if (detailResult && detailResult.data) {
+            currentUserSubmissions = detailResult.data.tasks || [];
           }
         }
-        updateUserUI();
+        // --- สิ้นสุดส่วนที่เพิ่มเข้ามา ---
+
+        if (!currentUser) localStorage.removeItem('leaderboardUser');
+      } catch(err) {
+        console.error("Session check or detail fetch failed:", err);
+        localStorage.removeItem('leaderboardUser');
+        currentUser = null;
+        currentUserSubmissions = [];
       }
+    }
+    updateUserUI();
+}
       
       function updateUserUI() {
           const userPic = document.getElementById('user-area-pic');
@@ -835,6 +848,53 @@ async function loadInitialData() {
       container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
       return;
   }
+  
+  // --- ส่วนตรรกะที่เพิ่มเข้ามา ---
+  // สร้าง Set ของ topic ที่ส่งแล้วและตรวจแล้ว เพื่อให้ค้นหาได้เร็ว
+  const completedTopics = new Set(
+    currentUserSubmissions
+      .filter(task => task.status === 'ตรวจแล้ว') // หรือจะเอา 'รอตรวจ' ด้วยก็ได้: task.status !== 'ยังไม่ส่ง'
+      .map(task => task.task)
+  );
+
+  // หาด่านล่าสุดที่ทำเสร็จ
+  let lastCompletedIndex = -1;
+  allMissions.forEach((mission, index) => {
+    if (completedTopics.has(mission.topic)) {
+      lastCompletedIndex = index;
+    }
+  });
+  // --- สิ้นสุดส่วนตรรกะ ---
+  
+  let missionHtml = '';
+  allMissions.forEach((mission, index) => {
+    let status = 'locked'; // 1. เริ่มต้นให้ล็อกทั้งหมด
+    let icon = '🔒';
+
+    // 2. เช็คว่าทำเสร็จไปแล้วหรือยัง
+    if (completedTopics.has(mission.topic)) {
+      status = 'completed';
+      icon = '✔️';
+    } 
+    // 3. ถ้ายังไม่เสร็จ, เช็คว่าเป็นด่านที่ปลดล็อกแล้วหรือยัง
+    // (ด่านแรกสุด หรือ ด่านถัดจากอันล่าสุดที่ทำเสร็จ)
+    else if (index === 0 || index <= lastCompletedIndex + 1) {
+      status = 'available';
+      icon = `<b>${index + 1}</b>`; // ถ้าทำได้ ให้แสดงเป็นตัวเลข
+    }
+
+    missionHtml += `
+      <div class="mission-row">
+        <div class="mission-node ${status}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
+          <div class="mission-node-topic">${mission.topic}</div>
+          <div class="mission-node-points">${icon}</div> 
+        </div>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = missionHtml;
+}
   
   let missionHtml = '';
   allMissions.forEach((mission, index) => {

@@ -269,29 +269,6 @@
     </div>
     
     <div id="modals-container">
-                <div id="mission-detail-modal" class="modal-overlay">
-          <div class="modal-box" style="text-align: left; max-width: 550px;">
-            <div class="detail-modal-close" onclick="closeModal('mission-detail-modal')">×</div>
-            
-            <!-- ส่วนหัวของ Modal -->
-            <h2 id="modal-mission-topic" style="margin-top: 0; color: var(--gold-color);">ชื่องาน</h2>
-            
-            <!-- ส่วนเนื้อหา -->
-            <div id="modal-mission-body">
-              <p><strong>คำสั่ง:</strong> <span id="modal-mission-detail"></span></p>
-              <p><strong>กำหนดส่ง:</strong> <span id="modal-mission-dueDate"></span></p>
-              <p><strong>คะแนนเต็ม:</strong> <span id="modal-mission-maxPoints"></span></p>
-              <hr style="border-color: rgba(255,255,255,0.2);">
-              <p><strong>สถานะของคุณ:</strong> <span id="modal-mission-user-status"></span></p>
-            </div>
-        
-            <!-- ส่วนปุ่ม (Action) -->
-            <div id="modal-mission-actions" style="margin-top: 20px;">
-              <!-- ปุ่มจะถูกสร้างโดย JavaScript -->
-            </div>
-        
-          </div>
-        </div>
     </div>
     <div id="toast-container"></div>
 
@@ -451,10 +428,62 @@
         
         const modalsContainer = document.getElementById('modals-container');
         modalsContainer.innerHTML = `
-            <div id="student-detail-modal" class="modal-overlay"> <div class="modal-box"> <div class="detail-modal-close" onclick="closeModal('student-detail-modal')">×</div><div class="detail-modal-header"> <img id="detail-modal-pic" src="" class="detail-modal-pic"> <div class="detail-modal-info"> <h3 id="detail-modal-name"></h3> <p id="detail-modal-score"></p></div></div><div id="detail-modal-badges" class="badges-container" style="padding: 0 10px 15px 10px;"></div><div id="detail-modal-body" class="detail-modal-body"></div></div></div>
-            <div id="login-modal" class="modal-overlay"><div class="modal-box"><h2>ล็อกอิน</h2><div id="login-error" class="modal-error"></div><input type="text" id="username-input" placeholder="ชื่อผู้ใช้"><input type="password" id="password-input" placeholder="รหัสผ่าน"><button class="btn-primary" onclick="handleLogin()">เข้าสู่ระบบ</button><button class="btn-secondary" onclick="closeModal('login-modal')">ปิด</button></div></div>
-            <div id="profile-modal" class="modal-overlay"><div class="modal-box"><h2>โปรไฟล์</h2><img id="profile-preview" src=""><h3 id="profile-name"></h3><p id="profile-score-text"></p><div id="profile-message" class="modal-message"></div><label for="image-upload-input" class="btn-primary">เปลี่ยนรูปโปรไฟล์</label><input type="file" id="image-upload-input" accept="image/png, image/jpeg"><button class="btn-danger" onclick="handleLogout()">ออกจากระบบ</button><button class="btn-secondary" onclick="closeModal('profile-modal')">ปิด</button></div></div>
-        `;
+    <div id="student-detail-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="detail-modal-close" onclick="closeModal('student-detail-modal')">×</div>
+            <div class="detail-modal-header">
+                <img id="detail-modal-pic" src="" class="detail-modal-pic">
+                <div class="detail-modal-info">
+                    <h3 id="detail-modal-name"></h3>
+                    <p id="detail-modal-score"></p>
+                </div>
+            </div>
+            <div id="detail-modal-badges" class="badges-container" style="padding: 0 10px 15px 10px;"></div>
+            <div id="detail-modal-body" class="detail-modal-body"></div>
+        </div>
+    </div>
+    
+    <div id="login-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h2>ล็อกอิน</h2>
+            <div id="login-error" class="modal-error"></div>
+            <input type="text" id="username-input" placeholder="ชื่อผู้ใช้">
+            <input type="password" id="password-input" placeholder="รหัสผ่าน">
+            <button class="btn-primary" onclick="handleLogin()">เข้าสู่ระบบ</button>
+            <button class="btn-secondary" onclick="closeModal('login-modal')">ปิด</button>
+        </div>
+    </div>
+    
+    <div id="profile-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h2>โปรไฟล์</h2>
+            <img id="profile-preview" src="">
+            <h3 id="profile-name"></h3>
+            <p id="profile-score-text"></p>
+            <div id="profile-message" class="modal-message"></div>
+            <label for="image-upload-input" class="btn-primary">เปลี่ยนรูปโปรไฟล์</label>
+            <input type="file" id="image-upload-input" accept="image/png, image/jpeg">
+            <button class="btn-danger" onclick="handleLogout()">ออกจากระบบ</button>
+            <button class="btn-secondary" onclick="closeModal('profile-modal')">ปิด</button>
+        </div>
+    </div>
+
+    <div id="mission-detail-modal" class="modal-overlay">
+        <div class="modal-box" style="text-align: left; max-width: 550px;">
+            <div class="detail-modal-close" onclick="closeModal('mission-detail-modal')">×</div>
+            <h2 id="modal-mission-topic" style="margin-top: 0; color: var(--gold-color);"></h2>
+            <div id="modal-mission-body">
+                <p><strong>คำสั่ง:</strong> <span id="modal-mission-detail"></span></p>
+                <p><strong>กำหนดส่ง:</strong> <span id="modal-mission-dueDate"></span></p>
+                <p><strong>คะแนนเต็ม:</strong> <span id="modal-mission-maxPoints"></span></p>
+                <hr style="border-color: rgba(255,255,255,0.2);">
+                <p><strong>สถานะของคุณ:</strong> <span id="modal-mission-user-status"></span></p>
+            </div>
+            <div id="modal-mission-actions" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+`;
+
         
         document.getElementById('user-area-btn').addEventListener('click', handleUserAreaClick);
         document.getElementById('image-upload-input').addEventListener('change', handleFileSelect);

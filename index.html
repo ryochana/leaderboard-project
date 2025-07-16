@@ -917,40 +917,58 @@
           container.innerHTML = missionHtml;
         }
         
-          function showMissionDetail(topic) {
+    
+        function showMissionDetail(topic) {
             const mission = allMissions.find(m => m.topic === topic);
             if (!mission) return;
         
             // หาข้อมูลการส่งงานของภารกิจนี้โดยเฉพาะ
             const submission = currentUserSubmissions.find(s => s.task === topic);
         
-            // --- ใส่ข้อมูลลงใน Modal ---
+            // --- 1. ใส่ข้อมูลพื้นฐานลงใน Modal ---
             document.getElementById('modal-mission-topic').innerText = mission.topic;
             document.getElementById('modal-mission-detail').innerText = mission.detail || '(ไม่มีรายละเอียดเพิ่มเติม)';
             document.getElementById('modal-mission-dueDate').innerText = mission.dueDate;
             document.getElementById('modal-mission-maxPoints').innerText = `${mission.maxPoints} คะแนน`;
         
-            // --- แสดงสถานะของนักเรียน ---
+            // --- 2. ตัดสินใจว่าจะแสดงสถานะและปุ่มอะไร بناءً على 'submission' ---
             const userStatusEl = document.getElementById('modal-mission-user-status');
+            const actionsContainer = document.getElementById('modal-mission-actions');
+            
+            // Default คือปุ่มปิด
+            let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
+            
             if (submission) {
+                // --- กรณี: ส่งงานไปแล้ว ---
                 if (submission.status === 'ตรวจแล้ว') {
-                    userStatusEl.innerHTML = `<span style="color: var(--status-graded); font-weight: bold;">ตรวจแล้ว (ได้ ${submission.score} / ${mission.maxPoints} คะแนน)</span>`;
-                } else { // รอตรวจ
-                    userStatusEl.innerHTML = `<span style="color: var(--status-pending); font-weight: bold;">ส่งแล้ว (รอตรวจ)</span>`;
+                    // **สถานะ: ตรวจแล้ว**
+                    userStatusEl.innerHTML = `<span style="color: var(--status-graded); font-weight: bold;">ตรวจแล้ว (ได้ ${submission.score} / ${mission.maxPoints} คะแนน) ✔️</span>`;
+                    // ไม่มีปุ่มให้ทำอะไรต่อ
+                    actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
+                } else {
+                    // **สถานะ: รอตรวจ**
+                    userStatusEl.innerHTML = `<span style="color: var(--status-pending); font-weight: bold;">ส่งแล้ว (รอการตรวจสอบ) ⌛</span>`;
+                    // มีปุ่มให้ "แก้ไข"
+                    actionsHtml = `
+                        <button class="btn-primary" onclick="alert('เปิดหน้าส่งงานใหม่ให้นักเรียนแก้ไข')">แก้ไขการส่ง</button>
+                        <button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>
+                    `;
                 }
             } else {
+                // --- กรณี: ยังไม่ส่งงาน ---
+                // **สถานะ: ยังไม่ส่ง**
                 userStatusEl.innerHTML = `<span>ยังไม่ส่ง</span>`;
+                // มีปุ่มให้ "ส่งงาน"
+                actionsHtml = `
+                    <button class="btn-primary" onclick="alert('เปิดหน้าส่งงาน / ลิงก์ไป Google Form')">เริ่มทำภารกิจ!</button>
+                    <button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>
+                `;
             }
         
-            // --- สร้างปุ่ม Action (ตัวอย่าง) ---
-            // ในอนาคตเราจะทำให้ปุ่มนี้ฉลาดขึ้น
-            const actionsContainer = document.getElementById('modal-mission-actions');
-            actionsContainer.innerHTML = `
-                <button class="btn-primary" onclick="alert('จะลิงก์ไป Google Form หรือเปิดหน้าส่งงาน')">ทำภารกิจ</button>
-                <button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>
-            `;
+            // --- 3. ใส่ปุ่มที่ตัดสินใจแล้วลงไปใน container ---
+            actionsContainer.innerHTML = actionsHtml;
             
-            // --- เปิด Modal ---
+            // --- 4. เปิด Modal ---
             openModal('mission-detail-modal');
         }
 

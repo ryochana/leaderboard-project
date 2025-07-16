@@ -912,6 +912,27 @@
           }
       }
 
+                function switchView(viewId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            const tabElement = document.querySelector(`.tab[onclick="switchView('${viewId}')"]`);
+            if (tabElement) {
+                tabElement.classList.add('active');
+            }
+        
+            document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
+            const viewElement = document.getElementById(viewId);
+            if (viewElement) {
+                viewElement.classList.add('active');
+            }
+        
+            if (viewId === 'map-view-container') {
+                renderMapView();
+            } 
+            else if (viewId === 'admin-view') {
+                loadAdminData();
+            }
+        }
+
       function displayDetailsInModal(data) {
         if (!data || !data.tasks) {
             document.getElementById('detail-modal-body').innerHTML = '<p>ไม่พบข้อมูลรายละเอียด</p>';

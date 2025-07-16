@@ -267,24 +267,36 @@
   padding-right: 20%;
 }
 
-/* สีสำหรับสถานะเร่งด่วน */
+/* 
+  ลบ .mission-node.urgent-node และ .mission-node.overdue-node ของเก่าทิ้ง 
+  แล้วแทนที่ด้วย 2 อันนี้
+*/
+
+/* สำหรับงานด่วน ให้เปลี่ยนแค่สีกรอบและเพิ่มเงา */
 .mission-node.urgent-node {
-  background-color: #e74c3c; /* สีแดง */
-  border-color: #c0392b;
-  color: white;
-  animation: pulse 1.5s infinite; /* ทำให้กระพริบ! */
-}
-.mission-node.overdue-node {
-  background-color: #525659;
-  border-color: #343a40;
-  color: #adb5bd;
+  border-color: #e74c3c; /* กรอบสีแดง */
+  box-shadow: 0 0 20px 5px rgba(231, 76, 60, 0.7); /* เพิ่มเงาสีแดงฟุ้งๆ */
+  animation: pulse-red 1.5s infinite; /* เรียกใช้ animation ใหม่ */
 }
 
-/* Animation กระพริบ */
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
-  70% { box-shadow: 0 0 0 15px rgba(231, 76, 60, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+/* สำหรับงานที่เลยกำหนด ให้เปลี่ยนแค่สีกรอบ */
+/* เราไม่ต้องใช้ .overdue-node แล้ว เพราะสถานะ 'locked' จัดการให้เป็นสีเทาอยู่แล้ว */
+
+
+/* 
+  ลบ @keyframes pulse เก่าทิ้ง 
+  แล้วแทนที่ด้วยอันนี้
+*/
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(231, 76, 60, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+  }
 }
         
     </style>

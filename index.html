@@ -932,7 +932,9 @@ async function handleSubmitMission() {
         document.getElementById('submission-buttons').style.display = 'block';
         document.getElementById('submission-loader').style.display = 'none';
     }
-}let currentMissionTopic = null; // สร้างตัวแปร global เพื่อเก็บ topic ที่กำลังจะส่ง
+}
+        
+        let currentMissionTopic = null; // สร้างตัวแปร global เพื่อเก็บ topic ที่กำลังจะส่ง
 
 function openSubmissionModal(topic) {
     currentMissionTopic = topic; // เก็บ topic ไว้ใช้ตอนกด "ยืนยัน"

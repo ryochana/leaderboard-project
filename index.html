@@ -179,6 +179,83 @@
       .toast-notification.show { opacity: 1; visibility: visible; bottom: 40px; }
       .toast-notification.error { background-color: var(--danger-color); }
       /* --- END: ADMIN STYLES --- */
+
+        #map-view-container {
+  width: 100%;
+  padding: 30px 15px; /* เพิ่มช่องว่างบนล่าง */
+  max-height: 70vh;
+  overflow-y: auto;
+  /* ทำให้พื้นหลังแผนที่เป็นแบบนี้ */
+  background-image: url('https://as1.ftcdn.net/jpg/04/33/56/10/1000_F_433561046_ZukvohmWL49nY8fSDiG70zw3pNbMuRnK.jpg'); /* <-- ผมหารูปมาให้แล้ว ใช้รูปนี้ได้เลย */
+  background-size: cover;
+  background-position: top center;
+  border-radius: 15px;
+}
+
+.mission-row {
+  display: flex;
+  margin-bottom: 30px; /* ระยะห่างระหว่างด่าน */
+  position: relative;
+}
+
+/* จัดแถวเลขคู่ไปทางซ้าย, เลขคี่ไปทางขวา */
+.mission-row:nth-child(even) {
+  justify-content: flex-start;
+  padding-left: 20%; /* ผลักเข้ามาหน่อย */
+}
+.mission-row:nth-child(odd) {
+  justify-content: flex-end;
+  padding-right: 20%; /* ผลักเข้ามาหน่อย */
+}
+
+/* ตัว "ด่าน" กลมๆ */
+.mission-node {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 6px solid #f7d794;
+  background-color: #feca57; /* สีส้มทอง = ทำได้ */
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 10px;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+  transition: transform 0.2s;
+  color: #59441d;
+}
+.mission-node:hover {
+  transform: scale(1.1);
+}
+.mission-node-topic {
+  font-weight: 800; /* ตัวหนาพิเศษ */
+  font-size: 1em;
+  line-height: 1.2;
+}
+.mission-node-points {
+  font-size: 0.8em;
+  margin-top: 5px;
+  font-weight: 600;
+  background: rgba(0,0,0,0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* สถานะต่างๆ (เราจะใช้ในเฟส 3) */
+.mission-node.locked {
+  background-color: #95a5a6;
+  border-color: #7f8c8d;
+  cursor: not-allowed;
+  color: #d1d8e0;
+}
+.mission-node.completed {
+  background-color: #2ecc71;
+  border-color: #27ae60;
+  color: white;
+}
+        
     </style>
 </head>
 <body>
@@ -736,14 +813,61 @@
       // EVENT HANDLERS & UTILITIES
       // ======================================================
       function switchView(viewId) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelector(`[onclick="switchView('${viewId}')"]`).classList.add('active');
-        document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
-        document.getElementById(viewId).classList.add('active');
-        
-        if (viewId === 'missions-view') renderMissionView();
-        else if (viewId === 'admin-view') loadAdminData();
-      }
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          // แก้ไข selector ให้แม่นยำขึ้น
+          document.querySelector(`.tab[onclick="switchView('${viewId}')"]`).classList.add('active');
+          document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
+          document.getElementById(viewId).classList.add('active');
+          
+          if (viewId === 'map-view-container') {
+            // เมื่อกดมาที่ Tab แผนที่ ให้เรียกฟังก์ชันวาดแผนที่
+            renderMapView();
+          } 
+          else if (viewId === 'admin-view') {
+            loadAdminData();
+          }
+        }
+
+        function renderMapView() {
+  const container = document.getElementById('map-view-container');
+  if (!container) return;
+
+  if (!missionsLoaded) {
+      container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
+      return;
+  }
+  
+  let missionHtml = '';
+  allMissions.forEach((mission, index) => {
+    // ในเฟสนี้ เราจะสมมติว่าทุกด่านทำได้หมด (status = 'available')
+    let status = 'available'; 
+
+    missionHtml += `
+      <div class="mission-row">
+        <div class="mission-node ${status}" onclick="showMissionDetail('${mission.topic}')">
+          <div class="mission-node-topic">${mission.topic}</div>
+          <div class="mission-node-points">${mission.maxPoints} คะแนน</div>
+        </div>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = missionHtml;
+}
+
+        function showMissionDetail(topic) {
+    const mission = allMissions.find(m => m.topic === topic);
+    if (!mission) return;
+    
+    // เราจะใช้ alert ไปก่อน เพื่อทดสอบว่ากดได้
+    alert(
+      `ภารกิจ: ${mission.topic}\n` +
+      `--------------------\n` +
+      `คำสั่ง: ${mission.detail || '(ไม่มี)'}\n` +
+      `คะแนนเต็ม: ${mission.maxPoints}\n` +
+      `กำหนดส่ง: ${mission.dueDate}`
+    );
+}
 
       function filterStudentList() {
         const searchTerm = document.getElementById('search-student').value.toLowerCase();

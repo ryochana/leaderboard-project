@@ -621,88 +621,90 @@
 
         // ใน index.html
 
-                                                                    function renderMapView() {
-                                  const container = document.getElementById('map-view-container');
-                                  if (!container) return;
-                                  if (!missionsLoaded) {
-                                      container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
-                                      return;
-                                  }
-                                  
-                                  const submissionMap = new Map(
-                                    currentUserSubmissions.map(task => [task.task, task])
-                                  );
+                                                                                         function renderMapView() {
+                            const container = document.getElementById('map-view-container');
+                            if (!container) return;
+                            if (!missionsLoaded) {
+                                container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
+                                return;
+                            }
+                            
+                            // สร้าง Map ของข้อมูลการส่งงาน ถ้ามี
+                            const submissionMap = currentUserSubmissions.length > 0 
+                                ? new Map(currentUserSubmissions.map(task => [task.task, task]))
+                                : new Map();
+                        
+                            // --- จัดเรียงภารกิจทั้งหมด ---
+                            const sortedMissions = [...allMissions].sort((a, b) => {
+                                const aSub = submissionMap.get(a.topic);
+                                const bSub = submissionMap.get(b.topic);
                                 
-                                  // --- จัดเรียงภารกิจทั้งหมด ---
-                                  const sortedMissions = [...allMissions].sort((a, b) => {
-                                    const aIsSubmitted = submissionMap.has(a.topic);
-                                    const bIsSubmitted = submissionMap.has(b.topic);
-                                    
-                                    // 1. ถ้าสถานะการส่งต่างกัน: งานที่ยังไม่ส่ง ขึ้นก่อนเสมอ
-                                    if (!aIsSubmitted && bIsSubmitted) return -1;
-                                    if (aIsSubmitted && !bIsSubmitted) return 1;
+                                // สถานะการส่งที่แท้จริง (ส่งแล้วคือสถานะไม่ใช่ "ยังไม่ส่ง")
+                                const aIsSubmitted = aSub && aSub.status !== 'ยังไม่ส่ง';
+                                const bIsSubmitted = bSub && bSub.status !== 'ยังไม่ส่ง';
                                 
-                                    // 2. ถ้ายังไม่ส่งทั้งคู่: จัดตามความเร่งด่วน
-                                    if (!aIsSubmitted && !bIsSubmitted) {
-                                      // Urgent มาก่อน
-                                      if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
-                                      if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
-                                      // ปกติ/เลยกำหนด จัดตาม DueDate (ใกล้ถึงก่อนขึ้นก่อน)
-                                      return a.dueDate - b.dueDate;
-                                    }
-                                    
-                                    // 3. ถ้าส่งแล้วทั้งคู่: จัดตาม DueDate (งานล่าสุดอยู่บน)
-                                    if (aIsSubmitted && bIsSubmitted) {
-                                      return b.dueDate - a.dueDate;
-                                    }
-                                
-                                    return 0; // กรณีอื่นๆ
-                                  });
-                                  
-                                  // --- สร้าง HTML ---
-                                  let missionHtml = '';
-                                  sortedMissions.forEach((mission, index) => {
-                                    let status = '';
-                                    let icon = '...';
-                                
-                                    const sub = submissionMap.get(mission.topic);
-                                    const isSubmitted = !!sub;
-                                
-                                    if (isSubmitted) {
-                                      // --- กรณี: ส่งงานไปแล้ว ---
-                                      if (sub.status === 'ตรวจแล้ว') {
-                                        status = 'completed';
-                                        icon = `✔️ ${sub.score}`;
-                                      } else { // รอตรวจ
-                                        status = 'completed pending';
-                                        icon = '⌛';
-                                      }
-                                    } else {
-                                      // --- กรณี: ยังไม่ส่งงาน ---
-                                      if (mission.timingStatus === 'active') {
-                                        status = 'available';
-                                        if (mission.urgency === 'urgent') status += ' urgent-node';
-                                        icon = `<b>${mission.maxPoints}</b><small>pt</small>`;
-                                      } else { // upcoming หรือ past
-                                        status = 'locked';
-                                        icon = '🔒';
-                                        if (mission.timingStatus === 'past') status += ' overdue-node';
-                                      }
-                                    }
-                                    
-                                    const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
-                                    missionHtml += `
-                                      <div class="mission-row ${rowClass}">
-                                        <div class="mission-node ${status}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
-                                          <div class="mission-node-topic">${mission.topic}</div>
-                                          <div class="mission-node-points">${icon}</div> 
-                                        </div>
-                                      </div>
-                                    `;
-                                  });
-                                  
-                                  container.innerHTML = missionHtml || '<div style="text-align:center; padding: 50px; color: #fff;">เยี่ยม! ไม่มีภารกิจที่ได้รับมอบหมายในขณะนี้</div>';
+                                // 1. งานที่ยังไม่ส่ง ขึ้นก่อนเสมอ
+                                if (!aIsSubmitted && bIsSubmitted) return -1;
+                                if (aIsSubmitted && !bIsSubmitted) return 1;
+                        
+                                // 2. ถ้ายังไม่ส่งทั้งคู่: จัดตามความเร่งด่วนและวันที่
+                                if (!aIsSubmitted && !bIsSubmitted) {
+                                    if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
+                                    if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
+                                    return a.dueDate - b.dueDate;
                                 }
+                                
+                                // 3. ถ้าส่งแล้วทั้งคู่: จัดตามวันที่ (งานล่าสุดอยู่บน)
+                                if (aIsSubmitted && bIsSubmitted) {
+                                    return b.dueDate - a.dueDate;
+                                }
+                        
+                                return 0;
+                            });
+                            
+                            // --- สร้าง HTML ---
+                            let missionHtml = '';
+                            sortedMissions.forEach((mission, index) => {
+                                let statusClass = '';
+                                let iconHtml = '...';
+                        
+                                const sub = submissionMap.get(mission.topic);
+                        
+                                // *** FIX: ตรรกะการตัดสินใจที่ถูกต้องอยู่ตรงนี้ ***
+                                if (sub && sub.status === 'ตรวจแล้ว') {
+                                    // กรณี 1: ตรวจแล้ว
+                                    statusClass = 'completed';
+                                    iconHtml = `✔️ ${sub.score}`;
+                                } else if (sub && sub.status === 'รอตรวจ') {
+                                    // กรณี 2: ส่งแล้วแต่รอตรวจ
+                                    statusClass = 'completed pending'; // ได้รับสไตล์จาก .completed และ .pending
+                                    iconHtml = '⌛';
+                                } else { 
+                                    // กรณี 3: ยังไม่ส่ง (sub.status คือ 'ยังไม่ส่ง' หรือไม่มี sub เลย)
+                                    if (mission.timingStatus === 'active') {
+                                        statusClass = 'available';
+                                        if (mission.urgency === 'urgent') statusClass += ' urgent-node';
+                                        iconHtml = `<b>${mission.maxPoints}</b><small>pt</small>`;
+                                    } else { // upcoming หรือ past
+                                        statusClass = 'locked';
+                                        if (mission.timingStatus === 'past') statusClass += ' overdue-node';
+                                        iconHtml = '🔒';
+                                    }
+                                }
+                                
+                                const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
+                                missionHtml += `
+                                  <div class="mission-row ${rowClass}">
+                                    <div class="mission-node ${statusClass}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
+                                      <div class="mission-node-topic">${mission.topic}</div>
+                                      <div class="mission-node-points">${iconHtml}</div> 
+                                    </div>
+                                  </div>
+                                `;
+                            });
+                            
+                            container.innerHTML = missionHtml || '<div style="text-align:center; padding: 50px; color: #fff;">เยี่ยม! ไม่มีภารกิจที่ได้รับมอบหมายในขณะนี้</div>';
+                        }
 
 
         

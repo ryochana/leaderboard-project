@@ -809,109 +809,76 @@
       // ======================================================
       // EVENT HANDLERS & UTILITIES
       // ======================================================
-      function switchView(viewId) {
-          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-          // แก้ไข selector ให้แม่นยำขึ้น
-          document.querySelector(`.tab[onclick="switchView('${viewId}')"]`).classList.add('active');
-          document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
-          document.getElementById(viewId).classList.add('active');
-          
-          if (viewId === 'map-view-container') {
-            // เมื่อกดมาที่ Tab แผนที่ ให้เรียกฟังก์ชันวาดแผนที่
-            renderMapView();
-          } 
-          else if (viewId === 'admin-view') {
-            loadAdminData();
-          }
-        }
+
+        // วาง 2 ฟังก์ชันนี้ต่อจาก switchView()
 
         function renderMapView() {
-  const container = document.getElementById('map-view-container');
-  if (!container) return;
-
-  if (!missionsLoaded) {
-      container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
-      return;
-  }
-  
-  // --- ส่วนตรรกะที่เพิ่มเข้ามา ---
-  // สร้าง Set ของ topic ที่ส่งแล้วและตรวจแล้ว เพื่อให้ค้นหาได้เร็ว
-  const completedTopics = new Set(
-    currentUserSubmissions
-      .filter(task => task.status === 'ตรวจแล้ว') // หรือจะเอา 'รอตรวจ' ด้วยก็ได้: task.status !== 'ยังไม่ส่ง'
-      .map(task => task.task)
-  );
-
-  // หาด่านล่าสุดที่ทำเสร็จ
-  let lastCompletedIndex = -1;
-  allMissions.forEach((mission, index) => {
-    if (completedTopics.has(mission.topic)) {
-      lastCompletedIndex = index;
-    }
-  });
-  // --- สิ้นสุดส่วนตรรกะ ---
-  
-  let missionHtml = '';
-  allMissions.forEach((mission, index) => {
-    let status = 'locked'; // 1. เริ่มต้นให้ล็อกทั้งหมด
-    let icon = '🔒';
-
-    // 2. เช็คว่าทำเสร็จไปแล้วหรือยัง
-    if (completedTopics.has(mission.topic)) {
-      status = 'completed';
-      icon = '✔️';
-    } 
-    // 3. ถ้ายังไม่เสร็จ, เช็คว่าเป็นด่านที่ปลดล็อกแล้วหรือยัง
-    // (ด่านแรกสุด หรือ ด่านถัดจากอันล่าสุดที่ทำเสร็จ)
-    else if (index === 0 || index <= lastCompletedIndex + 1) {
-      status = 'available';
-      icon = `<b>${index + 1}</b>`; // ถ้าทำได้ ให้แสดงเป็นตัวเลข
-    }
-
-    missionHtml += `
-      <div class="mission-row">
-        <div class="mission-node ${status}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
-          <div class="mission-node-topic">${mission.topic}</div>
-          <div class="mission-node-points">${icon}</div> 
-        </div>
-      </div>
-    `;
-  });
-  
-  container.innerHTML = missionHtml;
-}
-  
-  let missionHtml = '';
-  allMissions.forEach((mission, index) => {
-    // ในเฟสนี้ เราจะสมมติว่าทุกด่านทำได้หมด (status = 'available')
-    let status = 'available'; 
-
-    missionHtml += `
-      <div class="mission-row">
-        <div class="mission-node ${status}" onclick="showMissionDetail('${mission.topic}')">
-          <div class="mission-node-topic">${mission.topic}</div>
-          <div class="mission-node-points">${mission.maxPoints} คะแนน</div>
-        </div>
-      </div>
-    `;
-  });
-  
-  container.innerHTML = missionHtml;
-}
-
+          const container = document.getElementById('map-view-container');
+          if (!container) return;
+        
+          if (!missionsLoaded) {
+              container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
+              return;
+          }
+          
+          // สร้าง Set ของ topic ที่ส่งแล้วและตรวจแล้ว เพื่อให้ค้นหาได้เร็ว
+          const completedTopics = new Set(
+            currentUserSubmissions
+              .filter(task => task.status === 'ตรวจแล้ว')
+              .map(task => task.task)
+          );
+        
+          // หาด่านล่าสุดที่ทำเสร็จ
+          let lastCompletedIndex = -1;
+          allMissions.forEach((mission, index) => {
+            if (completedTopics.has(mission.topic)) {
+              lastCompletedIndex = index;
+            }
+          });
+          
+          let missionHtml = '';
+          allMissions.forEach((mission, index) => {
+            let status = 'locked'; // 1. เริ่มต้นให้ล็อกทั้งหมด
+            let icon = '🔒';
+        
+            // 2. เช็คว่าทำเสร็จไปแล้วหรือยัง
+            if (completedTopics.has(mission.topic)) {
+              status = 'completed';
+              icon = '✔️';
+            } 
+            // 3. ถ้ายังไม่เสร็จ, เช็คว่าเป็นด่านที่ปลดล็อกแล้วหรือยัง
+            // (ด่านแรกสุด หรือ ด่านถัดจากอันล่าสุดที่ทำเสร็จ)
+            else if (index === 0 || index <= lastCompletedIndex + 1) {
+              status = 'available';
+              icon = `<b>${index + 1}</b>`; // ถ้าทำได้ ให้แสดงเป็นตัวเลข
+            }
+        
+            missionHtml += `
+              <div class="mission-row">
+                <div class="mission-node ${status}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
+                  <div class="mission-node-topic">${mission.topic}</div>
+                  <div class="mission-node-points">${icon}</div> 
+                </div>
+              </div>
+            `;
+          });
+          
+          container.innerHTML = missionHtml;
+        }
+        
         function showMissionDetail(topic) {
-    const mission = allMissions.find(m => m.topic === topic);
-    if (!mission) return;
-    
-    // เราจะใช้ alert ไปก่อน เพื่อทดสอบว่ากดได้
-    alert(
-      `ภารกิจ: ${mission.topic}\n` +
-      `--------------------\n` +
-      `คำสั่ง: ${mission.detail || '(ไม่มี)'}\n` +
-      `คะแนนเต็ม: ${mission.maxPoints}\n` +
-      `กำหนดส่ง: ${mission.dueDate}`
-    );
-}
+            const mission = allMissions.find(m => m.topic === topic);
+            if (!mission) return;
+            
+            // เราจะใช้ alert ไปก่อน เพื่อทดสอบว่ากดได้
+            alert(
+              `ภารกิจ: ${mission.topic}\n` +
+              `--------------------\n` +
+              `คำสั่ง: ${mission.detail || '(ไม่มี)'}\n` +
+              `คะแนนเต็ม: ${mission.maxPoints}\n` +
+              `กำหนดส่ง: ${mission.dueDate}`
+            );
+        }
 
       function filterStudentList() {
         const searchTerm = document.getElementById('search-student').value.toLowerCase();

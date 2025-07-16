@@ -1,0 +1,7 @@
+[build]
+  # ไม่ต้องทำอะไรกับไฟล์ html ของเรา แค่บอกว่ามันอยู่ตรงไหน
+  publish = "." 
+
+[functions]
+  # บอก Netlify ว่าฟังก์ชันของเราจะอยู่ในโฟลเดอร์ชื่อ netlify/functions
+  directory = "netlify/functions"

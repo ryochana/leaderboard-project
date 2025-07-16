@@ -330,54 +330,51 @@
 
      // คัดลอกทั้งหมดนี้ไปวางทับฟังก์ชัน loadInitialData() เดิม
 
-async function loadInitialData() {
-    showLoader(true, "กำลังโหลดข้อมูลหลัก...");
-    try {
-        // --- ขั้นตอนที่ 1: โหลดและแสดงผลข้อมูลหลักก่อน ---
-        const summaryResult = await fetchGet({ action: 'getSummary' });
-        if (summaryResult.error) {
-          throw new Error(`API Error (Summary): ${summaryResult.error}`);
-        }
+        async function loadInitialData() {
+            showLoader(true, "กำลังโหลดข้อมูลหลัก...");
+            try {
+                // 1. โหลดข้อมูลอันดับและภารกิจพร้อมกัน
+                const [summaryResult, missionsResult] = await Promise.all([
+                  fetchGet({ action: 'getSummary' }),
+                  fetchGet({ action: 'getMissions' })
+                ]);
         
-        fullSummaryData = summaryResult.data || [];
-        filteredSummaryData = fullSummaryData;
-
-        // สร้าง UI หลักและแสดงผล Leaderboard ทันที
-        buildApp(); 
-        await initializeUser(); // ต้องรอให้ user โหลดเสร็จก่อน
-
-        // --- ขั้นตอนที่ 2: โหลดข้อมูลส่วนที่เหลือในพื้นหลัง ---
-        fetchGet({ action: 'getMissions' }).then(missionsResult => {
-            if (missionsResult && missionsResult.data) {
-                allMissions = missionsResult.data;
+                // --- จัดการข้อมูลที่ได้มา ---
+                if (summaryResult.error) throw new Error(`API Error (Summary): ${summaryResult.error}`);
+                fullSummaryData = summaryResult.data || [];
+                filteredSummaryData = fullSummaryData;
+        
+                if (missionsResult.error) console.error(`API Error (Missions): ${missionsResult.error}`);
+                allMissions = missionsResult.data || [];
                 missionsLoaded = true;
                 
-                // ถ้าผู้ใช้กดไปที่ tab แผนที่ก่อนมันจะโหลดเสร็จ
-                // ให้เรา render view นั้นอีกครั้งหลังจากข้อมูลมาถึงแล้ว
+                // --- สร้าง UI และโหลดข้อมูลผู้ใช้ ---
+                buildApp(); 
+                await initializeUser();
+        
+                // --- ส่วนใหม่: ดึงข้อมูลการส่งงานหลังจากรู้ตัวผู้ใช้แล้ว ---
+                if (currentUser) {
+                  const detailResult = await fetchGet({ action: "getStudentDetail", studentId: currentUser.studentId });
+                  if (detailResult && detailResult.data) {
+                    currentUserSubmissions = detailResult.data.tasks || [];
+                  }
+                } else {
+                  currentUserSubmissions = []; // ถ้าไม่ล็อกอิน ก็ไม่มีงานที่ส่ง
+                }
+                
+                // Render view ที่กำลังเปิดอยู่ใหม่ (ถ้าจำเป็น)
                 if (document.getElementById('map-view-container')?.classList.contains('active')) {
                     renderMapView();
                 }
-                
-                // ถ้าเป็น admin และเปิดหน้าจัดการอยู่ ให้ render ส่วนรายการภารกิจใหม่
-                if (currentUser && currentUser.role === 'admin' && document.getElementById('admin-view')?.classList.contains('active')) {
-                    // เราไม่ render ทั้งหมด แต่จะอัปเดตแค่ส่วน mission list ในหน้า admin
-                    const adminMissionList = document.getElementById('admin-mission-list');
-                    if (adminMissionList) {
-                       adminMissionList.innerHTML = allMissions.map(m => `<li class="admin-mission-item"><span>${m.topic}</span><button class="btn-delete" onclick="handleDeleteMission('${m.topic}')">ลบ</button></li>`).join('');
-                    }
-                }
+        
+            } catch (error) {
+                // ถ้ามี error ใดๆ เกิดขึ้นใน try block, ให้แสดงหน้า error
+                showError(error);
+            } finally {
+                // ไม่ว่าจะสำเร็จหรือล้มเหลว, ให้ปิดตัวหมุนๆ เสมอ
+                showLoader(false);
             }
-        }).catch(error => {
-            console.error("Failed to load missions in the background:", error);
-        });
-
-    } catch (error) {
-        showError(error);
-    } finally {
-        // ปิด Loader หลังจากที่ข้อมูลหลักแสดงผลแล้ว
-        showLoader(false);
-    }
-}
+        }
 
       async function loadAdminData() {
         if (adminData.students.length > 0) {
@@ -540,33 +537,21 @@ async function loadInitialData() {
       // ======================================================
       let currentUserSubmissions = [];
 
-async function initializeUser() {
-    const storedUsername = localStorage.getItem('leaderboardUser');
-    if (storedUsername) {
-      try {
-        const sessionResult = await fetchGet({ action: 'checkUserSession', username: storedUsername });
-        currentUser = (sessionResult && sessionResult.user) ? sessionResult.user : null;
-        
-        // --- ส่วนที่เพิ่มเข้ามา ---
-        if (currentUser) {
-          // ถ้ามีผู้ใช้, ให้ดึงข้อมูลการส่งงานของเขามาเก็บไว้
-          const detailResult = await fetchGet({ action: "getStudentDetail", studentId: currentUser.studentId });
-          if (detailResult && detailResult.data) {
-            currentUserSubmissions = detailResult.data.tasks || [];
-          }
+        async function initializeUser() {
+            const storedUsername = localStorage.getItem('leaderboardUser');
+            if (storedUsername) {
+              try {
+                const sessionResult = await fetchGet({ action: 'checkUserSession', username: storedUsername });
+                currentUser = (sessionResult && sessionResult.user) ? sessionResult.user : null;
+                if (!currentUser) localStorage.removeItem('leaderboardUser');
+              } catch(err) {
+                console.error("Session check failed:", err);
+                localStorage.removeItem('leaderboardUser');
+                currentUser = null;
+              }
+            }
+            updateUserUI();
         }
-        // --- สิ้นสุดส่วนที่เพิ่มเข้ามา ---
-
-        if (!currentUser) localStorage.removeItem('leaderboardUser');
-      } catch(err) {
-        console.error("Session check or detail fetch failed:", err);
-        localStorage.removeItem('leaderboardUser');
-        currentUser = null;
-        currentUserSubmissions = [];
-      }
-    }
-    updateUserUI();
-}
       
       function updateUserUI() {
           const userPic = document.getElementById('user-area-pic');

@@ -4,7 +4,6 @@
 // This is the standard way to handle async imports in Netlify functions.
 
 exports.handler = async (event, context) => {
-  // Dynamically import node-fetch
   const fetch = (await import('node-fetch')).default;
   const FormData = (await import('form-data')).default;
 

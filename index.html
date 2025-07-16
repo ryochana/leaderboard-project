@@ -894,81 +894,100 @@
 
         // ใน index.html
 
-            function renderMapView() {
-              const container = document.getElementById('map-view-container');
-              if (!container) return;
-              if (!missionsLoaded) {
-                  container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
-                  return;
-              }
-              
-              const submissionMap = new Map(currentUserSubmissions.map(task => [task.task, task]));
-            
-              // --- จัดเรียงตามกฎใหม่ ---
-              allMissions.sort((a, b) => {
-                const aIsCompleted = submissionMap.has(a.topic);
-                const bIsCompleted = submissionMap.has(b.topic);
-                const aIsActive = a.timingStatus === 'active';
-                const bIsActive = b.timingStatus === 'active';
-                const aIsUpcoming = a.timingStatus === 'upcoming';
-                const bIsUpcoming = b.timingStatus === 'upcoming';
-                
-                // 1. งานที่ Active และยังไม่เสร็จ -> ขึ้นบนสุด
-                if (aIsActive && !aIsCompleted && (!bIsActive || bIsCompleted)) return -1;
-                if (bIsActive && !bIsCompleted && (!aIsActive || aIsCompleted)) return 1;
-                
-                // -- ถ้าทั้งคู่ Active และยังไม่เสร็จ ให้จัดตามความด่วน --
-                if (aIsActive && !aIsCompleted && bIsActive && !bIsCompleted) {
-                    if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
-                    if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
-                    return a.dueDate - b.dueDate; // ใกล้หมดเขตก่อน ขึ้นก่อน
-                }
-            
-                // 2. งานที่ทำเสร็จแล้ว -> อยู่ตรงกลาง
-                if (aIsCompleted && !bIsCompleted) return 1;
-                if (bIsCompleted && !aIsCompleted) return -1;
-                if (aIsCompleted && bIsCompleted) return b.dueDate - a.dueDate; // เสร็จแล้วอันล่าสุดอยู่บน
-            
-                // 3. งานที่ยังไม่ถึงเวลา (Upcoming) -> อยู่ล่างสุด
-                if (aIsUpcoming && !bIsUpcoming) return 1;
-                if (bIsUpcoming && !aIsUpcoming) return -1;
-                if (aIsUpcoming && bIsUpcoming) return a.assignedDate - b.assignedDate; // อันไหนจะมาถึงก่อน ก็อยู่บน
-            
-                // 4. งานที่เลยเวลาไปแล้ว (Past) -> อยู่เกือบล่างสุด
-                return b.dueDate - a.dueDate;
-              });
-              
-              // --- สร้าง HTML ---
-              let missionHtml = '';
-              sortedMissions.forEach((mission, index) => {
-                let status = '';
-                let icon = '🔒';
-            
-                const sub = submissionMap.get(mission.topic);
-                const isSubmitted = !!sub;
-            
-                if (mission.timingStatus === 'active') {
-                    if (isSubmitted) {
-                        status = 'completed' + (sub.status === 'รอตรวจ' ? ' pending' : '');
-                        icon = (sub.status === 'ตรวจแล้ว') ? `✔️ ${sub.score}` : '⌛';
-                    } else { // Active แต่ยังไม่ส่ง
-                        status = 'available';
-                        if (mission.urgency === 'urgent') status += ' urgent-node';
-                        icon = `<b>${mission.maxPoints}</b><small>pt</small>`;
-                    }
-                } else if (isSubmitted) { // Past หรือ Upcoming แต่ส่งไปแล้ว
-                    status = 'completed';
-                    icon = `✔️ ${sub.score}`;
-                } else { // Past หรือ Upcoming และยังไม่ส่ง
-                    status = 'locked';
-                }
-                
-                const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
-                missionHtml += `...`; // โค้ดสร้าง HTML เหมือนเดิม
-              });
-              
-              container.innerHTML = missionHtml || '...';
-            }
+                                    function renderMapView() {
+                          const container = document.getElementById('map-view-container');
+                          if (!container) return;
+                          if (!missionsLoaded) {
+                              container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
+                              return;
+                          }
+                          
+                          const submissionMap = new Map(
+                            currentUserSubmissions.map(task => [task.task, task])
+                          );
+                        
+                          // --- จัดเรียงตามกฎใหม่ ---
+                          const sortedMissions = [...allMissions].sort((a, b) => { // สร้าง copy ของ array ก่อน sort
+                            const aIsCompleted = submissionMap.has(a.topic);
+                            const bIsCompleted = submissionMap.has(b.topic);
+                            const aIsActive = a.timingStatus === 'active';
+                            const bIsActive = b.timingStatus === 'active';
+                            const aIsUpcoming = a.timingStatus === 'upcoming';
+                            const bIsUpcoming = b.timingStatus === 'upcoming';
+                            
+                            // 1. งานที่ Active และยังไม่เสร็จ -> ขึ้นบนสุด
+                            if (aIsActive && !aIsCompleted && (!bIsActive || bIsCompleted)) return -1;
+                            if (bIsActive && !bIsCompleted && (!aIsActive || aIsCompleted)) return 1;
+                            
+                            // -- ถ้าทั้งคู่ Active และยังไม่เสร็จ ให้จัดตามความด่วน --
+                            if (aIsActive && !aIsCompleted && bIsActive && !bIsCompleted) {
+                                if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
+                                if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
+                                return a.dueDate - b.dueDate;
+                            }
+                        
+                            // 2. งานที่ทำเสร็จแล้ว -> อยู่ตรงกลาง
+                            if (aIsCompleted && !bIsCompleted) return 1;
+                            if (bIsCompleted && !aIsCompleted) return -1;
+                            if (aIsCompleted && bIsCompleted) {
+                               // จัดเรียงงานที่เสร็จแล้ว โดยให้งานล่าสุด (dueDate สูงสุด) อยู่บน
+                               return b.dueDate - a.dueDate;
+                            }
+                        
+                            // 3. งานที่ยังไม่ถึงเวลา (Upcoming) -> อยู่ล่างสุด
+                            if (aIsUpcoming && !bIsUpcoming) return 1;
+                            if (bIsUpcoming && !aIsUpcoming) return -1;
+                            if (aIsUpcoming && bIsUpcoming) {
+                              // อันไหนจะมาถึงก่อน ก็อยู่บน (ในกลุ่มของมัน)
+                              return a.assignedDate - b.assignedDate;
+                            }
+                        
+                            // 4. งานที่เลยเวลาไปแล้ว (Past และยังไม่ส่ง) -> อยู่รองสุดท้าย
+                            return b.dueDate - a.dueDate;
+                          });
+                          
+                          // --- สร้าง HTML ---
+                          let missionHtml = '';
+                          sortedMissions.forEach((mission, index) => { // <--- ใช้ sortedMissions ที่เราสร้าง
+                            let status = '';
+                            let icon = '🔒';
+                        
+                            const sub = submissionMap.get(mission.topic);
+                            const isSubmitted = !!sub;
+                        
+                            if (mission.timingStatus === 'active') {
+                                if (isSubmitted) {
+                                    status = 'completed' + (sub.status === 'รอตรวจ' ? ' pending' : '');
+                                    icon = (sub.status === 'ตรวจแล้ว') ? `✔️ ${sub.score}` : '⌛';
+                                } else { // Active แต่ยังไม่ส่ง
+                                    status = 'available';
+                                    if (mission.urgency === 'urgent') status += ' urgent-node';
+                                    icon = `<b>${mission.maxPoints}</b><small>pt</small>`;
+                                }
+                            } else if (isSubmitted) { // Past หรือ Upcoming แต่ส่งไปแล้ว
+                                status = 'completed';
+                                icon = `✔️ ${sub.score}`;
+                            } else { // Past หรือ Upcoming และยังไม่ส่ง
+                                status = 'locked';
+                                if (mission.timingStatus === 'past') {
+                                    status += ' overdue-node'; // ทำให้เป็นสีเทาเข้ม
+                                }
+                            }
+                            
+                            const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
+                            
+                            missionHtml += `
+                              <div class="mission-row ${rowClass}">
+                                <div class="mission-node ${status}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
+                                  <div class="mission-node-topic">${mission.topic}</div>
+                                  <div class="mission-node-points">${icon}</div> 
+                                </div>
+                              </div>
+                            `;
+                          });
+                          
+                          container.innerHTML = missionHtml || '<div style="text-align:center; padding: 50px; color: #fff;">เยี่ยม! ไม่มีภารกิจที่ได้รับมอบหมายในขณะนี้</div>';
+                        }
             
             function showMissionDetail(topic) {
                 const mission = allMissions.find(m => m.topic === topic);

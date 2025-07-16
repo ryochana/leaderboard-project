@@ -328,57 +328,56 @@
 
       document.addEventListener('DOMContentLoaded', loadInitialData);
 
-      // ใน index.html
+     // คัดลอกทั้งหมดนี้ไปวางทับฟังก์ชัน loadInitialData() เดิม
 
-        async function loadInitialData() {
-            showLoader(true, "กำลังโหลดข้อมูลหลัก...");
-            try {
-                // --- ขั้นตอนที่ 1: โหลดและแสดงผลข้อมูลหลักก่อน ---
-                const summaryResult = await fetchGet({ action: 'getSummary' });
-                if (summaryResult.error) {
-                  throw new Error(`API Error (Summary): ${summaryResult.error}`);
+async function loadInitialData() {
+    showLoader(true, "กำลังโหลดข้อมูลหลัก...");
+    try {
+        // --- ขั้นตอนที่ 1: โหลดและแสดงผลข้อมูลหลักก่อน ---
+        const summaryResult = await fetchGet({ action: 'getSummary' });
+        if (summaryResult.error) {
+          throw new Error(`API Error (Summary): ${summaryResult.error}`);
+        }
+        
+        fullSummaryData = summaryResult.data || [];
+        filteredSummaryData = fullSummaryData;
+
+        // สร้าง UI หลักและแสดงผล Leaderboard ทันที
+        buildApp(); 
+        await initializeUser(); // ต้องรอให้ user โหลดเสร็จก่อน
+
+        // --- ขั้นตอนที่ 2: โหลดข้อมูลส่วนที่เหลือในพื้นหลัง ---
+        fetchGet({ action: 'getMissions' }).then(missionsResult => {
+            if (missionsResult && missionsResult.data) {
+                allMissions = missionsResult.data;
+                missionsLoaded = true;
+                
+                // ถ้าผู้ใช้กดไปที่ tab แผนที่ก่อนมันจะโหลดเสร็จ
+                // ให้เรา render view นั้นอีกครั้งหลังจากข้อมูลมาถึงแล้ว
+                if (document.getElementById('map-view-container')?.classList.contains('active')) {
+                    renderMapView();
                 }
                 
-                fullSummaryData = summaryResult.data || [];
-                filteredSummaryData = fullSummaryData;
-        
-                // สร้าง UI หลักและแสดงผล Leaderboard ทันที
-                buildApp(); 
-                await initializeUser(); // ต้องรอให้ user โหลดเสร็จก่อน
-        
-                // --- ขั้นตอนที่ 2: โหลดข้อมูลส่วนที่เหลือในพื้นหลัง ---
-                // เราจะไม่ใช้ 'await' กับอันนี้ เพื่อให้มันทำงานไปเบื้องหลังได้เลย
-                fetchGet({ action: 'getMissions' }).then(missionsResult => {
-                    if (missionsResult && missionsResult.data) {
-                        allMissions = missionsResult.data;
-                        missionsLoaded = true;
-                        
-                        // ถ้าผู้ใช้บังเอิญกดไปที่ tab ภารกิจก่อนมันจะโหลดเสร็จ
-                        // ให้เรา render view นั้นอีกครั้งหลังจากข้อมูลมาถึงแล้ว
-                        if (document.getElementById('missions-view')?.classList.contains('active')) {
-                            renderMissionView();
-                        }
-                        
-                        // ถ้าเป็น admin และเปิดหน้าจัดการอยู่ ให้ render ส่วนรายการภารกิจใหม่
-                        if (currentUser && currentUser.role === 'admin' && document.getElementById('admin-view')?.classList.contains('active')) {
-                            // เราไม่ render ทั้งหมด แต่จะอัปเดตแค่ส่วน mission list ในหน้า admin
-                            const adminMissionList = document.getElementById('admin-mission-list');
-                            if (adminMissionList) {
-                               adminMissionList.innerHTML = allMissions.map(m => `<li class="admin-mission-item"><span>${m.topic}</span><button class="btn-delete" onclick="handleDeleteMission('${m.topic}')">ลบ</button></li>`).join('');
-                            }
-                        }
+                // ถ้าเป็น admin และเปิดหน้าจัดการอยู่ ให้ render ส่วนรายการภารกิจใหม่
+                if (currentUser && currentUser.role === 'admin' && document.getElementById('admin-view')?.classList.contains('active')) {
+                    // เราไม่ render ทั้งหมด แต่จะอัปเดตแค่ส่วน mission list ในหน้า admin
+                    const adminMissionList = document.getElementById('admin-mission-list');
+                    if (adminMissionList) {
+                       adminMissionList.innerHTML = allMissions.map(m => `<li class="admin-mission-item"><span>${m.topic}</span><button class="btn-delete" onclick="handleDeleteMission('${m.topic}')">ลบ</button></li>`).join('');
                     }
-                }).catch(error => {
-                    console.error("Failed to load missions in the background:", error);
-                });
-        
-            } catch (error) {
-                showError(error);
-            } finally {
-                // ปิด Loader หลังจากที่ข้อมูลหลักแสดงผลแล้ว
-                showLoader(false);
+                }
             }
-        }
+        }).catch(error => {
+            console.error("Failed to load missions in the background:", error);
+        });
+
+    } catch (error) {
+        showError(error);
+    } finally {
+        // ปิด Loader หลังจากที่ข้อมูลหลักแสดงผลแล้ว
+        showLoader(false);
+    }
+}
 
       async function loadAdminData() {
         if (adminData.students.length > 0) {

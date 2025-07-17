@@ -1,55 +1,91 @@
 // The final, correct version of proxy.js
 
-// We cannot use top-level await, so we must wrap the handler.
-// This is the standard way to handle async imports in Netlify functions.
-
-exports.handler = async (event, context) => {
-  const fetch = (await import('node-fetch')).default;
-  const FormData = (await import('form-data')).default;
+// Using dynamic import for ES Modules in a CommonJS environment (Netlify's default)
+exports.handler = async (event) => {
+  const { default: fetch } = await import('node-fetch');
+  const { default: FormData } = await import('form-data');
 
   const GOOGLE_SCRIPT_URL = process.env.VITE_API_URL;
+  const IMGBB_API_KEY = process.env.VITE_IMGBB_API_KEY;
 
   if (!GOOGLE_SCRIPT_URL) {
-    return { statusCode: 500, body: JSON.stringify({ error: "VITE_API_URL is not configured in Netlify." }) };
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "VITE_API_URL is not configured in Netlify." })
+    };
   }
+  
+  // --- CORS Headers - สำคัญมาก! ---
+  const headers = {
+    'Access-Control-Allow-Origin': '*', // Allows any origin
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+  };
+
+  // --- Handle preflight request for CORS ---
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers };
+  }
+
 
   // --- GET Request Handler ---
   if (event.httpMethod === "GET") {
-    const params = new URLSearchParams(event.queryStringParameters).toString();
-    const url = `${GOOGLE_SCRIPT_URL}?${params}`;
+    // We add a 'callback' parameter because our Apps Script expects it for JSONP
+    const params = new URLSearchParams(event.queryStringParameters);
+    params.set('callback', 'callback'); // Add a dummy callback name
+    
+    const url = `${GOOGLE_SCRIPT_URL}?${params.toString()}`;
+
     try {
       const response = await fetch(url);
       const text = await response.text();
 
-      // Simple check if the response is likely JSONP
-      if (!text.includes('(') || !text.includes(')')) {
-          return { statusCode: 502, body: JSON.stringify({ error: "Bad Gateway: Upstream response was not valid JSONP.", upstream_body: text }) };
-      }
-
-      const jsonTextMatch = text.match(/\(([\s\S]*)\)/);
+      // *** THIS IS THE FIX ***
+      // We will now extract the pure JSON data from the JSONP response
+      const jsonTextMatch = text.match(/^callback\(([\s\S]*)\)$/);
+      
       if (!jsonTextMatch || !jsonTextMatch[1]) {
-        return { statusCode: 502, body: JSON.stringify({ error: "Bad Gateway: Could not extract JSON from JSONP response.", upstream_body: text }) };
+        // If it's not JSONP, maybe it's just JSON (e.g., an error message from GAS)
+        // Let's try to parse it as plain JSON.
+        try {
+            JSON.parse(text); // Check if it's valid JSON
+            return { statusCode: 200, headers, body: text };
+        } catch (e) {
+            // If it's neither, then it's a bad response
+            return {
+                statusCode: 502, // Bad Gateway
+                headers,
+                body: JSON.stringify({ error: "Bad Gateway: Upstream response was not valid JSON or JSONP.", upstream_body: text })
+            };
+        }
       }
 
+      // Return only the pure JSON part
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json" },
+        headers, // Use our CORS headers
         body: jsonTextMatch[1]
       };
+
     } catch (error) {
-      return { statusCode: 500, body: JSON.stringify({ error: `Proxy GET Error: ${error.message}` }) };
+      return { 
+        statusCode: 500, 
+        headers,
+        body: JSON.stringify({ error: `Proxy GET Error: ${error.message}` }) 
+      };
     }
   }
 
   // --- POST Request Handler ---
+  // POST requests from our Apps Script return pure JSON, so this part is mostly fine.
   if (event.httpMethod === "POST") {
     try {
       const body = JSON.parse(event.body);
       const action = body.action;
 
       if (action === 'uploadProfileImage') {
-        const IMGBB_API_KEY = process.env.VITE_IMGBB_API_KEY;
-        if (!IMGBB_API_KEY) throw new Error("VITE_IMGBB_API_KEY is not configured in Netlify.");
+        if (!IMGBB_API_KEY) throw new Error("VITE_IMGBB_API_KEY is not configured.");
 
         const base64Data = body.fileData.split(',')[1];
         const form = new FormData();
@@ -61,14 +97,13 @@ exports.handler = async (event, context) => {
         });
         const imgbbResult = await imgbbResponse.json();
         if (!imgbbResult.success) {
-          throw new Error(`ImgBB upload failed: ${imgbbResult.error?.message || 'Unknown error'}`);
+          throw new Error(`ImgBB upload failed: ${imgbbResult.error?.message || 'Unknown'}`);
         }
-        const imageUrl = imgbbResult.data.url;
-
+        
         const googlePayload = {
           action: 'uploadProfileImage',
           studentId: body.studentId,
-          imageUrl: imageUrl,
+          imageUrl: imgbbResult.data.url,
           user: body.user,
         };
 
@@ -78,7 +113,7 @@ exports.handler = async (event, context) => {
           body: JSON.stringify(googlePayload)
         });
         const googleResult = await googleResponse.json();
-        return { statusCode: 200, body: JSON.stringify(googleResult) };
+        return { statusCode: 200, headers, body: JSON.stringify(googleResult) };
       }
 
       // Other POST actions
@@ -90,17 +125,22 @@ exports.handler = async (event, context) => {
       const data = await response.json();
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(data)
       };
 
     } catch (error) {
-      return { statusCode: 500, body: JSON.stringify({ success: false, error: `Proxy POST Error: ${error.message}` }) };
+      return { 
+        statusCode: 500, 
+        headers,
+        body: JSON.stringify({ success: false, error: `Proxy POST Error: ${error.message}` }) 
+      };
     }
   }
 
   return {
     statusCode: 405,
-    body: JSON.stringify({ error: "Method Not Allowed" })
+    headers,
+    body: 'Method Not Allowed'
   };
 };

@@ -67,6 +67,7 @@
     }
 
     async function initializeApp() {
+         document.title = `ENG ${getGradeConfigFromUrl().title} NPC 68`;
         buildApp();
         await initializeUser();
         loadInitialData();

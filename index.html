@@ -319,7 +319,10 @@
         }
         container.innerHTML = filteredSummaryData.map(student => {
             const rankDisplay = student.rank === 1 ? '🥇' : student.rank === 2 ? '🥈' : student.rank === 3 ? '🥉' : student.rank;
-            const profilePic = student.profileUrl || 'https://i.ibb.co/RkgFJztg/AVATAR.jpg';
+             let profilePic = student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png';
+        if (student.profileUrl) {
+            profilePic = `${student.profileUrl}?t=${new Date().getTime()}`;
+        }
             const rankClass = student.rank <= 3 ? `rank-${student.rank}` : '';
             const badgesHtml = (student.earnedBadges || []).map(badge => `<div class="badge-tooltip"><img src="${badge.iconUrl}" alt="${badge.name}" class="badge-icon"><span class="tooltip-text"><b>${badge.name}</b><br>${badge.description}</span></div>`).join('');
 
@@ -411,8 +414,14 @@
 
         const defaultPic = 'https://i.ibb.co/RkgFJztg/AVATAR.jpg';
 
+        
         if (currentUser) {
-            userPic.src = currentUser.profileUrl || defaultPic;
+            let profileUrl = currentUser.profileUrl || defaultPic;
+        if (currentUser.profileUrl) {
+            profileUrl = `${currentUser.profileUrl}?t=${new Date().getTime()}`;
+        }
+        userPicEl.src = profileUrl;
+        document.getElementById('profile-preview').src = profileUrl;
             loginText.style.display = 'none';
 
             const userRecord = fullSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));

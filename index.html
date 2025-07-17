@@ -76,25 +76,38 @@
     // API & DATA FETCHING
     // ======================================================
     const fetchGet = async (params = {}) => {
-        const queryString = new URLSearchParams(params).toString();
-        const fullUrl = `${API_URL}?${queryString}`;
-        const response = await fetch(fullUrl);
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Network response was not ok: ${errorText}`);
+    const queryString = new URLSearchParams(params).toString();
+    const fullUrl = `${API_URL}?${queryString}`;
+    
+    const response = await fetch(fullUrl);
+    const text = await response.text(); // อ่าน response เป็น text ก่อนเสมอ
+
+    if (!response.ok) {
+        // ถ้า server ตอบกลับมาว่ามีปัญหา ให้โยน error พร้อมข้อความจาก server
+        throw new Error(`Network response was not ok: ${text}`);
+    }
+
+    try {
+        // นี่คือหัวใจของการแก้ไข: เราจะพยายาม parse เป็น JSON โดยตรงก่อน
+        return JSON.parse(text); 
+    } catch (e) {
+        // ถ้า parse แบบ JSON ธรรมดาไม่ได้ (เพราะอาจจะเป็น JSONP)
+        // ให้ลองแยกข้อมูลออกจาก JSONP
+        const jsonpMatch = text.match(/^[a-zA-Z0-9_]+\(([\s\S]*)\)$/);
+        if (jsonpMatch && jsonpMatch[1]) {
+            try {
+                // ลอง parse ส่วนที่อยู่ข้างในวงเล็บ
+                return JSON.parse(jsonpMatch[1]);
+            } catch (jsonpError) {
+                // ถ้ายัง parse ไม่ได้อีก แสดงว่าข้อมูลผิดพลาดจริงๆ
+                throw new Error(`Failed to parse JSONP content: ${jsonpError.message}`);
+            }
+        } else {
+            // ถ้าไม่ใช่ทั้ง JSON และ JSONP แสดงว่า response ผิดรูปแบบ
+            throw new Error("Received non-JSON, non-JSONP response from server.");
         }
-        const text = await response.text();
-        // This logic handles the JSONP response from your proxy
-        if (text.startsWith('callback(') || text.includes('(')) {
-             const jsonTextMatch = text.match(/\(([\s\S]*)\)/);
-             if (!jsonTextMatch || !jsonTextMatch[1]) {
-                 throw new Error("Could not extract JSON from JSONP response.");
-             }
-             return JSON.parse(jsonTextMatch[1]);
-        }
-        // Fallback for direct JSON
-        return JSON.parse(text);
-    };
+    }
+};
 
     const postAdminAction = async (action, params) => {
         if (!currentUser) throw new Error("กรุณาเข้าสู่ระบบก่อนดำเนินการ");
@@ -193,7 +206,7 @@
         mainContent.innerHTML = `
             <div class="leaderboard-container">
                 <div class="header-bar">
-                    <div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/6y4jMWT/default-avatar.png" alt="User"><span id="login-text">เข้าสู่ระบบ</span></button></div>
+                    <div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/RkgFJztg/AVATAR.jpg" alt="User"><span id="login-text">เข้าสู่ระบบ</span></button></div>
                     <div class="header-trophy">🏆</div>
                     <div class="header-titles"><div class="title-main">ติดตามการส่งงานภาษาอังกฤษ ${config.title} เทอม 1 ปี 68</div><div class="title-sub">โรงเรียนบ้านโนนผักชี</div></div>
                 </div>
@@ -300,7 +313,7 @@
         }
         container.innerHTML = filteredSummaryData.map(student => {
             const rankDisplay = student.rank === 1 ? '🥇' : student.rank === 2 ? '🥈' : student.rank === 3 ? '🥉' : student.rank;
-            const profilePic = student.profileUrl || 'https://i.ibb.co/6y4jMWT/default-avatar.png';
+            const profilePic = student.profileUrl || 'https://i.ibb.co/RkgFJztg/AVATAR.jpg';
             const rankClass = student.rank <= 3 ? `rank-${student.rank}` : '';
             const badgesHtml = (student.earnedBadges || []).map(badge => `<div class="badge-tooltip"><img src="${badge.iconUrl}" alt="${badge.name}" class="badge-icon"><span class="tooltip-text"><b>${badge.name}</b><br>${badge.description}</span></div>`).join('');
 
@@ -390,7 +403,7 @@
 
         if (!userPic || !loginText || !adminTab) return;
 
-        const defaultPic = 'https://i.ibb.co/6y4jMWT/default-avatar.png';
+        const defaultPic = 'https://i.ibb.co/RkgFJztg/AVATAR.jpg';
 
         if (currentUser) {
             userPic.src = currentUser.profileUrl || defaultPic;
@@ -874,7 +887,7 @@
         const student = fullSummaryData.find(s => String(s.studentId) === String(studentId));
         if (!student) return;
 
-        document.getElementById('detail-modal-pic').src = student.profileUrl || 'https://i.ibb.co/6y4jMWT/default-avatar.png';
+        document.getElementById('detail-modal-pic').src = student.profileUrl || 'https://i.ibb.co/RkgFJztg/AVATAR.jpg';
         document.getElementById('detail-modal-name').innerText = student.name;
         document.getElementById('detail-modal-score').innerText = `คะแนนรวม: ${student.totalScore}`;
         document.getElementById('detail-modal-badges').innerHTML = (student.earnedBadges || []).map(b => `<div class="badge-tooltip"><img src="${b.iconUrl}" alt="${b.name}" class="badge-icon"><span class="tooltip-text"><b>${b.name}</b><br>${b.description}</span></div>`).join('');

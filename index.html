@@ -641,116 +641,162 @@
     // EVENT HANDLERS & UTILITIES
     // ======================================================
     function renderMapView() {
-        const container = document.getElementById('map-view-container');
-        if (!container) return;
-        if (!missionsLoaded) {
-            container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
-            return;
+    const container = document.getElementById('map-view-container');
+    if (!container) return;
+    
+    // --- ส่วนที่เพิ่มเข้ามา ---
+    if (!currentUser) {
+        // ถ้าไม่มี người dùng ที่ล็อกอินอยู่
+        container.innerHTML = `
+            <div class="login-overlay-wrapper">
+                <div class="login-overlay-content">
+                    <i class="fas fa-lock"></i>
+                    <h3>กรุณาล็อกอินก่อน</h3>
+                    <p>เพื่อดูสถานะและส่งภารกิจของคุณ</p>
+                    <button class="btn-primary" onclick="openModal('login-modal')">ไปที่หน้าล็อกอิน</button>
+                </div>
+            </div>
+        `;
+        // เพิ่มสไตล์สำหรับ Overlay ที่ท้ายไฟล์ CSS
+        return; // จบการทำงานของฟังก์ชันนี้ทันที
+    }
+    // --- จบส่วนที่เพิ่มเข้ามา ---
+
+    if (!missionsLoaded) {
+        container.innerHTML = '<div style="text-align:center; padding: 50px;">กำลังโหลดแผนที่...</div>';
+        return;
+    }
+    
+    const submissionMap = currentUserSubmissions.length > 0 
+        ? new Map(currentUserSubmissions.map(task => [task.task, task]))
+        : new Map();
+
+    const sortedMissions = [...allMissions].sort((a, b) => {
+        const aSub = submissionMap.get(a.topic);
+        const bSub = submissionMap.get(b.topic);
+        
+        const aIsSubmitted = aSub && aSub.status !== 'ยังไม่ส่ง';
+        const bIsSubmitted = bSub && bSub.status !== 'ยังไม่ส่ง';
+        
+        if (!aIsSubmitted && bIsSubmitted) return -1;
+        if (aIsSubmitted && !bIsSubmitted) return 1;
+
+        if (!aIsSubmitted && !bIsSubmitted) {
+            if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
+            if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
+            return a.dueDate - b.dueDate;
+        }
+        
+        if (aIsSubmitted && bIsSubmitted) {
+            return b.dueDate - a.dueDate;
         }
 
-        const submissionMap = currentUserSubmissions.length > 0
-            ? new Map(currentUserSubmissions.map(task => [task.task, task]))
-            : new Map();
+        return 0;
+    });
+    
+    let missionHtml = '';
+    sortedMissions.forEach((mission, index) => {
+        let statusClass = '';
+        let iconHtml = '...';
 
-        const sortedMissions = [...allMissions].sort((a, b) => {
-            const aSub = submissionMap.get(a.topic);
-            const bSub = submissionMap.get(b.topic);
-            const aIsSubmitted = aSub && aSub.status !== 'ยังไม่ส่ง';
-            const bIsSubmitted = bSub && bSub.status !== 'ยังไม่ส่ง';
-            if (!aIsSubmitted && bIsSubmitted) return -1;
-            if (aIsSubmitted && !bIsSubmitted) return 1;
-            if (!aIsSubmitted && !bIsSubmitted) {
-                if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
-                if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
-                return a.dueDate - b.dueDate;
-            }
-            if (aIsSubmitted && bIsSubmitted) {
-                return b.dueDate - a.dueDate;
-            }
-            return 0;
-        });
+        const sub = submissionMap.get(mission.topic);
 
-        let missionHtml = '';
-        sortedMissions.forEach((mission, index) => {
-            let statusClass = '';
-            let iconHtml = '...';
-            const sub = submissionMap.get(mission.topic);
-            if (sub && sub.status === 'ตรวจแล้ว') {
-                statusClass = 'completed';
-                iconHtml = `✔️ ${sub.score}`;
-            } else if (sub && sub.status === 'รอตรวจ') {
-                statusClass = 'completed pending';
-                iconHtml = '⌛';
+        if (sub && sub.status === 'ตรวจแล้ว') {
+            statusClass = 'completed';
+            iconHtml = `✔️ ${sub.score}`;
+        } else if (sub && sub.status === 'รอตรวจ') {
+            statusClass = 'completed pending';
+            iconHtml = '⌛';
+        } else { 
+            if (mission.timingStatus === 'active') {
+                statusClass = 'available';
+                if (mission.urgency === 'urgent') statusClass += ' urgent-node';
+                iconHtml = `<b>${mission.maxPoints}</b><small>pt</small>`;
             } else {
-                if (mission.timingStatus === 'active') {
-                    statusClass = 'available';
-                    if (mission.urgency === 'urgent') statusClass += ' urgent-node';
-                    iconHtml = `<b>${mission.maxPoints}</b><small>pt</small>`;
-                } else {
-                    statusClass = 'locked';
-                    if (mission.timingStatus === 'past') statusClass += ' overdue-node';
-                    iconHtml = '🔒';
-                }
+                statusClass = 'locked';
+                if (mission.timingStatus === 'past') statusClass += ' overdue-node';
+                iconHtml = '🔒';
             }
-            const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
-            missionHtml += `
-              <div class="mission-row ${rowClass}">
-                <div class="mission-node ${statusClass}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
-                  <div class="mission-node-topic">${mission.topic}</div>
-                  <div class="mission-node-points">${iconHtml}</div> 
-                </div>
-              </div>
-            `;
-        });
-
-        container.innerHTML = missionHtml || '<div style="text-align:center; padding: 50px; color: #fff;">เยี่ยม! ไม่มีภารกิจที่ได้รับมอบหมายในขณะนี้</div>';
-    }
+        }
+        
+        const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
+        missionHtml += `
+          <div class="mission-row ${rowClass}">
+            <div class="mission-node ${statusClass}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}">
+              <div class="mission-node-topic">${mission.topic}</div>
+              <div class="mission-node-points">${iconHtml}</div> 
+            </div>
+          </div>
+        `;
+    });
+    
+    container.innerHTML = missionHtml || '<div style="text-align:center; padding: 50px; color: #fff;">เยี่ยม! ไม่มีภารกิจที่ได้รับมอบหมายในขณะนี้</div>';
+}
 
     function showMissionDetail(topic) {
-        const mission = allMissions.find(m => m.topic === topic);
-        if (!mission) return;
+    const mission = allMissions.find(m => m.topic === topic);
+    if (!mission) return;
 
-        const submission = currentUserSubmissions.find(s => s.task === topic);
-
+    // --- ส่วนที่แก้ไข ---
+    // ถ้าไม่ล็อกอิน จะไม่แสดงปุ่ม Action ใดๆ และแสดงข้อความเตือน
+    if (!currentUser) {
         document.getElementById('modal-mission-topic').innerText = mission.topic;
         document.getElementById('modal-mission-detail').innerText = mission.detail || '(ไม่มีรายละเอียดเพิ่มเติม)';
         document.getElementById('modal-mission-maxPoints').innerText = `${mission.maxPoints} คะแนน`;
-
-        const isActuallySubmitted = submission && submission.status !== 'ยังไม่ส่ง';
-        const dueDateEl = document.getElementById('modal-mission-dueDate');
-        let deadlineText = `ส่งภายในวันที่: ${mission.dueDateString}`;
-        if (mission.urgency === 'urgent' && !isActuallySubmitted) {
-            deadlineText += ' <span style="color: #e74c3c; font-weight: bold;">(ใกล้หมดเขต!)</span>';
-        } else if (mission.timingStatus === 'past' && !isActuallySubmitted) {
-            deadlineText += ' <span style="color: #95a5a6; font-weight: bold;">(เลยกำหนดส่ง)</span>';
-        }
-        dueDateEl.innerHTML = deadlineText;
-
+        document.getElementById('modal-mission-dueDate').innerText = `ส่งภายในวันที่: ${mission.dueDateString}`;
+        
         const userStatusEl = document.getElementById('modal-mission-user-status');
         const actionsContainer = document.getElementById('modal-mission-actions');
 
-        let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
-
-        if (submission && submission.status === 'ตรวจแล้ว') {
-            userStatusEl.innerHTML = `<span style="color: var(--status-graded); font-weight: bold;">ตรวจแล้ว (ได้ ${submission.score} / ${mission.maxPoints} คะแนน) ✔️</span>`;
-        } else if (submission && submission.status === 'รอตรวจ') {
-            userStatusEl.innerHTML = `<span style="color: var(--status-pending); font-weight: bold;">ส่งแล้ว (รอการตรวจสอบ) ⌛</span>`;
-            actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">แก้ไขการส่ง</button>` + actionsHtml;
-        } else {
-            if (mission.timingStatus === 'active') {
-                userStatusEl.innerHTML = `<span style="font-weight: bold; color: var(--gold-color);">รอส่งงาน</span>`;
-                actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">ส่งงาน</button>` + actionsHtml;
-            } else if (mission.timingStatus === 'upcoming') {
-                userStatusEl.innerHTML = `<span>ยังไม่ถึงเวลามอบหมาย (เริ่มวันที่ ${mission.assignedDateString})</span>`;
-            } else {
-                userStatusEl.innerHTML = `<span style="color: #e74c3c;">เลยกำหนดส่งแล้ว</span>`;
-            }
-        }
-
-        actionsContainer.innerHTML = actionsHtml;
-
+        userStatusEl.innerHTML = `<span style="color: var(--status-pending);">กรุณาล็อกอินเพื่อดูสถานะและส่งภารกิจนี้</span>`;
+        actionsContainer.innerHTML = `<button class="btn-primary" onclick="openModal('login-modal'); closeModal('mission-detail-modal');">ไปที่หน้าล็อกอิน</button> <button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
+        
         openModal('mission-detail-modal');
+        return; // จบการทำงานทันที
     }
+    // --- จบส่วนที่แก้ไข ---
+
+    const submission = currentUserSubmissions.find(s => s.task === topic);
+
+    document.getElementById('modal-mission-topic').innerText = mission.topic;
+    document.getElementById('modal-mission-detail').innerText = mission.detail || '(ไม่มีรายละเอียดเพิ่มเติม)';
+    document.getElementById('modal-mission-maxPoints').innerText = `${mission.maxPoints} คะแนน`;
+
+    const isActuallySubmitted = submission && submission.status !== 'ยังไม่ส่ง';
+    const dueDateEl = document.getElementById('modal-mission-dueDate');
+    let deadlineText = `ส่งภายในวันที่: ${mission.dueDateString}`;
+    if (mission.urgency === 'urgent' && !isActuallySubmitted) {
+        deadlineText += ' <span style="color: #e74c3c; font-weight: bold;">(ใกล้หมดเขต!)</span>';
+    } else if (mission.timingStatus === 'past' && !isActuallySubmitted) {
+        deadlineText += ' <span style="color: #95a5a6; font-weight: bold;">(เลยกำหนดส่ง)</span>';
+    }
+    dueDateEl.innerHTML = deadlineText;
+    
+    const userStatusEl = document.getElementById('modal-mission-user-status');
+    const actionsContainer = document.getElementById('modal-mission-actions');
+    
+    let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
+    
+    if (submission && submission.status === 'ตรวจแล้ว') {
+        userStatusEl.innerHTML = `<span style="color: var(--status-graded); font-weight: bold;">ตรวจแล้ว (ได้ ${submission.score} / ${mission.maxPoints} คะแนน) ✔️</span>`;
+    } else if (submission && submission.status === 'รอตรวจ') {
+        userStatusEl.innerHTML = `<span style="color: var(--status-pending); font-weight: bold;">ส่งแล้ว (รอการตรวจสอบ) ⌛</span>`;
+        actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">แก้ไขการส่ง</button>` + actionsHtml;
+    } else { 
+        if (mission.timingStatus === 'active') {
+            userStatusEl.innerHTML = `<span style="font-weight: bold; color: var(--gold-color);">รอส่งงาน</span>`;
+            actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">ส่งงาน</button>` + actionsHtml;
+        } else if (mission.timingStatus === 'upcoming') {
+            userStatusEl.innerHTML = `<span>ยังไม่ถึงเวลามอบหมาย (เริ่มวันที่ ${mission.assignedDateString})</span>`;
+        } else {
+            userStatusEl.innerHTML = `<span style="color: #e74c3c;">เลยกำหนดส่งแล้ว</span>`;
+        }
+    }
+
+    actionsContainer.innerHTML = actionsHtml;
+    
+    openModal('mission-detail-modal');
+}
 
     function openSubmissionModal(topic) {
         currentMissionTopic = topic;

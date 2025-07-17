@@ -9,7 +9,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,8 +17,6 @@
     <!-- Your Stylesheet -->
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <!-- App Container หลัก -->
 <body>
     <!-- App Container หลัก -->
     <div id="app-container">
@@ -30,9 +28,14 @@
         <div id="main-content-wrapper" style="display: none;"></div>
     </div>
     
-    <!-- Container สำหรับ Modals และ Toast (ยังใช้เหมือนเดิม) -->
+    <!-- Container สำหรับ Modals และ Toast -->
     <div id="modals-container"></div>
     <div id="toast-container"></div>
+    
+    <!-- ปุ่มรีเฟรชที่เพิ่มเข้ามา -->
+    <button id="refresh-button" class="refresh-button" onclick="location.reload()">
+        <i class="fas fa-sync-alt"></i>
+    </button>
 
 <script>
     // ======================================================
@@ -105,7 +108,7 @@
     }
 
     async function loadInitialData() {
-        const listContainer = document.getElementById('student-list-container');
+        const listContainer = document.getElementById('roster-list'); // Changed ID
         if (listContainer) listContainer.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> กำลังโหลดอันดับ...</div>';
         try {
             const [summaryResult, missionsResult] = await Promise.all([
@@ -119,7 +122,7 @@
             allMissions = missionsResult.data || [];
             missionsLoaded = true;
             renderStudentList();
-            updateUserUI(); // Update UI again with leaderboard data
+            updateUserUI();
             if (currentUser) {
                 const detailResult = await fetchGet({ action: "getStudentDetail", studentId: currentUser.studentId });
                 if (detailResult && detailResult.data) {
@@ -159,158 +162,89 @@
     // ======================================================
     // UI BUILDING AND RENDERING
     // ======================================================
-   function buildApp() {
-    const mainContent = document.getElementById('main-content-wrapper');
-    const config = getGradeConfigFromUrl();
-
-    // โครงสร้าง HTML ใหม่ทั้งหมดสำหรับ Layout "The Champion's Podium"
-    mainContent.innerHTML = `
-        <header class="event-banner">
-            <div class="banner-titles">
-                <h1 class="title-main">English Grand Challenge</h1>
-                <h2 class="title-sub">${config.title} - Term 1, 2025</h2>
-            </div>
-            <div id="user-area">
-                <button id="user-area-btn">
-                    <img id="user-area-pic" src="https://i.ibb.co/6BH4M3n/default-avatar.png" alt="User">
-                    <span id="login-text">Login</span>
-                </button>
-            </div>
-        </header>
-
-        <main class="leaderboard-main">
-            <!-- ส่วนของ Podium สำหรับ Top 3 -->
-            <section id="podium-section" class="podium-container">
-                <!-- JS จะสร้างการ์ด Top 3 ที่นี่ -->
-            </section>
-
-            <!-- ส่วนของตารางสำหรับอันดับ 4 ลงไป -->
-            <section class="roster-container">
-                <div class="roster-header">
-                    <h3>All Challengers</h3>
-                    <div class="action-tabs">
-                         <button class="tab-button" onclick="switchView('leaderboard-view')"><i class="fas fa-trophy"></i> Leaderboard</button>
-                         <button class="tab-button" onclick="switchView('map-view-container')"><i class="fas fa-map-signs"></i> Mission Map</button>
-                         <button id="admin-tab-btn" class="tab-button admin-tab" onclick="switchView('admin-view')"><i class="fas fa-user-shield"></i> Admin</button>
-                    </div>
+    function buildApp() {
+        const mainContent = document.getElementById('main-content-wrapper');
+        const config = getGradeConfigFromUrl();
+        mainContent.innerHTML = `
+            <header class="event-banner">
+                <div class="banner-titles">
+                    <h1 class="title-main">English Grand Challenge</h1>
+                    <h2 class="title-sub">${config.title} - Term 1, 2025</h2>
                 </div>
-                <div id="leaderboard-view" class="content-view active">
-                    <div id="my-rank-pinned"></div> <!-- แถบสำหรับอันดับของตัวเอง -->
-                    <div class="roster-table-header">
-                        <div class="header-rank">Rank</div>
-                        <div class="header-player">Player</div>
-                        <div class="header-score">Score</div>
-                        <div class="header-progress">Progress</div>
+                <div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/6BH4M3n/default-avatar.png" alt="User"><span id="login-text">Login</span></button></div>
+            </header>
+            <main class="leaderboard-main">
+                <section id="podium-section" class="podium-container"></section>
+                <section class="roster-container">
+                    <div class="roster-header">
+                        <h3>All Challengers</h3>
+                        <div class="action-tabs">
+                             <button class="tab-button active" onclick="switchView('leaderboard-view', this)"><i class="fas fa-trophy"></i> Leaderboard</button>
+                             <button class="tab-button" onclick="switchView('map-view-container', this)"><i class="fas fa-map-signs"></i> Mission Map</button>
+                             <button id="admin-tab-btn" class="tab-button admin-tab" onclick="switchView('admin-view', this)"><i class="fas fa-user-shield"></i> Admin</button>
+                        </div>
                     </div>
-                    <ul id="roster-list" class="roster-list">
-                        <!-- JS จะสร้างรายชื่ออันดับ 4+ ที่นี่ -->
-                    </ul>
-                </div>
-                <div id="map-view-container" class="content-view"></div>
-                <div id="admin-view" class="content-view"></div>
-            </section>
-        </main>
-    `;
+                    <div id="leaderboard-view" class="content-view active">
+                        <div id="my-rank-pinned"></div>
+                        <div class="roster-table-header">
+                            <div class="header-rank">Rank</div>
+                            <div class="header-player">Player</div>
+                            <div class="header-score">Score</div>
+                            <div class="header-progress">Progress</div>
+                        </div>
+                        <ul id="roster-list" class="roster-list"></ul>
+                    </div>
+                    <div id="map-view-container" class="content-view"></div>
+                    <div id="admin-view" class="content-view"></div>
+                </section>
+            </main>`;
         const modalsContainer = document.getElementById('modals-container');
         modalsContainer.innerHTML = `
-            <div id="student-detail-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('student-detail-modal')">×</div><div class="detail-modal-header"><img id="detail-modal-pic" src="https://i.ibb.co/6BH4M3n/default-avatar.png" class="detail-modal-pic"><div class="detail-modal-info"><h3 id="detail-modal-name"></h3><p id="detail-modal-score"></p></div></div><div id="detail-modal-badges" class="badges-container" style="padding:0 10px 15px;"></div><div id="detail-modal-body" class="detail-modal-body"></div></div></div>
+            <div id="student-detail-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('student-detail-modal')">×</div><div class="detail-modal-header"><img id="detail-modal-pic" class="detail-modal-pic"><div class="detail-modal-info"><h3 id="detail-modal-name"></h3><p id="detail-modal-score"></p></div></div><div id="detail-modal-badges" class="badges-container"></div><div id="detail-modal-body" class="detail-modal-body"></div></div></div>
             <div id="login-modal" class="modal-overlay"><div class="modal-box"><h2>ล็อกอิน</h2><div id="login-error" class="modal-error"></div><input type="text" id="username-input" placeholder="ชื่อผู้ใช้"><input type="password" id="password-input" placeholder="รหัสผ่าน"><button class="btn-primary" onclick="handleLogin()">เข้าสู่ระบบ</button><button class="btn-secondary" onclick="closeModal('login-modal')">ปิด</button></div></div>
             <div id="profile-modal" class="modal-overlay"><div class="modal-box"><h2>โปรไฟล์</h2><img id="profile-preview" src=""><h3 id="profile-name"></h3><p id="profile-score-text"></p><div id="profile-message" class="modal-message"></div><label for="image-upload-input" class="btn-primary">เปลี่ยนรูปโปรไฟล์</label><input type="file" id="image-upload-input" accept="image/png,image/jpeg"><button class="btn-danger" onclick="handleLogout()">ออกจากระบบ</button><button class="btn-secondary" onclick="closeModal('profile-modal')">ปิด</button></div></div>
-            <div id="mission-detail-modal" class="modal-overlay"><div class="modal-box" style="text-align:left;max-width:550px;"><div class="detail-modal-close" onclick="closeModal('mission-detail-modal')">×</div><h2 id="modal-mission-topic" style="margin-top:0;color:var(--gold-color);"></h2><div id="modal-mission-body"><p><strong>คำสั่ง:</strong> <span id="modal-mission-detail"></span></p><p><strong>กำหนดส่ง:</strong> <span id="modal-mission-dueDate"></span></p><p><strong>คะแนนเต็ม:</strong> <span id="modal-mission-maxPoints"></span></p><hr style="border-color:rgba(255,255,255,0.2);"><p><strong>สถานะของคุณ:</strong> <span id="modal-mission-user-status"></span></p></div><div id="modal-mission-actions" style="margin-top:20px;"></div></div></div>
-            <div id="submission-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('submission-modal')">×</div><h2 style="margin-top:0;">ส่งภารกิจ: <span id="submission-modal-topic"></span></h2><div id="submission-form-area"><p style="font-size:0.9em;opacity:0.8;margin-top:-10px;margin-bottom:20px;">กรอกข้อมูลและแนบไฟล์เพื่อส่งงาน</p><label for="submission-link">ลิงก์ผลงาน (ถ้ามี)</label><input type="url" id="submission-link" placeholder="https://..."><label for="submission-file">แนบไฟล์ (ถ้ามี)</label><input type="file" id="submission-file"><div id="submission-error" class="modal-error"></div></div><div id="submission-loader" style="display:none;text-align:center;padding:40px 0;"><i class="fas fa-spinner fa-spin fa-2x"></i><p id="submission-loader-text" style="margin-top:15px;"></p></div><div id="submission-buttons"><button class="btn-primary" onclick="handleSubmitMission()">ยืนยันการส่ง</button><button class="btn-secondary" onclick="closeModal('submission-modal')">ปิด</button></div></div></div>`;
+            <div id="mission-detail-modal" class="modal-overlay"><div class="modal-box" style="text-align:left;max-width:550px;"><div class="detail-modal-close" onclick="closeModal('mission-detail-modal')">×</div><h2 id="modal-mission-topic"></h2><div id="modal-mission-body"><p><strong>คำสั่ง:</strong> <span id="modal-mission-detail"></span></p><p><strong>กำหนดส่ง:</strong> <span id="modal-mission-dueDate"></span></p><p><strong>คะแนนเต็ม:</strong> <span id="modal-mission-maxPoints"></span></p><hr><p><strong>สถานะของคุณ:</strong> <span id="modal-mission-user-status"></span></p></div><div id="modal-mission-actions"></div></div></div>
+            <div id="submission-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('submission-modal')">×</div><h2>ส่งภารกิจ: <span id="submission-modal-topic"></span></h2><div id="submission-form-area"><p>กรอกข้อมูลและแนบไฟล์เพื่อส่งงาน</p><label for="submission-link">ลิงก์ผลงาน (ถ้ามี)</label><input type="url" id="submission-link" placeholder="https://..."><label for="submission-file">แนบไฟล์ (ถ้ามี)</label><input type="file" id="submission-file"><div id="submission-error" class="modal-error"></div></div><div id="submission-loader" style="display:none;text-align:center;"><i class="fas fa-spinner fa-spin fa-2x"></i><p id="submission-loader-text"></p></div><div id="submission-buttons"><button class="btn-primary" onclick="handleSubmitMission()">ยืนยันการส่ง</button><button class="btn-secondary" onclick="closeModal('submission-modal')">ปิด</button></div></div></div>`;
         document.getElementById('user-area-btn').addEventListener('click', handleUserAreaClick);
         document.getElementById('image-upload-input').addEventListener('change', handleFileSelect);
     }
 
     function renderStudentList() {
-    const podiumContainer = document.getElementById('podium-section');
-    const rosterList = document.getElementById('roster-list');
-    const myRankContainer = document.getElementById('my-rank-pinned');
-    
-    if (!podiumContainer || !rosterList || !myRankContainer) return;
+        const podiumContainer = document.getElementById('podium-section');
+        const rosterList = document.getElementById('roster-list');
+        const myRankContainer = document.getElementById('my-rank-pinned');
+        if (!podiumContainer || !rosterList || !myRankContainer) return;
 
-    // แยกข้อมูล Top 3 และที่เหลือ
-    const top3 = filteredSummaryData.slice(0, 3);
-    const others = filteredSummaryData.slice(3);
+        const top3 = filteredSummaryData.slice(0, 3);
+        const others = filteredSummaryData.slice(3);
 
-    // --- 1. สร้าง Podium (Top 3) ---
-    podiumContainer.innerHTML = ''; // Clear old data
-    const podiumOrder = [1, 0, 2]; // Index ของ top3 array [อันดับ 2, อันดับ 1, อันดับ 3]
-    podiumOrder.forEach(index => {
-        if (top3[index]) {
-            const student = top3[index];
-            const rankClass = `rank-${student.rank}`;
+        podiumContainer.innerHTML = '';
+        const podiumOrder = [1, 0, 2];
+        podiumOrder.forEach(index => {
+            if (top3[index]) {
+                const student = top3[index];
+                const rankClass = `rank-${student.rank}`;
+                const profilePic = `${student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
+                podiumContainer.innerHTML += `<div class="podium-card ${rankClass}" onclick="showStudentDetailModal('${student.studentId}')">${student.rank === 1 ? '<i class="fas fa-crown"></i>' : ''}<div class="podium-rank">${student.rank}</div><img src="${profilePic}" class="podium-pic"><div class="podium-name">${student.name}</div><div class="podium-score">${student.totalScore} PTS</div></div>`;
+            }
+        });
+
+        rosterList.innerHTML = others.map(student => {
             const profilePic = `${student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
-            const podiumCard = `
-                <div class="podium-card ${rankClass}" onclick="showStudentDetailModal('${student.studentId}')">
-                    ${student.rank === 1 ? '<i class="fas fa-crown"></i>' : ''}
-                    <div class="podium-rank">${student.rank}</div>
-                    <img src="${profilePic}" class="podium-pic">
-                    <div class="podium-name">${student.name}</div>
-                    <div class="podium-score">${student.totalScore} PTS</div>
-                </div>
-            `;
-            podiumContainer.innerHTML += podiumCard;
-        }
-    });
+            const isSelf = currentUser && String(currentUser.studentId) === String(student.studentId);
+            return `<li class="roster-row ${isSelf ? 'is-self' : ''}" onclick="showStudentDetailModal('${student.studentId}')"><div class="cell-rank">${student.rank}</div><div class="cell-player"><img src="${profilePic}" class="roster-pic"><span>${student.name}</span></div><div class="cell-score">${student.totalScore}</div><div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width:${student.progress}%;"></div></div><span>${student.progress}%</span></div></li>`;
+        }).join('');
 
-    // --- 2. สร้าง Roster (อันดับ 4+) ---
-    rosterList.innerHTML = others.map(student => {
-        const profilePic = `${student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
-        const isSelf = currentUser && String(currentUser.studentId) === String(student.studentId);
-        return `
-            <li class="roster-row ${isSelf ? 'is-self' : ''}" onclick="showStudentDetailModal('${student.studentId}')">
-                <div class="cell-rank">${student.rank}</div>
-                <div class="cell-player">
-                    <img src="${profilePic}" class="roster-pic">
-                    <span>${student.name}</span>
-                </div>
-                <div class="cell-score">${student.totalScore}</div>
-                <div class="cell-progress">
-                    <div class="progress-container">
-                        <div class="progress-bar" style="width: ${student.progress}%;"></div>
-                    </div>
-                    <span>${student.progress}%</span>
-                </div>
-            </li>
-        `;
-    }).join('');
-
-    // --- 3. แสดง "My Rank" ถ้าผู้ใช้ล็อกอินและไม่ได้อยู่ใน Top 3 ---
-    myRankContainer.innerHTML = '';
-    if (currentUser) {
-        const myData = filteredSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
-        if (myData && myData.rank > 3) {
-            const profilePic = `${myData.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
-             myRankContainer.innerHTML = `
-                <div class="my-rank-title">My Rank</div>
-                <div class="roster-row is-self pinned">
-                    <div class="cell-rank">${myData.rank}</div>
-                    <div class="cell-player">
-                        <img src="${profilePic}" class="roster-pic">
-                        <span>${myData.name}</span>
-                    </div>
-                    <div class="cell-score">${myData.totalScore}</div>
-                    <div class="cell-progress">
-                        <div class="progress-container">
-                            <div class="progress-bar" style="width: ${myData.progress}%;"></div>
-                        </div>
-                        <span>${myData.progress}%</span>
-                    </div>
-                </div>
-             `;
+        myRankContainer.innerHTML = '';
+        if (currentUser) {
+            const myData = filteredSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
+            if (myData && myData.rank > 3) {
+                const profilePic = `${myData.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
+                myRankContainer.innerHTML = `<div class="my-rank-title">My Rank</div><div class="roster-row is-self pinned"><div class="cell-rank">${myData.rank}</div><div class="cell-player"><img src="${profilePic}" class="roster-pic"><span>${myData.name}</span></div><div class="cell-score">${myData.totalScore}</div><div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width:${myData.progress}%;"></div></div><span>${myData.progress}%</span></div></div>`;
+            }
         }
     }
-}
-
-    function renderAdminView() {
-        const container = document.getElementById('admin-view');
-        if (!adminData || !adminData.students || !adminData.missions) { container.innerHTML = "<p>กำลังโหลด...</p>"; return; }
-        const studentOptions = adminData.students.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-        const missionOptions = adminData.missions.map(m => `<option value="${m}">${m}</option>`).join('');
-        container.innerHTML = `<div class="admin-section"><h3><i class="fas fa-clipboard-check"></i> ให้คะแนน</h3><form id="grade-form" class="admin-form grade-form" onsubmit="handleGradeSubmission(event)"><div><label for="student-select">เลือกนักเรียน</label><select id="student-select" required>${studentOptions}</select></div><div><label for="mission-select">เลือกภารกิจ</label><select id="mission-select" required>${missionOptions}</select></div><div class="full-width"><label for="score-input">คะแนนที่ให้</label><input type="number" id="score-input" placeholder="เช่น 10" required></div><button type="submit" class="btn-primary full-width">บันทึกคะแนน</button></form></div><div class="admin-section"><h3><i class="fas fa-plus-circle"></i> จัดการภารกิจ</h3><form id="mission-form" class="admin-form" onsubmit="handleAddMission(event)"><div class="full-width"><label for="mission-topic">หัวข้อภารกิจ</label><input type="text" id="mission-topic" required></div><div class="full-width"><label for="mission-detail">รายละเอียด</label><input type="text" id="mission-detail"></div><div><label for="mission-due">กำหนดส่ง</label><input type="date" id="mission-due"></div><div><label for="mission-points">คะแนนเต็ม</label><input type="number" id="mission-points" required></div><button type="submit" class="btn-primary full-width">เพิ่มภารกิจ</button></form><h4 style="margin-top:20px;">รายการภารกิจปัจจุบัน</h4><ul id="admin-mission-list">${allMissions.map(m => `<li class="admin-mission-item"><span>${m.topic}</span><button class="btn-delete" onclick="handleDeleteMission('${m.topic}')">ลบ</button></li>`).join('')}</ul></div>`;
-    }
-
+    
     // ======================================================
     // USER MANAGEMENT & UI UPDATES
     // ======================================================
@@ -322,8 +256,6 @@
                 currentUser = (sessionResult && sessionResult.user) ? sessionResult.user : null;
                 if (!currentUser) localStorage.removeItem('leaderboardUser');
             } catch (err) {
-                console.error("Session check failed:", err);
-                localStorage.removeItem('leaderboardUser');
                 currentUser = null;
             }
         }
@@ -334,28 +266,28 @@
         const userPicEl = document.getElementById('user-area-pic');
         const profilePreviewEl = document.getElementById('profile-preview');
         const loginText = document.getElementById('login-text');
-        const adminTab = document.getElementById('admin-tab');
-        if (!userPicEl || !profilePreviewEl || !loginText || !adminTab) return;
+        const adminTabBtn = document.getElementById('admin-tab-btn');
+        if (!userPicEl || !loginText || !adminTabBtn) return;
         const defaultPic = 'https://i.ibb.co/6BH4M3n/default-avatar.png';
         if (currentUser) {
             let profileUrl = currentUser.profileUrl || defaultPic;
             if (currentUser.profileUrl) profileUrl = `${currentUser.profileUrl}?t=${new Date().getTime()}`;
             userPicEl.src = profileUrl;
-            profilePreviewEl.src = profileUrl;
+            if (profilePreviewEl) profilePreviewEl.src = profileUrl;
             loginText.style.display = 'none';
+            if (currentUser.role === 'admin') adminTabBtn.style.display = 'inline-block';
+            else adminTabBtn.style.display = 'none';
             const userRecord = fullSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
-            document.getElementById('profile-name').innerText = currentUser.name;
-            document.getElementById('profile-score-text').innerText = userRecord ? `คะแนนรวม: ${userRecord.totalScore}` : 'ไม่พบข้อมูลคะแนน';
-            if (currentUser.role === 'admin') adminTab.classList.add('visible');
-            else adminTab.classList.remove('visible');
+            if (document.getElementById('profile-name')) document.getElementById('profile-name').innerText = currentUser.name;
+            if (document.getElementById('profile-score-text')) document.getElementById('profile-score-text').innerText = userRecord ? `คะแนนรวม: ${userRecord.totalScore}` : 'ไม่พบข้อมูลคะแนน';
         } else {
             userPicEl.src = defaultPic;
-            profilePreviewEl.src = defaultPic;
-            loginText.style.display = 'inline';
-            adminTab.classList.remove('visible');
+            loginText.style.display = 'inline-block';
+            adminTabBtn.style.display = 'none';
         }
     }
 
+    // *** THIS FUNCTION IS NOW UPDATED ***
     async function handleLogin() {
         const username = document.getElementById('username-input').value.trim();
         const password = document.getElementById('password-input').value.trim();
@@ -365,13 +297,9 @@
         try {
             const result = await fetchGet({ action: 'userLogin', username: username, password: password });
             if (result.success) {
-                currentUser = result.user;
-                localStorage.setItem('leaderboardUser', currentUser.username);
-                closeModal('login-modal');
-                document.getElementById('username-input').value = '';
-                document.getElementById('password-input').value = '';
-                errorEl.innerText = "";
-                await loadInitialData();
+                localStorage.setItem('leaderboardUser', result.user.username);
+                // Reload the entire page to get fresh data
+                location.reload(); 
             } else {
                 errorEl.innerText = result.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
             }
@@ -382,10 +310,8 @@
 
     async function handleLogout() {
         localStorage.removeItem('leaderboardUser');
-        currentUser = null;
-        currentUserSubmissions = [];
-        closeModal('profile-modal');
-        await loadInitialData();
+        // Reload the entire page
+        location.reload();
     }
 
     function handleFileSelect(event) {
@@ -393,7 +319,7 @@
         if (!file) return;
         if (file.size > 2 * 1024 * 1024) { showToast("ขนาดไฟล์ต้องไม่เกิน 2MB", true); return; }
         const reader = new FileReader();
-        reader.onloadend = async function () {
+        reader.onloadend = async () => {
             const fileData = reader.result;
             const profileMessage = document.getElementById('profile-message');
             profileMessage.innerText = 'กำลังอัปโหลด...';
@@ -403,13 +329,8 @@
                     showToast(result.message);
                     profileMessage.innerText = '';
                     currentUser.profileUrl = result.imageUrl;
-                    updateUserUI(); // Re-render user UI with new picture
-                    // Also update the main leaderboard data
-                    const studentInLeaderboard = fullSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
-                    if (studentInLeaderboard) {
-                        studentInLeaderboard.profileUrl = result.imageUrl;
-                        renderStudentList();
-                    }
+                    // Force a reload to reflect changes everywhere
+                    location.reload();
                 } else throw new Error(result.error);
             } catch (error) {
                 profileMessage.innerText = '';
@@ -418,48 +339,10 @@
         };
         reader.readAsDataURL(file);
     }
-
-    // ======================================================
-    // ADMIN & MISSION ACTIONS
-    // ======================================================
-    async function handleAddMission(event) {
-        event.preventDefault();
-        const params = { topic: document.getElementById('mission-topic').value, detail: document.getElementById('mission-detail').value, dueDate: document.getElementById('mission-due').value, maxPoints: document.getElementById('mission-points').value };
-        showLoader(true, "กำลังเพิ่มภารกิจ...");
-        try {
-            const result = await postAdminAction('addMission', params);
-            showToast(result.message || result.error, !result.success);
-            if (result.success) {
-                document.getElementById('mission-form').reset();
-                await loadInitialData();
-            }
-        } catch (error) { showToast(error.message, true); } finally { showLoader(false); }
-    }
-
-    async function handleDeleteMission(topic) {
-        if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบภารกิจ "${topic}"?`)) return;
-        showLoader(true, "กำลังลบภารกิจ...");
-        try {
-            const result = await postAdminAction('deleteMission', { topic: topic });
-            showToast(result.message || result.error, !result.success);
-            if (result.success) await loadInitialData();
-        } catch (error) { showToast(error.message, true); } finally { showLoader(false); }
-    }
-
-    async function handleGradeSubmission(event) {
-        event.preventDefault();
-        const params = { studentId: document.getElementById('student-select').value, missionTopic: document.getElementById('mission-select').value, score: document.getElementById('score-input').value };
-        showLoader(true, "กำลังบันทึกคะแนน...");
-        try {
-            const result = await postAdminAction('gradeSubmission', params);
-            showToast(result.message || result.error, !result.success);
-            if (result.success) {
-                document.getElementById('grade-form').reset();
-                await loadInitialData();
-            }
-        } catch (error) { showToast(error.message, true); } finally { showLoader(false); }
-    }
     
+    // --- The rest of the functions can remain the same or be simplified ---
+    // (The following functions are complete and correct for the new layout)
+
     async function handleSubmitMission() {
         const errorEl = document.getElementById('submission-error');
         const link = document.getElementById('submission-link').value.trim();
@@ -498,7 +381,7 @@
             if (submissionResult.success) {
                 showToast(submissionResult.message);
                 closeModal('submission-modal');
-                await loadInitialData();
+                await loadInitialData(); // Reload data after submission
             } else {
                 throw new Error(submissionResult.error);
             }
@@ -509,11 +392,7 @@
             loader.style.display = 'none';
         }
     }
-
-
-    // ======================================================
-    // UI UTILITIES & EVENT HANDLERS
-    // ======================================================
+    
     function renderMapView() {
         const container = document.getElementById('map-view-container');
         if (!container) return;
@@ -591,20 +470,22 @@
         openModal('submission-modal');
     }
 
-    function filterStudentList() {
-        const searchTerm = document.getElementById('search-student').value.toLowerCase();
-        filteredSummaryData = searchTerm ? fullSummaryData.filter(s => s.name.toLowerCase().includes(searchTerm)) : [...fullSummaryData];
-        renderStudentList();
+    function switchView(viewId, element) {
+        document.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
+        if(element) element.classList.add('active');
+        document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
+        const viewElement = document.getElementById(viewId);
+        if (viewElement) {
+            viewElement.classList.add('active');
+            if (viewId === 'map-view-container') renderMapView();
+            else if (viewId === 'admin-view') loadAdminData();
+        }
     }
-
-    function handleUserAreaClick() { currentUser ? openModal("profile-modal") : openModal("login-modal"); }
-    function openModal(id) { document.getElementById(id)?.classList.add("visible"); }
-    function closeModal(id) { document.getElementById(id)?.classList.remove("visible"); }
 
     async function showStudentDetailModal(studentId) {
         const student = fullSummaryData.find(s => String(s.studentId) === String(studentId));
         if (!student) return;
-        document.getElementById('detail-modal-pic').src = student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png';
+        document.getElementById('detail-modal-pic').src = `${student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
         document.getElementById('detail-modal-name').innerText = student.name;
         document.getElementById('detail-modal-score').innerText = `คะแนนรวม: ${student.totalScore}`;
         document.getElementById('detail-modal-badges').innerHTML = (student.earnedBadges || []).map(b => `<div class="badge-tooltip"><img src="${b.iconUrl}" alt="${b.name}" class="badge-icon"><span class="tooltip-text"><b>${b.name}</b><br>${b.description}</span></div>`).join('');
@@ -617,18 +498,6 @@
             displayDetailsInModal(result.data);
         } catch (err) {
             body.innerHTML = `<p style="color:var(--danger-color);text-align:center;">เกิดข้อผิดพลาด: ${err.message}</p>`;
-        }
-    }
-
-    function switchView(viewId) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelector(`.tab[onclick="switchView('${viewId}')"]`)?.classList.add('active');
-        document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
-        const viewElement = document.getElementById(viewId);
-        if (viewElement) {
-            viewElement.classList.add('active');
-            if (viewId === 'map-view-container') renderMapView();
-            else if (viewId === 'admin-view') loadAdminData();
         }
     }
 
@@ -654,12 +523,10 @@
 
     function showLoader(show, text = "กำลังโหลด...") {
         const loader = document.getElementById('initial-loader');
-        const mainContent = document.getElementById('main-content-wrapper');
         if(loader) loader.style.display = show ? 'block' : 'none';
-        if(mainContent) mainContent.style.display = show ? 'none' : 'block';
         if(show && loader) loader.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${text}`;
     }
-
+    
     function showError(error) {
         console.error(error);
         const errorMsg = (error && error.message) ? error.message : "เกิดข้อผิดพลาดไม่ทราบสาเหตุ";
@@ -676,10 +543,14 @@
         setTimeout(() => toast.classList.add('show'), 100);
         setTimeout(() => {
             toast.classList.remove('show');
-            setTimeout(() => container.removeChild(toast), 300);
+            setTimeout(() => { if (container.contains(toast)) container.removeChild(toast); }, 300);
         }, 4000);
     }
-</script>
+    
+    function handleUserAreaClick() { currentUser ? openModal("profile-modal") : openModal("login-modal"); }
+    function openModal(id) { document.getElementById(id)?.classList.add("visible"); }
+    function closeModal(id) { document.getElementById(id)?.classList.remove("visible"); }
 
+</script>
 </body>
 </html>

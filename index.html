@@ -200,25 +200,30 @@
     // UI BUILDING AND RENDERING
     // ======================================================
     function buildApp() {
-        const mainContent = document.getElementById('main-content-wrapper');
-        const config = getGradeConfigFromUrl();
+    const mainContent = document.getElementById('main-content-wrapper');
+    const config = getGradeConfigFromUrl(); // <-- ดึงข้อมูลระดับชั้นจาก URL (เช่น { title: 'ม.1' })
 
-        mainContent.innerHTML = `
-            <div class="leaderboard-container">
-                <div class="header-bar">
-                    <div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/RkgFJztg/AVATAR.jpg" alt="User"><span id="login-text">เข้าสู่ระบบ</span></button></div>
-                    <div class="header-trophy">🏆</div>
-                    <div class="header-titles"><div class="title-main">ติดตามการส่งงานภาษาอังกฤษ ${config.title} เทอม 1 ปี 68</div><div class="title-sub">โรงเรียนบ้านโนนผักชี</div></div>
+    // *** นี่คือบรรทัดที่แก้ไขให้ถูกต้อง ***
+    // Template string นี้จะใช้ config.title เพื่อสร้างหัวข้อที่ถูกต้อง
+    mainContent.innerHTML = `
+        <div class="leaderboard-container">
+            <div class="header-bar">
+                <div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/6BH4M3n/default-avatar.png" alt="User"><span id="login-text">เข้าสู่ระบบ</span></button></div>
+                <div class="header-trophy">🏆</div>
+                <div class="header-titles">
+                    <div class="title-main">ติดตามการส่งงานภาษาอังกฤษ ${config.title} เทอม 1 ปี 68</div>
+                    <div class="title-sub">โรงเรียนบ้านโนนผักชี</div>
                 </div>
-                <div class="tabs">
-                    <div class="tab active" onclick="switchView('leaderboard-view')"><i class="fas fa-trophy"></i> อันดับ</div>
-                    <div id="mission-tab" class="tab" onclick="switchView('map-view-container')"><i class="fas fa-map-signs"></i> แผนที่</div>
-                    <div id="admin-tab" class="tab admin-tab" onclick="switchView('admin-view')"><i class="fas fa-user-shield"></i> จัดการ</div>
-                </div>
-                <div id="leaderboard-view" class="content-view active"><input type="text" id="search-student" placeholder="🔍 ค้นหาชื่อนักเรียน..." onkeyup="filterStudentList()"><ul class="student-list" id="student-list-container"></ul></div>
-                <div id="map-view-container" class="content-view"></div>
-                <div id="admin-view" class="content-view"></div>
-            </div>`;
+            </div>
+            <div class="tabs">
+                <div class="tab active" onclick="switchView('leaderboard-view')"><i class="fas fa-trophy"></i> อันดับ</div>
+                <div id="mission-tab" class="tab" onclick="switchView('map-view-container')"><i class="fas fa-map-signs"></i> แผนที่</div>
+                <div id="admin-tab" class="tab admin-tab" onclick="switchView('admin-view')"><i class="fas fa-user-shield"></i> จัดการ</div>
+            </div>
+            <div id="leaderboard-view" class="content-view active"><input type="text" id="search-student" placeholder="🔍 ค้นหาชื่อนักเรียน..." onkeyup="filterStudentList()"><ul class="student-list" id="student-list-container"></ul></div>
+            <div id="map-view-container" class="content-view"></div>
+            <div id="admin-view" class="content-view"></div>
+        </div>`;
 
         const modalsContainer = document.getElementById('modals-container');
         modalsContainer.innerHTML = `

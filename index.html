@@ -19,16 +19,18 @@
 </head>
 <body>
     <!-- App Container หลัก -->
+<body>
+    <!-- App Container หลัก -->
     <div id="app-container">
-        <div id="initial-loader" style="text-align: center; padding-top: 50px; font-size: 1.2em; color: white;">
-          <i class="fas fa-spinner fa-spin"></i> กำลังโหลดข้อมูล...
+        <div id="initial-loader" style="text-align: center; padding-top: 100px; font-size: 1.2em; color: white;">
+          <i class="fas fa-spinner fa-spin"></i> Loading Tournament Data...
         </div>
-        <div id="main-content-wrapper" class="main-wrapper" style="display: none;">
-             <!-- Content หลักจะถูกสร้างโดย JS ที่นี่ -->
-        </div>
+        
+        <!-- โครงสร้างใหม่ทั้งหมดจะถูกสร้างโดย JS ที่นี่ -->
+        <div id="main-content-wrapper" style="display: none;"></div>
     </div>
     
-    <!-- Container สำหรับ Modals และ Toast จะถูกสร้างโดย JS -->
+    <!-- Container สำหรับ Modals และ Toast (ยังใช้เหมือนเดิม) -->
     <div id="modals-container"></div>
     <div id="toast-container"></div>
 
@@ -157,25 +159,58 @@
     // ======================================================
     // UI BUILDING AND RENDERING
     // ======================================================
-    function buildApp() {
-        const mainContent = document.getElementById('main-content-wrapper');
-        const config = getGradeConfigFromUrl();
-        mainContent.innerHTML = `
-            <div class="leaderboard-container">
-                <div class="header-bar">
-                    <div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/6BH4M3n/default-avatar.png" alt="User"><span id="login-text">เข้าสู่ระบบ</span></button></div>
-                    <div class="header-trophy">🏆</div>
-                    <div class="header-titles"><div class="title-main">ติดตามการส่งงานภาษาอังกฤษ ${config.title} เทอม 1 ปี 68</div><div class="title-sub">โรงเรียนบ้านโนนผักชี</div></div>
+   function buildApp() {
+    const mainContent = document.getElementById('main-content-wrapper');
+    const config = getGradeConfigFromUrl();
+
+    // โครงสร้าง HTML ใหม่ทั้งหมดสำหรับ Layout "The Champion's Podium"
+    mainContent.innerHTML = `
+        <header class="event-banner">
+            <div class="banner-titles">
+                <h1 class="title-main">English Grand Challenge</h1>
+                <h2 class="title-sub">${config.title} - Term 1, 2025</h2>
+            </div>
+            <div id="user-area">
+                <button id="user-area-btn">
+                    <img id="user-area-pic" src="https://i.ibb.co/6BH4M3n/default-avatar.png" alt="User">
+                    <span id="login-text">Login</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="leaderboard-main">
+            <!-- ส่วนของ Podium สำหรับ Top 3 -->
+            <section id="podium-section" class="podium-container">
+                <!-- JS จะสร้างการ์ด Top 3 ที่นี่ -->
+            </section>
+
+            <!-- ส่วนของตารางสำหรับอันดับ 4 ลงไป -->
+            <section class="roster-container">
+                <div class="roster-header">
+                    <h3>All Challengers</h3>
+                    <div class="action-tabs">
+                         <button class="tab-button" onclick="switchView('leaderboard-view')"><i class="fas fa-trophy"></i> Leaderboard</button>
+                         <button class="tab-button" onclick="switchView('map-view-container')"><i class="fas fa-map-signs"></i> Mission Map</button>
+                         <button id="admin-tab-btn" class="tab-button admin-tab" onclick="switchView('admin-view')"><i class="fas fa-user-shield"></i> Admin</button>
+                    </div>
                 </div>
-                <div class="tabs">
-                    <div class="tab active" onclick="switchView('leaderboard-view')"><i class="fas fa-trophy"></i> อันดับ</div>
-                    <div id="mission-tab" class="tab" onclick="switchView('map-view-container')"><i class="fas fa-map-signs"></i> แผนที่</div>
-                    <div id="admin-tab" class="tab admin-tab" onclick="switchView('admin-view')"><i class="fas fa-user-shield"></i> จัดการ</div>
+                <div id="leaderboard-view" class="content-view active">
+                    <div id="my-rank-pinned"></div> <!-- แถบสำหรับอันดับของตัวเอง -->
+                    <div class="roster-table-header">
+                        <div class="header-rank">Rank</div>
+                        <div class="header-player">Player</div>
+                        <div class="header-score">Score</div>
+                        <div class="header-progress">Progress</div>
+                    </div>
+                    <ul id="roster-list" class="roster-list">
+                        <!-- JS จะสร้างรายชื่ออันดับ 4+ ที่นี่ -->
+                    </ul>
                 </div>
-                <div id="leaderboard-view" class="content-view active"><input type="text" id="search-student" placeholder="🔍 ค้นหาชื่อนักเรียน..." onkeyup="filterStudentList()"><ul class="student-list" id="student-list-container"></ul></div>
                 <div id="map-view-container" class="content-view"></div>
                 <div id="admin-view" class="content-view"></div>
-            </div>`;
+            </section>
+        </main>
+    `;
         const modalsContainer = document.getElementById('modals-container');
         modalsContainer.innerHTML = `
             <div id="student-detail-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('student-detail-modal')">×</div><div class="detail-modal-header"><img id="detail-modal-pic" src="https://i.ibb.co/6BH4M3n/default-avatar.png" class="detail-modal-pic"><div class="detail-modal-info"><h3 id="detail-modal-name"></h3><p id="detail-modal-score"></p></div></div><div id="detail-modal-badges" class="badges-container" style="padding:0 10px 15px;"></div><div id="detail-modal-body" class="detail-modal-body"></div></div></div>
@@ -188,21 +223,85 @@
     }
 
     function renderStudentList() {
-        const container = document.getElementById('student-list-container');
-        if (!container) return;
-        if (!filteredSummaryData || filteredSummaryData.length === 0) {
-            container.innerHTML = '<p style="text-align:center;padding:20px;">ไม่พบข้อมูลนักเรียน</p>';
-            return;
+    const podiumContainer = document.getElementById('podium-section');
+    const rosterList = document.getElementById('roster-list');
+    const myRankContainer = document.getElementById('my-rank-pinned');
+    
+    if (!podiumContainer || !rosterList || !myRankContainer) return;
+
+    // แยกข้อมูล Top 3 และที่เหลือ
+    const top3 = filteredSummaryData.slice(0, 3);
+    const others = filteredSummaryData.slice(3);
+
+    // --- 1. สร้าง Podium (Top 3) ---
+    podiumContainer.innerHTML = ''; // Clear old data
+    const podiumOrder = [1, 0, 2]; // Index ของ top3 array [อันดับ 2, อันดับ 1, อันดับ 3]
+    podiumOrder.forEach(index => {
+        if (top3[index]) {
+            const student = top3[index];
+            const rankClass = `rank-${student.rank}`;
+            const profilePic = `${student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
+            const podiumCard = `
+                <div class="podium-card ${rankClass}" onclick="showStudentDetailModal('${student.studentId}')">
+                    ${student.rank === 1 ? '<i class="fas fa-crown"></i>' : ''}
+                    <div class="podium-rank">${student.rank}</div>
+                    <img src="${profilePic}" class="podium-pic">
+                    <div class="podium-name">${student.name}</div>
+                    <div class="podium-score">${student.totalScore} PTS</div>
+                </div>
+            `;
+            podiumContainer.innerHTML += podiumCard;
         }
-        container.innerHTML = filteredSummaryData.map(student => {
-            const rankDisplay = student.rank === 1 ? '🥇' : student.rank === 2 ? '🥈' : student.rank === 3 ? '🥉' : student.rank;
-            let profilePic = student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png';
-            if (student.profileUrl) profilePic = `${student.profileUrl}?t=${new Date().getTime()}`;
-            const rankClass = student.rank <= 3 ? `rank-${student.rank}` : '';
-            const badgesHtml = (student.earnedBadges || []).map(b => `<div class="badge-tooltip"><img src="${b.iconUrl}" alt="${b.name}" class="badge-icon"><span class="tooltip-text"><b>${b.name}</b><br>${b.description}</span></div>`).join('');
-            return `<li><div class="student-item" onclick="showStudentDetailModal('${student.studentId}')"><div class="rank">${rankDisplay}</div><img src="${profilePic}" class="student-pic ${rankClass}" alt="${student.name}"><div class="student-info"><div class="student-name">${student.name}</div><div class="student-score">${student.totalScore} <span class="student-score-label">คะแนน</span></div><div class="badges-container">${badgesHtml}</div><div class="progress-container"><div class="progress-bar" style="width:${student.progress}%;">${student.progress > 15 ? student.progress + '%' : ''}</div></div></div></div></li>`;
-        }).join('');
+    });
+
+    // --- 2. สร้าง Roster (อันดับ 4+) ---
+    rosterList.innerHTML = others.map(student => {
+        const profilePic = `${student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
+        const isSelf = currentUser && String(currentUser.studentId) === String(student.studentId);
+        return `
+            <li class="roster-row ${isSelf ? 'is-self' : ''}" onclick="showStudentDetailModal('${student.studentId}')">
+                <div class="cell-rank">${student.rank}</div>
+                <div class="cell-player">
+                    <img src="${profilePic}" class="roster-pic">
+                    <span>${student.name}</span>
+                </div>
+                <div class="cell-score">${student.totalScore}</div>
+                <div class="cell-progress">
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${student.progress}%;"></div>
+                    </div>
+                    <span>${student.progress}%</span>
+                </div>
+            </li>
+        `;
+    }).join('');
+
+    // --- 3. แสดง "My Rank" ถ้าผู้ใช้ล็อกอินและไม่ได้อยู่ใน Top 3 ---
+    myRankContainer.innerHTML = '';
+    if (currentUser) {
+        const myData = filteredSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
+        if (myData && myData.rank > 3) {
+            const profilePic = `${myData.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
+             myRankContainer.innerHTML = `
+                <div class="my-rank-title">My Rank</div>
+                <div class="roster-row is-self pinned">
+                    <div class="cell-rank">${myData.rank}</div>
+                    <div class="cell-player">
+                        <img src="${profilePic}" class="roster-pic">
+                        <span>${myData.name}</span>
+                    </div>
+                    <div class="cell-score">${myData.totalScore}</div>
+                    <div class="cell-progress">
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: ${myData.progress}%;"></div>
+                        </div>
+                        <span>${myData.progress}%</span>
+                    </div>
+                </div>
+             `;
+        }
     }
+}
 
     function renderAdminView() {
         const container = document.getElementById('admin-view');

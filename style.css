@@ -1,28 +1,32 @@
-/* === PLAYFUL CRITTER CHAMPIONS THEME - V2 (LAYOUT FIXED) === */
-@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500;700;800&display=swap');
+/* === DINO DISCOVERY CHALLENGE THEME (SOFT BUBBLE) === */
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Kanit:wght@500;700&display=swap');
 
 :root {
-  --font-main: 'Kanit', sans-serif;
-  --bg-color: #f0f8ff;
+  /* Fonts */
+  --font-display: 'Baloo 2', cursive; /* For headers and titles */
+  --font-body: 'Kanit', sans-serif;   /* For text and details */
+
+  /* Colors */
+  --bg-sky: #d6f5ff;
+  --bg-grass: #f0fff0;
   --panel-bg: #ffffff;
-  --text-dark: #3d3d3d;
-  --text-light: #8a8a8a;
-  --color-gold: #ffc700;
-  --color-silver: #c0c0c0;
-  --color-bronze: #cd7f32;
-  --accent-blue: #54a0ff;
+  --text-dark: #4a4a4a;
+  --text-light: #8b8b8b;
+  
+  --primary-blue: #00a9ff;
+  --primary-green: #2ecc71;
+  --accent-yellow: #feca57;
   --accent-pink: #ff6b81;
-  --accent-orange: #ff9f43;
-  --wood-light: #a0522d;
-  --wood-dark: #8b4513;
-  --shadow-color: rgba(0, 0, 0, 0.1);
+  
+  --wood-color: #a0522d;
+  --shadow-color: rgba(149, 157, 165, 0.2);
+  --border-color: #e0e0e0;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: var(--font-main);
-  background-color: var(--bg-color);
-  background-image: linear-gradient(180deg, #e6f2ff 0%, #ffffff 100%);
+  font-family: var(--font-body);
+  background-color: var(--bg-sky);
   color: var(--text-dark);
   padding: 15px;
   display: flex;
@@ -33,61 +37,91 @@ body {
   max-width: 450px;
   background-color: var(--panel-bg);
   border-radius: 30px;
-  box-shadow: 0 10px 40px var(--shadow-color);
-  padding: 20px;
+  box-shadow: 0 8px 24px var(--shadow-color);
+  padding: 15px;
   position: relative;
   overflow: hidden;
+  height: 95vh;
   display: flex;
   flex-direction: column;
-  height: 95vh; /* Make it take most of the screen height */
 }
 
-/* === Decorative Elements with Z-INDEX === */
-.confetti {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-image: url('https://i.ibb.co/3zd56sL/confetti-bg.png');
-  background-size: contain;
-  opacity: 0.7;
-  z-index: 1; /* At the very back */
-}
-.critter-dino {
-  position: absolute;
-  bottom: 50px; /* Position above the tabs */
-  right: -10px;
-  width: 120px;
-  z-index: 2; /* In front of confetti */
-}
-
-/* === Header - Z-INDEX FIX === */
-.leaderboard-header {
+/* === Main Layout & Navigation === */
+.app-header {
   text-align: center;
-  margin-bottom: 20px;
+  padding: 10px 0;
   position: relative;
-  z-index: 10; /* On top of everything */
+  z-index: 20;
 }
-.leaderboard-title {
-  display: inline-block;
-  background-color: var(--color-gold);
-  color: var(--text-dark);
-  padding: 8px 25px;
-  border-radius: 50px;
+.header-title {
+  font-family: var(--font-display);
+  font-size: 1.8em; /* 28px */
   font-weight: 800;
-  font-size: 1.2em;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  border: 4px solid #fff;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  -webkit-text-stroke: 2px #555;
 }
-
-/* === Main Content Area - Z-INDEX FIX === */
-main {
-  flex-grow: 1;
-  overflow-y: auto; /* Make this area scrollable */
+.header-subtitle {
+  background-color: var(--accent-yellow);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1em; /* 16px */
+  padding: 2px 15px;
+  border-radius: 20px;
+  display: inline-block;
+  margin-top: -5px;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1);
+}
+.app-nav {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0;
+  border-bottom: 2px solid var(--border-color);
   position: relative;
-  z-index: 5; /* Above decorative elements */
-  padding: 0 5px;
+  z-index: 20;
+}
+.nav-button {
+  background: none;
+  border: none;
+  font-family: var(--font-display);
+  font-size: 1.1em;
+  font-weight: 700;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 5px 15px;
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+.nav-button.active {
+  background-color: var(--primary-blue);
+  color: white;
+}
+#profile-button {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 30;
+  cursor: pointer;
+}
+#profile-button img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 4px solid white;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  object-fit: cover;
 }
 
-/* Podium Section */
+.view-container {
+  flex-grow: 1;
+  overflow-y: auto;
+  position: relative;
+}
+.view { display: none; }
+.view.active { display: block; }
+
+/* === Leaderboard View === */
+#leaderboard-view { padding: 20px 5px; }
 .podium-container {
   display: flex;
   justify-content: center;
@@ -97,48 +131,61 @@ main {
   min-height: 250px;
 }
 .podium-stand {
-  background-color: var(--wood-dark);
-  border-radius: 10px 10px 5px 5px;
-  border-bottom: 10px solid var(--wood-light);
+  background-color: var(--wood-color);
+  border-radius: 10px;
+  box-shadow: inset 0 -5px 0 rgba(0,0,0,0.15);
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
-  padding-top: 50px;
+  width: 110px;
 }
 .podium-stand.rank-1 { height: 160px; width: 130px; }
-.podium-stand.rank-2 { height: 130px; width: 110px; }
-.podium-stand.rank-3 { height: 110px; width: 110px; }
-.podium-player { position: absolute; top: 0; transform: translateY(-50%); text-align: center; width: 100%;}
+.podium-stand.rank-2 { height: 130px; }
+.podium-stand.rank-3 { height: 110px; }
+
+.podium-player {
+  position: absolute;
+  top: -20px;
+  text-align: center;
+  width: 100%;
+}
 .podium-pic {
-  width: 80px; height: 80px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   border: 5px solid white;
   box-shadow: 0 4px 10px rgba(0,0,0,0.2);
   object-fit: cover;
   background-color: #eee;
 }
-.podium-stand.rank-1 .podium-pic { width: 90px; height: 90px; }
+.podium-stand.rank-1 .podium-pic { width: 95px; height: 95px; }
 .podium-name { font-weight: 700; font-size: 1em; margin-top: 5px; }
-.podium-score { background-color: var(--accent-blue); color: white; font-weight: 700; padding: 2px 10px; border-radius: 20px; font-size: 0.8em; margin-top: 2px; display: inline-block; }
-.podium-rank-badge {
-  width: 40px; height: 40px;
-  border-radius: 50%;
+.podium-score {
+  background-color: rgba(0,0,0,0.2);
   color: white;
-  font-size: 1.5em;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 4px solid white;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  margin-top: 2px;
+  display: inline-block;
 }
-.podium-stand.rank-1 .podium-rank-badge { background-color: var(--color-gold); }
-.podium-stand.rank-2 .podium-rank-badge { background-color: var(--color-silver); }
-.podium-stand.rank-3 .podium-rank-badge { background-color: var(--color-bronze); }
-.podium-crown { position: absolute; top: -15px; left: 50%; transform: translateX(-50%) rotate(-15deg); font-size: 2em; color: var(--color-gold); }
+.podium-rank {
+    position: absolute;
+    top: -65px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 2.5em;
+    font-weight: 800;
+    color: white;
+    -webkit-text-stroke: 3px #555;
+    z-index: 10;
+}
+.podium-rank.gold { color: var(--color-gold); -webkit-text-stroke-color: #a37c00; }
+.podium-rank.silver { color: var(--color-silver); -webkit-text-stroke-color: #7f8c8d; }
+.podium-rank.bronze { color: var(--color-bronze); -webkit-text-stroke-color: #8c4a1e; }
 
-/* Roster List */
 .roster-list { list-style: none; }
 .roster-row {
   display: grid;
@@ -151,53 +198,61 @@ main {
   margin-bottom: 10px;
   box-shadow: 0 4px 15px var(--shadow-color);
 }
-.roster-row.is-self { background-color: #e9f5ff; border: 2px solid var(--accent-blue); }
-.cell-rank { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1em; color: white; }
-.roster-row:nth-child(1) .cell-rank { background-color: var(--accent-pink); }
-.roster-row:nth-child(2) .cell-rank { background-color: var(--accent-orange); }
-.roster-row:nth-child(3) .cell-rank { background-color: var(--accent-blue); }
-.cell-rank { background-color: #dcdcdc; }
-.cell-player-pic { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background-color: #eee; }
+.roster-row.is-self { background-color: #e9f5ff; border: 2px solid var(--primary-blue); }
+.cell-rank { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1em; color: white; background-color: var(--text-light); }
+.cell-player-pic { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
 .cell-player-info { display: flex; flex-direction: column; }
 .cell-player-name { font-weight: 700; }
 .progress-container { width: 100%; height: 8px; background-color: #e0e0e0; border-radius: 10px; margin-top: 5px; overflow: hidden; }
 .progress-bar { height: 100%; background: linear-gradient(90deg, #82ccdd, #54a0ff); border-radius: 10px; }
 .cell-score { font-weight: 800; font-size: 1.2em; }
 
-/* Action Tabs - Z-INDEX FIX */
-.action-tabs {
-  display: flex;
-  justify-content: space-around;
-  gap: 10px;
-  margin-top: auto; /* Push to the bottom */
-  border-top: 1px solid #e0e0e0;
-  padding-top: 15px;
-  position: relative;
-  z-index: 10; /* On top of main content and dino */
-  background: var(--panel-bg);
+/* === Mission Map View === */
+#mission-map-view {
+    padding: 20px 5px;
+    background-image: url('https://i.ibb.co/k3tCj3V/pixel-art-pokemon-style-world-map-video-game-overworld-lush-green-fields-mountains-forests-winding-p.png');
+    background-color: var(--bg-grass);
+    background-size: cover;
+    background-position: bottom center;
+    height: 100%;
+    overflow-y: auto;
 }
-.tab-button {
-  background: #fff;
-  border: 2px solid #e0e0e0;
-  color: var(--text-light);
-  padding: 8px 15px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-family: var(--font-main);
-  font-size: 0.9em;
-  font-weight: 700;
-  flex-grow: 1;
+.mission-path {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 50px;
+    padding-bottom: 50px; /* Space at the end of the path */
 }
-.tab-button.active { background-color: var(--accent-pink); border-color: var(--accent-pink); color: white; }
-.tab-button img { width:24px; height:24px; border-radius:50%; object-fit: cover; vertical-align: middle; margin-right: 5px;}
+.mission-node {
+    width: 100px;
+    height: 100px;
+    background-color: #fff;
+    border-radius: 50%;
+    border: 6px solid var(--wood-dark);
+    box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.mission-node:hover { transform: scale(1.1); }
+.mission-node.align-left { align-self: flex-start; margin-left: 20%; }
+.mission-node.align-right { align-self: flex-end; margin-right: 20%; }
+.mission-node-icon { font-size: 2.5em; }
+.mission-node-topic { font-size: 0.7em; font-weight: 700; margin-top: 5px; }
 
-/* Modal and other styles (retained from previous versions for functionality) */
+.mission-node.locked { background-color: #bdc3c7; border-color: #7f8c8d; }
+.mission-node.locked .mission-node-icon { color: #7f8c8d; }
+.mission-node.available { border-color: var(--accent-yellow); }
+.mission-node.available .mission-node-icon { color: var(--accent-yellow); }
+.mission-node.completed { border-color: var(--primary-green); }
+.mission-node.completed .mission-node-icon { color: var(--primary-green); }
+.mission-node.pending .mission-node-icon { color: var(--primary-blue); }
+
+/* Other necessary styles (modals, toasts, etc.) can be added here */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:1000;opacity:0;transition:opacity .3s}.modal-overlay.visible{display:flex;opacity:1}
 .modal-box{background:var(--panel-bg);border-radius:20px;width:90%;max-width:500px;padding:20px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,0.3);}
-.detail-modal-close{position:absolute;top:10px;right:15px;font-size:2em;color:var(--text-light);cursor:pointer;font-family:sans-serif;}
-.detail-modal-header{display:flex;align-items:center;gap:15px;padding-bottom:10px;border-bottom:2px solid #eee;}
-.detail-modal-pic{width:80px;height:80px;border-radius:50%;object-fit:cover;border:4px solid var(--accent-blue);}
-.detail-modal-body{flex-grow:1;overflow-y:auto;margin-top:15px;}
-.detail-table{width:100%;border-collapse:collapse;font-size:0.9em;}
-.detail-table td,.detail-table th{padding:10px;border-bottom:1px solid #eee;text-align:left;}
-.status.graded{color:var(--success); font-weight: bold;}
+/* ... you can paste your previous modal css here for full functionality */

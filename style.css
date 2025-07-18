@@ -1,63 +1,56 @@
-/* === THE CHAMPION'S PODIUM - FINAL STYLE 2025 === */
-@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800&display=swap');
+/* === RETRO RPG / POKEMON THEME - V3 === */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap');
 
 :root {
-  --bg-main: #10101a;
-  --bg-panel: #181825;
-  --bg-panel-light: #2a2a3a;
-  --primary: #6c5ce7;
-  --secondary: #a29bfe;
-  --gold: #f9ca24;
-  --silver: #dfe6e9;
-  --bronze: #e17055;
-  --text-light: #f5f6fa;
-  --text-dark: #707070;
-  --success: #00b894;
-  --danger: #d63031;
+  --font-pixel: 'Press Start 2P', cursive;
+  --font-body: 'Kanit', sans-serif;
+  --bg-main: #0a192f;
+  --panel-bg: #1e2a47;
+  --border-color: #97b2de;
+  --highlight-yellow: #fbc531;
+  --text-light: #ccd6f6;
+  --text-dark: #8892b0;
+  --success: #44bd32;
+  --danger: #e84118;
+  --border-width: 4px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: 'Kanit', sans-serif;
+  font-family: var(--font-body);
   background-color: var(--bg-main);
-  background-image: url('https://www.xtrafondos.com/wallpapers/resized/lineas-de-colores-en-fondo-oscuro-10344.jpg?s=large');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
   color: var(--text-light);
   padding: 20px;
 }
 #app-container { width: 100%; max-width: 1100px; margin: 0 auto; }
 
-/* === Loader === */
-#initial-loader {
-    text-align: center;
-    padding-top: 100px;
-    font-size: 1.2em;
-}
-
 /* === Header Banner === */
 .event-banner {
   padding: 20px;
-  background: rgba(0,0,0,0.3);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: var(--border-width) solid var(--border-color);
+  background: var(--panel-bg);
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
 }
-.title-main { font-size: 2em; font-weight: 800; }
-.title-sub { font-size: 1.2em; color: var(--secondary); }
+.title-main, .title-sub { font-family: var(--font-pixel); }
+.title-main { font-size: 1.5em; color: var(--highlight-yellow); }
+.title-sub { font-size: 1em; color: var(--text-light); margin-top: 5px; }
 
 /* User Area */
 #user-area-btn { background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 10px; }
-#user-area-pic { width: 45px; height: 45px; border-radius: 50%; border: 3px solid var(--primary); }
-#login-text { font-weight: 600; font-size: 1.1em; }
+#user-area-pic {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: var(--border-width) solid var(--border-color);
+  object-fit: cover;
+  background-color: var(--bg-main);
+}
+#login-text { font-family: var(--font-pixel); font-size: 0.8em; }
 
-/* === Podium Section === */
+/* Podium Section */
 .podium-container {
   display: flex;
   justify-content: center;
@@ -65,156 +58,134 @@ body {
   gap: 15px;
   padding: 20px;
   margin-bottom: 30px;
-  min-height: 350px;
+  min-height: 300px;
 }
 .podium-card {
-  background: var(--bg-panel);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 15px;
-  padding: 20px;
+  border: var(--border-width) solid var(--border-color);
+  background: var(--panel-bg);
+  padding: 15px;
   text-align: center;
   position: relative;
-  transition: transform 0.3s;
+  transition: transform 0.2s;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
 }
-.podium-card:hover { transform: translateY(-10px); }
-.podium-card .fa-crown { color: var(--gold); font-size: 2em; position: absolute; top: -15px; left: 50%; transform: translateX(-50%); text-shadow: 0 0 10px var(--gold); }
-.podium-pic { width: 100px; height: 100px; border-radius: 50%; margin: 10px 0; object-fit: cover; }
-.podium-rank { font-size: 1.5em; font-weight: 800; }
-.podium-name { font-size: 1.2em; font-weight: 600; word-break: break-word; }
-.podium-score { font-size: 1.1em; color: var(--secondary); }
+.podium-card:hover { transform: translateY(-8px); }
+.podium-card .fa-crown { color: var(--highlight-yellow); font-size: 2em; margin-bottom: 10px; }
+.podium-pic { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 4px solid var(--bg-main); }
+.podium-rank, .podium-name, .podium-score { font-family: var(--font-pixel); line-height: 1.5; }
+.podium-rank { font-size: 1.2em; }
+.podium-name { font-size: 0.8em; word-break: break-word; }
+.podium-score { font-size: 0.9em; color: var(--highlight-yellow); }
 
-.podium-card.rank-1 { order: 2; width: 250px; height: 300px; border-top: 5px solid var(--gold); box-shadow: 0 0 30px var(--gold); }
-.podium-card.rank-1 .podium-pic { width: 120px; height: 120px; }
-.podium-card.rank-1 .podium-rank { color: var(--gold); }
-.podium-card.rank-2 { order: 1; width: 220px; height: 270px; border-top: 5px solid var(--silver); }
-.podium-card.rank-2 .podium-rank { color: var(--silver); }
-.podium-card.rank-3 { order: 3; width: 220px; height: 270px; border-top: 5px solid var(--bronze); }
-.podium-card.rank-3 .podium-rank { color: var(--bronze); }
+.podium-card.rank-1 { order: 2; width: 220px; height: 280px; border-color: var(--highlight-yellow); }
+.podium-card.rank-1 .podium-pic { width: 100px; height: 100px; }
+.podium-card.rank-2 { order: 1; width: 180px; height: 240px; }
+.podium-card.rank-3 { order: 3; width: 180px; height: 240px; }
 
-/* === Roster Section === */
+/* Roster Section */
 .roster-container {
-  background: rgba(0,0,0,0.3);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: var(--border-width) solid var(--border-color);
+  background: var(--panel-bg);
   padding: 20px;
 }
-.roster-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-.roster-header h3 { font-size: 1.5em; }
+.roster-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.roster-header h3 { font-family: var(--font-pixel); font-size: 1.2em; }
 .action-tabs .tab-button {
-  background: var(--bg-panel-light);
-  border: 1px solid transparent;
+  background: var(--bg-main);
+  border: var(--border-width) solid var(--border-color);
   color: var(--text-light);
   padding: 8px 15px;
-  border-radius: 8px;
   cursor: pointer;
   margin-left: 10px;
-  font-family: 'Kanit';
-  font-size: 0.9em;
-  transition: all 0.2s;
+  font-family: var(--font-pixel);
+  font-size: 0.7em;
 }
-.action-tabs .tab-button:hover { border-color: var(--primary); }
-.action-tabs .tab-button.active { background-color: var(--primary); font-weight: 700; }
-.admin-tab { display: none; }
-.admin-tab.visible { display: inline-block !important; }
+.action-tabs .tab-button.active { background-color: var(--highlight-yellow); color: var(--bg-main); }
 
-.roster-table-header, .roster-row {
-  display: grid;
-  grid-template-columns: 80px 1fr 120px 200px;
-  gap: 15px;
-  align-items: center;
-  padding: 10px 15px;
-}
-.roster-table-header { font-weight: 700; color: var(--secondary); border-bottom: 2px solid var(--bg-panel-light); }
+/* Roster Table */
+.roster-table-header { display: none; } /* Simplified for this design */
 .roster-list { list-style: none; }
 .roster-row {
-  background: var(--bg-panel);
-  border-radius: 10px;
+  display: grid;
+  grid-template-columns: 40px 1fr 80px;
+  gap: 15px;
+  align-items: center;
+  padding: 10px;
   margin-bottom: 8px;
   transition: background-color 0.2s;
   cursor: pointer;
 }
-.roster-row:hover { background: var(--bg-panel-light); }
-.roster-pic { width: 40px; height: 40px; border-radius: 50%; margin-right: 15px; object-fit: cover; }
-.cell-player { display: flex; align-items: center; }
-.cell-score { font-weight: 700; text-align: right; }
-.cell-progress { display: flex; align-items: center; gap: 10px; }
-.progress-container { flex: 1; height: 8px; background: var(--bg-main); border-radius: 4px; overflow: hidden;}
-.progress-bar { height: 100%; background: var(--primary); border-radius: 4px; }
-.roster-row.is-self { border: 2px solid var(--primary); }
+.roster-row:hover, .roster-row.is-self { background: var(--bg-main); }
+.roster-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+.cell-rank { font-family: var(--font-pixel); font-size: 1em; text-align: center; }
+.cell-player { display: flex; align-items: center; font-weight: 600; gap: 15px; }
+.cell-score { font-family: var(--font-pixel); font-size: 1em; text-align: right; }
 #my-rank-pinned { margin-bottom: 20px; }
-.my-rank-title { font-size: 1.2em; font-weight: 700; margin-bottom: 10px; padding-left: 15px; }
+.my-rank-title { font-family: var(--font-pixel); font-size: 1em; margin-bottom: 10px; }
 
-/* === Content View (Map, Admin) === */
-.content-view { display: none; }
-.content-view.active { display: block; }
-#map-view-container { border-radius: 10px; overflow: hidden; } /* Add this for map view */
-/* Include map styles and login overlay styles from your previous CSS */
-.login-overlay-wrapper{position:relative;width:100%;min-height:400px;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;}.login-overlay-wrapper::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background-color:rgba(0,0,0,.7);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:1}.login-overlay-content{position:relative;z-index:2;color:#fff}.login-overlay-content .fas{font-size:3em;color:var(--primary);margin-bottom:20px}.login-overlay-content h3{font-size:1.5em;margin:0 0 10px}.login-overlay-content p{opacity:.8;margin-bottom:25px}.login-overlay-content .btn-primary{width:auto;padding:12px 30px}
-#map-view-container{width:100%;padding:30px 15px;max-height:70vh;overflow-y:auto;background-image:url(https://w.forfun.com/fetch/1a/1a58c035255d229f372a787268872583.jpeg);background-size:cover;background-position:center;border-radius:var(--border-radius-sub);position:relative}.mission-row{display:flex;margin-bottom:40px;position:relative}.mission-row-left{justify-content:flex-start;padding-left:15%}.mission-row-right{justify-content:flex-end;padding-right:15%}.mission-node{width:130px;height:130px;border-radius:50%;border:5px solid hsla(0,0%,100%,.5);background:var(--panel-bg);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px;box-shadow:0 6px 20px rgba(0,0,0,.5);transition:all .3s ease}.mission-node:hover{transform:scale(1.08);box-shadow:0 8px 30px rgba(0,0,0,.7)}.mission-node-topic{font-weight:700;font-size:1em;line-height:1.2}.mission-node-points{font-size:.9em;margin-top:8px;font-weight:600;background:rgba(0,0,0,.2);padding:4px 10px;border-radius:20px}.mission-node.available{border-color:var(--secondary)}.mission-node.available:hover{box-shadow:0 0 25px var(--secondary)}.mission-node.urgent-node{border-color:var(--danger);animation:pulse-red 1.5s infinite}.mission-node.completed{border-color:var(--success);background:rgba(0,184,148,.3)}.mission-node.locked{filter:grayscale(80%);opacity:.7;cursor:not-allowed}
-
-/* === Refresh Button === */
-.refresh-button {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 50px;
-    height: 50px;
-    background-color: var(--primary);
-    color: var(--text-light);
-    border: none;
-    border-radius: 50%;
-    font-size: 1.2em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-    cursor: pointer;
-    z-index: 999;
-    transition: transform 0.2s, background-color 0.2s;
+/* Mission Map */
+#map-view-container {
+  background-image: url('https://i.ibb.co/k3tCj3V/pixel-art-pokemon-style-world-map-video-game-overworld-lush-green-fields-mountains-forests-winding-p.png');
+  background-size: cover;
+  background-position: center;
+  border: var(--border-width) solid var(--border-color);
+  /* The rest of the map styles are mostly fine */
 }
-.refresh-button:hover {
-    transform: scale(1.1) rotate(90deg);
-    background-color: var(--secondary);
-}
+/* ... Keep your existing map node, overlay, and responsive styles ... */
 
-/* === Responsive Design for Mobile === */
-@media (max-width: 768px) {
-  body { padding: 10px; }
-  .event-banner { flex-direction: column; gap: 15px; text-align: center; }
-  .title-main { font-size: 1.5em; }
-  .title-sub { font-size: 1em; }
-  
-  .podium-container { flex-direction: column; align-items: center; gap: 20px; }
-  .podium-card { width: 90% !important; height: auto !important; order: unset !important; }
-  .podium-card.rank-1 { order: -1; } /* Make rank 1 appear first */
-  
-  .roster-header { flex-direction: column; }
-  
-  .roster-table-header { display: none; }
-  .roster-row {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      grid-template-columns: none; /* Override grid */
-      padding: 15px;
-      position: relative;
-  }
-  .cell-rank {
-      position: absolute;
-      top: 10px;
-      right: 15px;
-      font-size: 1.2em;
-      font-weight: 800;
-      color: var(--primary);
-  }
-  .cell-player { margin-bottom: 10px; }
-  .cell-score { text-align: left; font-size: 1.1em; }
-  .cell-progress { width: 100%; margin-top: 10px; }
+/* MODAL FIX & REDESIGN */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:1000;opacity:0;transition:opacity .3s}.modal-overlay.visible{display:flex;opacity:1}
+.modal-box{
+  background: var(--panel-bg);
+  border: var(--border-width) solid var(--border-color);
+  width: 90%;
+  max-width: 500px;
+  padding: 15px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
+.detail-modal-close{position:absolute;top:10px;right:15px;font-size:1.5em;color:var(--text-light);cursor:pointer;font-family:sans-serif;}
 
-/* Modal styles can mostly remain the same, but you can add them here if needed */
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(13,12,34,.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:1000;opacity:0;transition:opacity .3s,visibility .3s}.modal-overlay.visible{display:flex;opacity:1;visibility:visible}.modal-box{background:var(--bg-panel);border-radius:20px;border:1px solid hsla(0,0%,100%,.1);box-shadow:0 8px 32px rgba(0,0,0,.5);width:90%;max-width:550px;padding:25px;position:relative;max-height:90vh;display:flex;flex-direction:column}.detail-modal-close{position:absolute;top:15px;right:20px;font-size:2em;color:var(--text-dark);cursor:pointer;transition:color .2s,transform .2s}.detail-modal-close:hover{color:#fff;transform:rotate(90deg)}.modal-box input,.modal-box select,textarea{width:100%;background:var(--bg-panel-light);color:var(--text-light);padding:12px;margin-bottom:15px;border-radius:12px;border:1px solid hsla(0,0%,100%,.2);font-family:Kanit,sans-serif;font-size:1em}.btn-primary,.btn-secondary,.btn-danger,.btn-delete{width:100%;margin-top:10px;padding:12px 20px;border-radius:12px;font-weight:700;cursor:pointer;border:none;font-family:Kanit,sans-serif;font-size:1em;text-transform:uppercase;transition:transform .2s,box-shadow .2s}.btn-primary:hover,.btn-secondary:hover,.btn-danger:hover,.btn-delete:hover{transform:translateY(-2px)}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 0 15px -5px var(--primary)}.btn-secondary{background:#4a4a69;color:var(--text-light)}.btn-danger,.btn-delete{background:var(--danger);color:#fff}
-.detail-modal-body{overflow-y:auto;padding-right:10px}.detail-table{width:100%;border-collapse:collapse}.detail-table td,.detail-table th{padding:12px 8px;border-bottom:1px solid hsla(0,0%,100%,.1);text-align:left}.status.graded{color:var(--success);font-weight:700}.status.pending{color:var(--gold)}
+/* STUDENT DETAIL MODAL - The Main Fix */
+.detail-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 10px;
+  border-bottom: var(--border-width) solid var(--border-color);
+  margin-bottom: 10px;
+}
+.detail-modal-pic {
+  width: 64px; height: 64px;
+  object-fit: cover;
+  border: var(--border-width) solid var(--border-color);
+  background: var(--bg-main);
+}
+.detail-modal-info h3 { font-family: var(--font-body); font-size: 1.2em; }
+.detail-modal-info p { font-family: var(--font-pixel); font-size: 0.8em; color: var(--highlight-yellow); }
+
+.detail-modal-body { overflow-y: auto; flex-grow: 1; }
+.detail-table{width:100%;border-collapse:collapse;font-size:0.9em;}
+.detail-table td,.detail-table th{padding:8px;border-bottom:2px solid var(--bg-main);text-align:left;}
+.status.graded{color:var(--success);}
+.status.pending{color:var(--highlight-yellow);}
+
+/* Button Styles */
+.btn-primary,.btn-secondary,.btn-danger{
+    width:100%;margin-top:10px;padding:12px;
+    font-family:var(--font-pixel);font-size:0.8em;
+    border:var(--border-width) solid var(--border-color);
+    cursor:pointer;
+}
+.btn-primary{background:var(--highlight-yellow);color:var(--bg-main);}
+.btn-secondary{background:var(--text-dark);color:var(--text-light);}
+.btn-danger{background:var(--danger);color:var(--text-light);}
+
+/* Refresh Button */
+.refresh-button{position:fixed;bottom:20px;right:20px;width:48px;height:48px;background-color:var(--highlight-yellow);color:var(--bg-main);border:var(--border-width) solid var(--border-color);font-size:1.2em;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:999;transition:transform .2s}
+.refresh-button:hover{transform:rotate(180deg)}

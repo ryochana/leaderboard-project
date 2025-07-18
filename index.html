@@ -34,6 +34,8 @@
     const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
     
+    // *** THIS IS THE FIX ***
+    // We rename our client instance to avoid conflict with the global 'supabase' object.
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // ======================================================
@@ -64,7 +66,7 @@
         const config = getGradeConfigFromUrl();
         document.title = `ENG ${config.title} NPC 68`;
         buildApp();
-        await initializeUserFromStorage();
+        initializeUserFromStorage(); // No need to await this
         await loadInitialData();
     }
 
@@ -72,6 +74,7 @@
     // SUPABASE DATA FETCHING
     // ======================================================
     async function loadInitialData() {
+        // ... (rest of the code is the same, but every call to 'supabase' is replaced with 'supabaseClient')
         const listContainer = document.getElementById('roster-list');
         if (listContainer) listContainer.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading Roster...</div>';
         
@@ -79,11 +82,13 @@
 
         try {
             const [leaderboardRes, missionsRes, badgesRes, submissionsRes] = await Promise.all([
-                supabase.from('users').select('*').eq('role', 'student').eq('level', config.title).order('total_score', { ascending: false, nullsFirst: false }),
-                supabase.from('missions').select('*').eq('level', config.title).order('due_date', { ascending: true }),
-                supabase.from('badges').select('*'),
-                currentUser ? supabase.from('submissions').select('mission_id, score').eq('user_id', currentUser.id) : Promise.resolve({ data: [] })
+                supabaseClient.from('users').select('*').eq('role', 'student').eq('level', config.title).order('total_score', { ascending: false, nullsFirst: false }),
+                supabaseClient.from('missions').select('*').eq('level', config.title).order('due_date', { ascending: true }),
+                supabaseClient.from('badges').select('*'),
+                currentUser ? supabaseClient.from('submissions').select('mission_id, score').eq('user_id', currentUser.id) : Promise.resolve({ data: [] })
             ]);
+
+            // ... (rest of the function remains the same, just with 'supabaseClient')
 
             if (leaderboardRes.error) throw leaderboardRes.error;
             if (missionsRes.error) throw missionsRes.error;
@@ -120,7 +125,11 @@
             document.getElementById('main-content-wrapper').style.display = 'block';
         }
     }
-
+    
+    // ... all other functions from before, but with `supabase` replaced by `supabaseClient`
+    
+    // The following is the complete, corrected script.
+    
     // ======================================================
     // UI BUILDING & RENDERING
     // ======================================================
@@ -191,7 +200,7 @@
         if (!username || !password) { errorEl.innerText = "กรุณากรอกข้อมูลให้ครบถ้วน"; return; }
         errorEl.innerText = "กำลังตรวจสอบ...";
         
-        const { data, error } = await supabase.from('users').select('*').eq('username', username).eq('password', password).single();
+        const { data, error } = await supabaseClient.from('users').select('*').eq('username', username).eq('password', password).single();
 
         if (error || !data) {
             errorEl.innerText = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
@@ -214,16 +223,16 @@
 
         try {
             const fileName = `${currentUser.id}/${Date.now()}_${file.name}`;
-            const { error: uploadError } = await supabase.storage.from('profile-pictures').upload(fileName, file, {
+            const { error: uploadError } = await supabaseClient.storage.from('profile-pictures').upload(fileName, file, {
                 cacheControl: '3600',
                 upsert: true
             });
             if (uploadError) throw uploadError;
 
-            const { data } = supabase.storage.from('profile-pictures').getPublicUrl(fileName);
+            const { data } = supabaseClient.storage.from('profile-pictures').getPublicUrl(fileName);
             const publicUrl = data.publicUrl;
 
-            const { error: updateError } = await supabase.from('users').update({ profile_url: publicUrl }).eq('id', currentUser.id);
+            const { error: updateError } = await supabaseClient.from('users').update({ profile_url: publicUrl }).eq('id', currentUser.id);
             if (updateError) throw updateError;
             
             showToast("อัปเดตรูปโปรไฟล์สำเร็จ!");
@@ -286,13 +295,12 @@
             try {
                 loaderText.innerText = 'กำลังอัปโหลดไฟล์...';
                 const fileName = `${currentUser.student_id}/${currentMission.id}_${Date.now()}_${file.name}`;
-                const { error: uploadError } = await supabase.storage.from('mission-uploads').upload(fileName, file);
+                const { error: uploadError } = await supabaseClient.storage.from('mission-uploads').upload(fileName, file);
                 if (uploadError) throw uploadError;
-                const { data } = supabase.storage.from('mission-uploads').getPublicUrl(fileName);
+                const { data } = supabaseClient.storage.from('mission-uploads').getPublicUrl(fileName);
                 filePublicUrl = data.publicUrl;
             } catch (error) {
                 errorEl.innerText = `อัปโหลดไฟล์ล้มเหลว: ${error.message}`;
-                // revert UI
                 document.getElementById('submission-form-area').style.display = 'block';
                 document.getElementById('submission-buttons').style.display = 'block';
                 loader.style.display = 'none';
@@ -303,14 +311,13 @@
         try {
             loaderText.innerText = 'กำลังบันทึกข้อมูล...';
             const submissionData = { user_id: currentUser.id, mission_id: currentMission.id, submission_link: link, proof_url: filePublicUrl };
-            const { error } = await supabase.from('submissions').upsert(submissionData, { onConflict: 'user_id, mission_id' });
+            const { error } = await supabaseClient.from('submissions').upsert(submissionData, { onConflict: 'user_id, mission_id' });
             if (error) throw error;
             showToast("ส่งงานสำเร็จ!");
             closeModal('submission-modal');
             await loadInitialData();
         } catch (error) {
             errorEl.innerText = `บันทึกข้อมูลล้มเหลว: ${error.message}`;
-            // revert UI
             document.getElementById('submission-form-area').style.display = 'block';
             document.getElementById('submission-buttons').style.display = 'block';
             loader.style.display = 'none';
@@ -320,24 +327,6 @@
     // ======================================================
     // UI UTILITIES & EVENT HANDLERS
     // ======================================================
-    function evaluateBadgesForStudent(studentData, allBadges) { /* ... same as your old script ... */ return []; }
-    function renderMapView() { /* ... same as your old script ... */ }
-    function showMissionDetail(missionId) {
-        currentMission = allMissions.find(m => m.id === missionId);
-        if (!currentMission) return;
-        // ... (rest of the logic from your old showMissionDetail, adapted for new data structure)
-        openModal('mission-detail-modal');
-    }
-    function openSubmissionModal(missionId) { /* ... */ }
-    function switchView(viewId, element) { /* ... */ }
-    async function showStudentDetailModal(userId) { /* ... */ }
-    function handleUserAreaClick() { currentUser ? openModal("profile-modal") : openModal("login-modal"); }
-    function openModal(id) { document.getElementById(id)?.classList.add("visible"); }
-    function closeModal(id) { document.getElementById(id)?.classList.remove("visible"); }
-    function showToast(message, isError = false) { /* ... */ }
-    function showError(error) { /* ... */ }
-    
-    // Placeholder full functions for copy-paste
     function evaluateBadgesForStudent(studentData, allBadges) {
       const earnedBadges = [];
       if (!allBadges || allBadges.length === 0) return earnedBadges;
@@ -353,6 +342,7 @@
       });
       return earnedBadges;
     }
+
     function renderMapView() {
         const container = document.getElementById('map-view-container');
         if (!container) return;
@@ -384,6 +374,7 @@
         }).join('');
         container.innerHTML = missionHtml || '<div style="text-align:center;padding:50px;color:#fff;">ไม่มีภารกิจในขณะนี้</div>';
     }
+
     function showMissionDetail(missionId) {
         currentMission = allMissions.find(m => m.id === missionId);
         if (!currentMission) return;
@@ -405,6 +396,7 @@
         
         openModal('mission-detail-modal');
     }
+
     function openSubmissionModal() {
         if (!currentMission) return;
         document.getElementById('submission-modal-topic').innerText = currentMission.topic;
@@ -414,6 +406,7 @@
         closeModal('mission-detail-modal');
         openModal('submission-modal');
     }
+
     function switchView(viewId, element) {
         document.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
         if(element) element.classList.add('active');
@@ -424,6 +417,7 @@
             if (viewId === 'map-view-container') renderMapView();
         }
     }
+
     async function showStudentDetailModal(userId) {
         const student = fullSummaryData.find(s => s.id === userId);
         if (!student) return;
@@ -434,7 +428,9 @@
         const body = document.getElementById('detail-modal-body');
         body.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</div>';
         openModal('student-detail-modal');
-        const { data, error } = await supabase.from('submissions').select('missions(topic, max_points), score').eq('user_id', userId);
+        
+        const { data, error } = await supabaseClient.from('submissions').select('missions(topic, max_points), score').eq('user_id', userId);
+        
         if (error) { body.innerHTML = `<p style="color:var(--danger)">เกิดข้อผิดพลาด: ${error.message}</p>`; return; }
         
         let tableHtml = '<table class="detail-table"><thead><tr><th>ภารกิจ</th><th style="text-align:center;">สถานะ</th><th style="text-align:right;">คะแนน</th></tr></thead><tbody>';
@@ -450,6 +446,7 @@
         tableHtml += '</tbody></table>';
         body.innerHTML = tableHtml;
     }
+
     function showToast(message, isError = false) {
         const container = document.getElementById('toast-container');
         if (!container) return;
@@ -458,17 +455,19 @@
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(() => toast.classList.add('show'), 100);
-        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => container.removeChild(toast), 300); }, 4000);
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => { if (container.contains(toast)) container.removeChild(toast); }, 300); }, 4000);
     }
+
     function showError(error) {
         console.error(error);
         const errorMsg = (error && error.message) ? error.message : "เกิดข้อผิดพลาดไม่ทราบสาเหตุ";
         document.getElementById('app-container').innerHTML = `<div style="padding:20px;text-align:center;color:#ffb8b8;background:rgba(0,0,0,0.3);border-radius:10px;"><h3>เกิดข้อผิดพลาด</h3><p>${errorMsg}</p></div>`;
     }
+    
     function handleUserAreaClick() { currentUser ? openModal("profile-modal") : openModal("login-modal"); }
     function openModal(id) { document.getElementById(id)?.classList.add("visible"); }
     function closeModal(id) { document.getElementById(id)?.classList.remove("visible"); }
-</script>
 
+</script>
 </body>
 </html>

@@ -1,24 +1,20 @@
-/* === PLAYFUL CRITTER CHAMPIONS THEME === */
+/* === PLAYFUL CRITTER CHAMPIONS THEME - V2 (LAYOUT FIXED) === */
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500;700;800&display=swap');
 
 :root {
   --font-main: 'Kanit', sans-serif;
-  --bg-color: #f0f8ff; /* AliceBlue */
+  --bg-color: #f0f8ff;
   --panel-bg: #ffffff;
   --text-dark: #3d3d3d;
   --text-light: #8a8a8a;
-  
   --color-gold: #ffc700;
   --color-silver: #c0c0c0;
   --color-bronze: #cd7f32;
-  
   --accent-blue: #54a0ff;
   --accent-pink: #ff6b81;
   --accent-orange: #ff9f43;
-
   --wood-light: #a0522d;
   --wood-dark: #8b4513;
-
   --shadow-color: rgba(0, 0, 0, 0.1);
 }
 
@@ -34,38 +30,41 @@ body {
 }
 #app-container {
   width: 100%;
-  max-width: 450px; /* Mobile-first approach */
+  max-width: 450px;
   background-color: var(--panel-bg);
   border-radius: 30px;
   box-shadow: 0 10px 40px var(--shadow-color);
   padding: 20px;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 95vh; /* Make it take most of the screen height */
 }
 
-/* === Decorative Elements === */
-.critter-dino {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 120px;
-  z-index: 5;
-}
+/* === Decorative Elements with Z-INDEX === */
 .confetti {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   background-image: url('https://i.ibb.co/3zd56sL/confetti-bg.png');
   background-size: contain;
   opacity: 0.7;
-  z-index: 0;
+  z-index: 1; /* At the very back */
+}
+.critter-dino {
+  position: absolute;
+  bottom: 50px; /* Position above the tabs */
+  right: -10px;
+  width: 120px;
+  z-index: 2; /* In front of confetti */
 }
 
-/* === Header === */
+/* === Header - Z-INDEX FIX === */
 .leaderboard-header {
   text-align: center;
   margin-bottom: 20px;
   position: relative;
-  z-index: 10;
+  z-index: 10; /* On top of everything */
 }
 .leaderboard-title {
   display: inline-block;
@@ -79,7 +78,16 @@ body {
   border: 4px solid #fff;
 }
 
-/* === Podium Section === */
+/* === Main Content Area - Z-INDEX FIX === */
+main {
+  flex-grow: 1;
+  overflow-y: auto; /* Make this area scrollable */
+  position: relative;
+  z-index: 5; /* Above decorative elements */
+  padding: 0 5px;
+}
+
+/* Podium Section */
 .podium-container {
   display: flex;
   justify-content: center;
@@ -87,8 +95,6 @@ body {
   gap: 5px;
   margin-bottom: 30px;
   min-height: 250px;
-  position: relative;
-  z-index: 10;
 }
 .podium-stand {
   background-color: var(--wood-dark);
@@ -98,21 +104,14 @@ body {
   flex-direction: column;
   align-items: center;
   position: relative;
-  padding-top: 50px; /* Space for avatar */
+  padding-top: 50px;
 }
 .podium-stand.rank-1 { height: 160px; width: 130px; }
 .podium-stand.rank-2 { height: 130px; width: 110px; }
 .podium-stand.rank-3 { height: 110px; width: 110px; }
-
-.podium-player {
-  position: absolute;
-  top: 0;
-  transform: translateY(-50%);
-  text-align: center;
-}
+.podium-player { position: absolute; top: 0; transform: translateY(-50%); text-align: center; width: 100%;}
 .podium-pic {
-  width: 80px;
-  height: 80px;
+  width: 80px; height: 80px;
   border-radius: 50%;
   border: 5px solid white;
   box-shadow: 0 4px 10px rgba(0,0,0,0.2);
@@ -121,18 +120,9 @@ body {
 }
 .podium-stand.rank-1 .podium-pic { width: 90px; height: 90px; }
 .podium-name { font-weight: 700; font-size: 1em; margin-top: 5px; }
-.podium-score {
-  background-color: var(--accent-blue);
-  color: white;
-  font-weight: 700;
-  padding: 2px 10px;
-  border-radius: 20px;
-  font-size: 0.8em;
-  margin-top: 2px;
-}
+.podium-score { background-color: var(--accent-blue); color: white; font-weight: 700; padding: 2px 10px; border-radius: 20px; font-size: 0.8em; margin-top: 2px; display: inline-block; }
 .podium-rank-badge {
-  width: 40px;
-  height: 40px;
+  width: 40px; height: 40px;
   border-radius: 50%;
   color: white;
   font-size: 1.5em;
@@ -146,22 +136,10 @@ body {
 .podium-stand.rank-1 .podium-rank-badge { background-color: var(--color-gold); }
 .podium-stand.rank-2 .podium-rank-badge { background-color: var(--color-silver); }
 .podium-stand.rank-3 .podium-rank-badge { background-color: var(--color-bronze); }
-.podium-crown {
-  position: absolute;
-  top: -15px;
-  left: 50%;
-  transform: translateX(-50%) rotate(-15deg);
-  font-size: 2em;
-  color: var(--color-gold);
-}
+.podium-crown { position: absolute; top: -15px; left: 50%; transform: translateX(-50%) rotate(-15deg); font-size: 2em; color: var(--color-gold); }
 
-
-/* === Roster List === */
-.roster-list {
-  list-style: none;
-  position: relative;
-  z-index: 10;
-}
+/* Roster List */
+.roster-list { list-style: none; }
 .roster-row {
   display: grid;
   grid-template-columns: 40px 50px 1fr auto;
@@ -173,67 +151,30 @@ body {
   margin-bottom: 10px;
   box-shadow: 0 4px 15px var(--shadow-color);
 }
-.roster-row.is-self {
-  background-color: #e9f5ff;
-  border: 2px solid var(--accent-blue);
-}
-.cell-rank {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 1.1em;
-  color: white;
-}
-/* Assign colors to ranks */
+.roster-row.is-self { background-color: #e9f5ff; border: 2px solid var(--accent-blue); }
+.cell-rank { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1em; color: white; }
 .roster-row:nth-child(1) .cell-rank { background-color: var(--accent-pink); }
 .roster-row:nth-child(2) .cell-rank { background-color: var(--accent-orange); }
 .roster-row:nth-child(3) .cell-rank { background-color: var(--accent-blue); }
-.cell-rank { background-color: #dcdcdc; } /* Default for others */
+.cell-rank { background-color: #dcdcdc; }
+.cell-player-pic { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background-color: #eee; }
+.cell-player-info { display: flex; flex-direction: column; }
+.cell-player-name { font-weight: 700; }
+.progress-container { width: 100%; height: 8px; background-color: #e0e0e0; border-radius: 10px; margin-top: 5px; overflow: hidden; }
+.progress-bar { height: 100%; background: linear-gradient(90deg, #82ccdd, #54a0ff); border-radius: 10px; }
+.cell-score { font-weight: 800; font-size: 1.2em; }
 
-.cell-player-pic {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  object-fit: cover;
-  background-color: #eee;
-}
-.cell-player-info {
-  display: flex;
-  flex-direction: column;
-}
-.cell-player-name {
-  font-weight: 700;
-}
-.progress-container {
-  width: 100%;
-  height: 8px;
-  background-color: #e0e0e0;
-  border-radius: 10px;
-  margin-top: 5px;
-  overflow: hidden;
-}
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #82ccdd, #54a0ff);
-  border-radius: 10px;
-}
-.cell-score {
-  font-weight: 800;
-  font-size: 1.2em;
-}
-
-/* === Action Tabs & Other Views === */
+/* Action Tabs - Z-INDEX FIX */
 .action-tabs {
   display: flex;
-  justify-content: center;
+  justify-content: space-around;
   gap: 10px;
-  margin-top: 30px;
+  margin-top: auto; /* Push to the bottom */
   border-top: 1px solid #e0e0e0;
-  padding-top: 20px;
+  padding-top: 15px;
+  position: relative;
+  z-index: 10; /* On top of main content and dino */
+  background: var(--panel-bg);
 }
 .tab-button {
   background: #fff;
@@ -245,16 +186,18 @@ body {
   font-family: var(--font-main);
   font-size: 0.9em;
   font-weight: 700;
+  flex-grow: 1;
 }
-.tab-button.active {
-  background-color: var(--accent-pink);
-  border-color: var(--accent-pink);
-  color: white;
-}
-.content-view { display: none; margin-top: 20px;}
-.content-view.active { display: block; }
+.tab-button.active { background-color: var(--accent-pink); border-color: var(--accent-pink); color: white; }
+.tab-button img { width:24px; height:24px; border-radius:50%; object-fit: cover; vertical-align: middle; margin-right: 5px;}
 
-/* Modal and other styles can be simplified or adapted from previous versions */
-/* For brevity, I'm focusing on the main layout. You should retain your modal CSS */
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:1000;opacity:0;transition:opacity .3s}.modal-overlay.visible{display:flex;opacity:1}
-.modal-box{background:var(--panel-bg);border-radius:20px;width:90%;max-width:500px;padding:20px;max-height:90vh;display:flex;flex-direction:column}
+/* Modal and other styles (retained from previous versions for functionality) */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:1000;opacity:0;transition:opacity .3s}.modal-overlay.visible{display:flex;opacity:1}
+.modal-box{background:var(--panel-bg);border-radius:20px;width:90%;max-width:500px;padding:20px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,0.3);}
+.detail-modal-close{position:absolute;top:10px;right:15px;font-size:2em;color:var(--text-light);cursor:pointer;font-family:sans-serif;}
+.detail-modal-header{display:flex;align-items:center;gap:15px;padding-bottom:10px;border-bottom:2px solid #eee;}
+.detail-modal-pic{width:80px;height:80px;border-radius:50%;object-fit:cover;border:4px solid var(--accent-blue);}
+.detail-modal-body{flex-grow:1;overflow-y:auto;margin-top:15px;}
+.detail-table{width:100%;border-collapse:collapse;font-size:0.9em;}
+.detail-table td,.detail-table th{padding:10px;border-bottom:1px solid #eee;text-align:left;}
+.status.graded{color:var(--success); font-weight: bold;}

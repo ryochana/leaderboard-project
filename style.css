@@ -33,7 +33,7 @@
 body {
   font-family: var(--font-main);
   background-color: var(--bg-main);
-  background-image: url('https://i.ibb.co/L5hS0cW/space-bg.jpg');
+  background-image: url('https://i.ibb.co/gM7X8Zf0/upscalemedia-transformed.jpg');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -192,7 +192,7 @@ body {
 
 /* === Mission Map View === */
 #mission-map-view {
-  background: url('https://i.ibb.co/gM7X8Zf0/upscalemedia-transformed.jpg') no-repeat center center;
+  background: url('https://t4.ftcdn.net/jpg/02/89/72/69/360_F_289726988_cF9wzIATeSAOBxCg23NqnLeaKVfXWvdy.jpg') no-repeat center center;
   background-size: cover;
   height: 100%;
   overflow-y: auto;

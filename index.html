@@ -8,7 +8,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Kanit:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 
@@ -16,7 +16,7 @@
 </head>
 <body>
     <div id="app-container">
-        <div id="initial-loader" style="text-align: center; padding-top: 100px; font-size: 1.2em; color: #3d3d3d; font-family: 'Baloo 2', cursive;">
+        <div id="initial-loader" style="text-align: center; padding-top: 100px; font-size: 1.2em; color: white;">
           <i class="fas fa-spinner fa-spin"></i> Loading Challenge...
         </div>
         <div id="main-content-wrapper" style="display: none; height: 100%; flex-direction: column;"></div>
@@ -36,7 +36,7 @@
     
     let currentUser = null;
     let fullSummaryData = [], filteredSummaryData = [];
-    let allMissions = [], allBadges = [];
+    let allMissions = [];
     let allSubmissionsForAdmin = [];
     let currentUserSubmissions = new Map();
     let currentMission = null;
@@ -104,15 +104,15 @@
         mainContent.innerHTML = `
             <header class="app-header">
                 <div class="header-title">
-                    <h1 class="title-main">NONPAKCHEE ENGLISH QUEST</h1>
-                    <div class="header-subtitle">${config.title} ADVENTURE 2025</div>
+                    <div class="title-main">NONPAKCHEE ENGLISH QUEST</div>
+                    <div class="title-sub">${config.title} ADVENTURE 2025</div>
                 </div>
-                <div id="profile-button"></div>
+                <div class="app-nav">
+                    <button class="nav-button active" onclick="switchView('leaderboard-view', this)">Leaderboard</button>
+                    <button class="nav-button" onclick="switchView('mission-map-view', this)">Mission Map</button>
+                </div>
+                <button id="profile-button"><img src="${DEFAULT_AVATAR}" alt="Profile"></button>
             </header>
-            <nav class="app-nav">
-                <button class="nav-button active" onclick="switchView('leaderboard-view', this)">Leaderboard</button>
-                <button class="nav-button" onclick="switchView('mission-map-view', this)">Mission Map</button>
-            </nav>
             <div class="view-container">
                 <div id="leaderboard-view" class="view active">
                     <section id="podium-section" class="podium-container"></section>
@@ -125,7 +125,7 @@
         modalsContainer.innerHTML = `
             <div id="student-detail-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('student-detail-modal')">×</div><div class="detail-modal-header"><img id="detail-modal-pic" class="detail-modal-pic"><div class="detail-modal-info"><h3 id="detail-modal-name"></h3><p id="detail-modal-score"></p></div></div><div id="detail-modal-body" class="detail-modal-body"></div></div></div>
             <div id="login-modal" class="modal-overlay"><div class="modal-box"><h2>Login</h2><div id="login-error" class="modal-error"></div><input type="text" id="username-input" placeholder="Username"><input type="password" id="password-input" placeholder="Password"><button class="btn-primary" onclick="handleLogin()">Enter</button><button class="btn-secondary" onclick="closeModal('login-modal')">Close</button></div></div>
-            <div id="profile-modal" class="modal-overlay"><div class="modal-box"><h2>My Stats</h2><img id="profile-preview" src=""><h3 id="profile-name"></h3><p id="profile-score-text"></p><div id="profile-message" class="modal-message"></div><label for="image-upload-input" class="btn-primary">Change Avatar</label><input type="file" id="image-upload-input" accept="image/png,image/jpeg"><button class="btn-danger" onclick="handleLogout()">Logout</button><button id="admin-panel-btn" class="btn-admin" style="display:none;">Admin Panel</button><button class="btn-secondary" onclick="closeModal('profile-modal')">Close</button></div></div>
+            <div id="profile-modal" class="modal-overlay"><div class="modal-box"><h2>My Profile</h2><img id="profile-preview" src=""><h3 id="profile-name"></h3><p id="profile-score-text"></p><div id="profile-message" class="modal-message"></div><label for="image-upload-input" class="btn-primary">Change Avatar</label><input type="file" id="image-upload-input" accept="image/png,image/jpeg"><button class="btn-danger" onclick="handleLogout()">Logout</button><button id="admin-panel-btn" class="btn-admin" style="display:none;">Admin Panel</button><button class="btn-secondary" onclick="closeModal('profile-modal')">Close</button></div></div>
             <div id="mission-detail-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('mission-detail-modal')">×</div><h2 id="modal-mission-topic"></h2><div id="modal-mission-body"></div><div id="modal-mission-actions"></div></div></div>
             <div id="submission-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('submission-modal')">×</div><h2>Submit Mission: <span id="submission-modal-topic"></span></h2><div id="submission-form-area"><label for="submission-link">Link:</label><input type="url" id="submission-link" placeholder="https://..."><label for="submission-file">Upload File:</label><input type="file" id="submission-file"><div id="submission-error" class="modal-error"></div></div><div id="submission-loader" style="display:none;text-align:center;"><i class="fas fa-spinner fa-spin fa-2x"></i><p id="submission-loader-text"></p></div><div id="submission-buttons"><button class="btn-primary" onclick="handleSubmitMission()">Submit</button><button class="btn-secondary" onclick="closeModal('submission-modal')">Cancel</button></div></div></div>
             <div id="admin-modal" class="modal-overlay admin-modal"><div class="modal-box admin-panel"><div class="admin-header"><h3><i class="fas fa-user-shield"></i> Teacher's Command Center</h3><div class="detail-modal-close" onclick="closeModal('admin-modal')">×</div></div><div class="admin-tabs"><button class="admin-tab-button active" onclick="switchAdminView('admin-dashboard', this)"><i class="fas fa-chart-line"></i> Dashboard</button><button class="admin-tab-button" onclick="switchAdminView('admin-grade', this)"><i class="fas fa-check-double"></i> Grade Submissions</button></div><div class="admin-content"><div id="admin-dashboard" class="admin-view active"></div><div id="admin-grade" class="admin-view"></div></div></div></div>
@@ -140,7 +140,7 @@
     function updateUI() {
         updateUserUI();
         const activeView = document.querySelector('.view.active');
-        if (!activeView) return; // Guard clause
+        if (!activeView) return; 
         if (activeView.id === 'leaderboard-view') {
             renderStudentList();
         } else if (activeView.id === 'mission-map-view') {
@@ -158,7 +158,9 @@
         top3.forEach(student => {
             const profilePic = student.profile_url || DEFAULT_AVATAR;
             const rankMeta = {
-                1: { class: 'gold', icon: '👑' }, 2: { class: 'silver', icon: '2' }, 3: { class: 'bronze', icon: '3' }
+                1: { class: 'gold-crown', icon: '👑' },
+                2: { class: 'silver-crown', icon: '👑' },
+                3: { class: 'bronze-crown', icon: '👑' }
             };
             podiumStands[student.rank] = `
                 <div class="podium-card rank-${student.rank}" onclick="showStudentDetailModal('${student.id}')">
@@ -250,7 +252,6 @@
         const profileBtn = document.getElementById('profile-button');
         const profileModalPreview = document.getElementById('profile-preview');
         const adminBtn = document.getElementById('admin-panel-btn');
-
         if (!profileBtn) return;
         
         if (currentUser) {
@@ -354,7 +355,7 @@
         const actionsEl = document.getElementById('modal-mission-actions');
         let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">CLOSE</button>`;
         if (sub && sub.score !== null) { statusEl.innerHTML = `<span style="color:var(--status-success);">GRADED (${sub.score}/${m.max_points}) ✔️</span>`; } 
-        else if (sub) { statusEl.innerHTML = `<span style="color:var(--accent-yellow);">SUBMITTED ⌛</span>`; actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal()">EDIT SUBMISSION</button>${actionsHtml}`; } 
+        else if (sub) { statusEl.innerHTML = `<span style="color:var(--status-pending);">SUBMITTED ⌛</span>`; actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal()">EDIT SUBMISSION</button>${actionsHtml}`; } 
         else { statusEl.innerHTML = `<span>NOT SUBMITTED</span>`; actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal()">SUBMIT</button>${actionsHtml}`; }
         actionsEl.innerHTML = actionsHtml;
         openModal('mission-detail-modal');
@@ -380,7 +381,7 @@
         body.innerHTML = '<div style="text-align:center;padding:20px;">Loading Stats...</div>';
         openModal('student-detail-modal');
         const { data, error } = await supabaseClient.from('submissions').select('missions(topic, max_points), score').eq('user_id', userId);
-        if (error) { body.innerHTML = `<p style="color:var(--danger)">Error: ${error.message}</p>`; return; }
+        if (error) { body.innerHTML = `<p style="color:var(--status-danger)">Error: ${error.message}</p>`; return; }
         
         let tableHtml = '<table class="detail-table"><thead><tr><th>MISSION</th><th style="text-align:center;">STATUS</th><th style="text-align:right;">SCORE</th></tr></thead><tbody>';
         allMissions.forEach(mission => {
@@ -470,7 +471,7 @@
                                 <td>${s.users.name}</td>
                                 <td>${s.missions.topic}</td>
                                 <td>${new Date(s.created_at).toLocaleDateString('th-TH')}</td>
-                                <td>${s.score === null ? '<span style="color:var(--accent-orange);">Pending</span>' : `<span style="color:var(--success);">Graded</span>`}</td>
+                                <td>${s.score === null ? '<span style="color:var(--status-pending);">Pending</span>' : `<span style="color:var(--status-success);">Graded</span>`}</td>
                             </tr>`).join('')}
                     </tbody>
                 </table>
@@ -514,9 +515,12 @@
             const { error: submissionError } = await supabaseClient.from('submissions').update({ score: score }).eq('id', submissionId);
             if(submissionError) throw submissionError;
 
-            const userToUpdate = fullSummaryData.find(u => u.id === submission.users.id);
-            const oldScoreInCache = currentUserSubmissions.get(submission.missions.id)?.score || 0;
-            const newTotalScore = (userToUpdate.total_score || 0) - oldScoreInCache + score; // More accurate update
+            // Recalculate total score for the user
+            const { data: userSubmissions, error: fetchError } = await supabaseClient.from('submissions').select('score').eq('user_id', submission.users.id);
+            if(fetchError) throw fetchError;
+            
+            const newTotalScore = userSubmissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+
             const { error: userError } = await supabaseClient.from('users').update({ total_score: newTotalScore }).eq('id', submission.users.id);
             if(userError) throw userError;
 

@@ -1,47 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
     <base target="_top">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ENG M3 NPC 68</title>
+    <title>ENG NPC 68 Challenge</title>
     
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Your Stylesheet -->
     <link rel="stylesheet" href="style.css">
+
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <!-- App Container หลัก -->
     <div id="app-container">
         <div id="initial-loader" style="text-align: center; padding-top: 100px; font-size: 1.2em; color: white;">
           <i class="fas fa-spinner fa-spin"></i> Loading Tournament Data...
         </div>
-        
-        <!-- โครงสร้างใหม่ทั้งหมดจะถูกสร้างโดย JS ที่นี่ -->
         <div id="main-content-wrapper" style="display: none;"></div>
     </div>
     
-    <!-- Container สำหรับ Modals และ Toast -->
     <div id="modals-container"></div>
     <div id="toast-container"></div>
-    
-    <!-- ปุ่มรีเฟรชที่เพิ่มเข้ามา -->
-    <button id="refresh-button" class="refresh-button" onclick="location.reload()">
-        <i class="fas fa-sync-alt"></i>
-    </button>
+    <button id="refresh-button" class="refresh-button" onclick="location.reload()"><i class="fas fa-sync-alt"></i></button>
 
 <script>
     // ======================================================
-    // CONFIGURATION
+    // SUPABASE & APP CONFIGURATION
     // ======================================================
-    const API_URL = "/.netlify/functions/proxy";
+    const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
+    
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // ======================================================
     // GLOBAL VARIABLES
@@ -50,10 +43,10 @@
     let fullSummaryData = [];
     let filteredSummaryData = [];
     let allMissions = [];
+    let allBadges = [];
     let missionsLoaded = false;
-    let adminData = { students: [], missions: [] };
-    let currentUserSubmissions = [];
-    let currentMissionTopic = null;
+    let currentUserSubmissions = new Map();
+    let currentMission = null;
 
     // ======================================================
     // INITIALIZATION
@@ -62,76 +55,64 @@
 
     function getGradeConfigFromUrl() {
         const hostname = window.location.hostname;
-        if (hostname.includes('eng-m1')) return { level: 'M1', title: 'ม.1' };
-        if (hostname.includes('eng-m2')) return { level: 'M2', title: 'ม.2' };
-        return { level: 'M3', title: 'ม.3' };
+        if (hostname.includes('eng-m1')) return { level: 'ม.1', title: 'ม.1' };
+        if (hostname.includes('eng-m2')) return { level: 'ม.2', title: 'ม.2' };
+        return { level: 'ม.3', title: 'ม.3' };
     }
 
     async function initializeApp() {
-        document.title = `ENG ${getGradeConfigFromUrl().title} NPC 68`;
+        const config = getGradeConfigFromUrl();
+        document.title = `ENG ${config.title} NPC 68`;
         buildApp();
-        await initializeUser();
+        await initializeUserFromStorage();
         await loadInitialData();
     }
 
     // ======================================================
-    // API & DATA FETCHING
+    // SUPABASE DATA FETCHING
     // ======================================================
-    const fetchGet = async (params = {}) => {
-        const queryString = new URLSearchParams(params).toString();
-        const fullUrl = `${API_URL}?${queryString}`;
-        const response = await fetch(fullUrl);
-        const text = await response.text();
-        if (!response.ok) throw new Error(`Network Error: ${text}`);
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            const jsonpMatch = text.match(/^[a-zA-Z0-9_]+\(([\s\S]*)\)$/);
-            if (jsonpMatch && jsonpMatch[1]) return JSON.parse(jsonpMatch[1]);
-            throw new Error("Received invalid data from server.");
-        }
-    };
-
-    const postAdminAction = async (action, params) => {
-        if (!currentUser) throw new Error("กรุณาเข้าสู่ระบบก่อนดำเนินการ");
-        const payload = { action, ...params, user: currentUser };
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-        if (!response.ok || (result && result.success === false)) {
-            throw new Error(result.error || `Server error: ${response.statusText}`);
-        }
-        return result;
-    }
-
     async function loadInitialData() {
-        const listContainer = document.getElementById('roster-list'); // Changed ID
-        if (listContainer) listContainer.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> กำลังโหลดอันดับ...</div>';
+        const listContainer = document.getElementById('roster-list');
+        if (listContainer) listContainer.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading Roster...</div>';
+        
+        const config = getGradeConfigFromUrl();
+
         try {
-            const [summaryResult, missionsResult] = await Promise.all([
-                fetchGet({ action: 'getSummary' }),
-                fetchGet({ action: 'getMissions' })
+            const [leaderboardRes, missionsRes, badgesRes, submissionsRes] = await Promise.all([
+                supabase.from('users').select('*').eq('role', 'student').eq('level', config.title).order('total_score', { ascending: false, nullsFirst: false }),
+                supabase.from('missions').select('*').eq('level', config.title).order('due_date', { ascending: true }),
+                supabase.from('badges').select('*'),
+                currentUser ? supabase.from('submissions').select('mission_id, score').eq('user_id', currentUser.id) : Promise.resolve({ data: [] })
             ]);
-            if (summaryResult.error) throw new Error(`API Error (Summary): ${summaryResult.error}`);
-            fullSummaryData = summaryResult.data || [];
+
+            if (leaderboardRes.error) throw leaderboardRes.error;
+            if (missionsRes.error) throw missionsRes.error;
+            if (badgesRes.error) throw badgesRes.error;
+            if (submissionsRes.error) throw submissionsRes.error;
+
+            const totalPossiblePoints = missionsRes.data.reduce((sum, m) => sum + (m.max_points || 0), 0);
+            
+            fullSummaryData = leaderboardRes.data.map((user, index) => {
+                const progress = totalPossiblePoints > 0 ? Math.round(((user.total_score || 0) / totalPossiblePoints) * 100) : 0;
+                const studentEvalData = { tasksSubmitted: user.tasks_submitted || 0, progress: progress, totalScore: user.total_score || 0 };
+                const earnedBadges = evaluateBadgesForStudent(studentEvalData, badgesRes.data);
+
+                return { ...user, rank: index + 1, progress: progress, earnedBadges: earnedBadges };
+            });
+            
             filteredSummaryData = fullSummaryData;
-            if (missionsResult.error) console.error(`API Error (Missions): ${missionsResult.error}`);
-            allMissions = missionsResult.data || [];
+            allMissions = missionsRes.data;
+            allBadges = badgesRes.data;
             missionsLoaded = true;
+            currentUserSubmissions = new Map((submissionsRes.data || []).map(s => [s.mission_id, s]));
+
             renderStudentList();
             updateUserUI();
-            if (currentUser) {
-                const detailResult = await fetchGet({ action: "getStudentDetail", studentId: currentUser.studentId });
-                if (detailResult && detailResult.data) {
-                    currentUserSubmissions = detailResult.data.tasks || [];
-                }
-            }
+
             if (document.getElementById('map-view-container')?.classList.contains('active')) {
                 renderMapView();
             }
+
         } catch (error) {
             showError(error);
         } finally {
@@ -140,64 +121,15 @@
         }
     }
 
-    async function loadAdminData() {
-        if (adminData.students.length > 0) { renderAdminView(); return; }
-        showLoader(true, "กำลังโหลดข้อมูลสำหรับ Admin...");
-        try {
-            const [studentsResult, missionsResult] = await Promise.all([
-                fetchGet({ action: 'getAllStudents' }),
-                fetchGet({ action: 'getAllMissionsForDropdown' })
-            ]);
-            if (studentsResult.error || missionsResult.error) throw new Error(studentsResult.error || missionsResult.error);
-            adminData.students = studentsResult.data || [];
-            adminData.missions = missionsResult.data || [];
-            renderAdminView();
-        } catch (error) {
-            document.getElementById('admin-view').innerHTML = `<p style="color:var(--danger-color)">เกิดข้อผิดพลาด: ${error.message}</p>`;
-        } finally {
-            showLoader(false);
-        }
-    }
-
     // ======================================================
-    // UI BUILDING AND RENDERING
+    // UI BUILDING & RENDERING
     // ======================================================
     function buildApp() {
         const mainContent = document.getElementById('main-content-wrapper');
         const config = getGradeConfigFromUrl();
         mainContent.innerHTML = `
-            <header class="event-banner">
-                <div class="banner-titles">
-                    <h1 class="title-main">English Grand Challenge</h1>
-                    <h2 class="title-sub">${config.title} - Term 1, 2025</h2>
-                </div>
-                <div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/6BH4M3n/default-avatar.png" alt="User"><span id="login-text">Login</span></button></div>
-            </header>
-            <main class="leaderboard-main">
-                <section id="podium-section" class="podium-container"></section>
-                <section class="roster-container">
-                    <div class="roster-header">
-                        <h3>All Challengers</h3>
-                        <div class="action-tabs">
-                             <button class="tab-button active" onclick="switchView('leaderboard-view', this)"><i class="fas fa-trophy"></i> Leaderboard</button>
-                             <button class="tab-button" onclick="switchView('map-view-container', this)"><i class="fas fa-map-signs"></i> Mission Map</button>
-                             <button id="admin-tab-btn" class="tab-button admin-tab" onclick="switchView('admin-view', this)"><i class="fas fa-user-shield"></i> Admin</button>
-                        </div>
-                    </div>
-                    <div id="leaderboard-view" class="content-view active">
-                        <div id="my-rank-pinned"></div>
-                        <div class="roster-table-header">
-                            <div class="header-rank">Rank</div>
-                            <div class="header-player">Player</div>
-                            <div class="header-score">Score</div>
-                            <div class="header-progress">Progress</div>
-                        </div>
-                        <ul id="roster-list" class="roster-list"></ul>
-                    </div>
-                    <div id="map-view-container" class="content-view"></div>
-                    <div id="admin-view" class="content-view"></div>
-                </section>
-            </main>`;
+            <header class="event-banner"><div class="banner-titles"><h1 class="title-main">English Grand Challenge</h1><h2 class="title-sub">${config.title} - Term 1, 2025</h2></div><div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/6BH4M3n/default-avatar.png" alt="User"><span id="login-text">Login</span></button></div></header>
+            <main class="leaderboard-main"><section id="podium-section" class="podium-container"></section><section class="roster-container"><div class="roster-header"><h3>All Challengers</h3><div class="action-tabs"><button class="tab-button active" onclick="switchView('leaderboard-view', this)"><i class="fas fa-trophy"></i> Leaderboard</button><button class="tab-button" onclick="switchView('map-view-container', this)"><i class="fas fa-map-signs"></i> Mission Map</button><button id="admin-tab-btn" class="tab-button admin-tab" onclick="switchView('admin-view', this)"><i class="fas fa-user-shield"></i> Admin</button></div></div><div id="leaderboard-view" class="content-view active"><div id="my-rank-pinned"></div><div class="roster-table-header"><div class="header-rank">Rank</div><div class="header-player">Player</div><div class="header-score">Score</div><div class="header-progress">Progress</div></div><ul id="roster-list" class="roster-list"></ul></div><div id="map-view-container" class="content-view"></div><div id="admin-view" class="content-view"></div></section></main>`;
         const modalsContainer = document.getElementById('modals-container');
         modalsContainer.innerHTML = `
             <div id="student-detail-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('student-detail-modal')">×</div><div class="detail-modal-header"><img id="detail-modal-pic" class="detail-modal-pic"><div class="detail-modal-info"><h3 id="detail-modal-name"></h3><p id="detail-modal-score"></p></div></div><div id="detail-modal-badges" class="badges-container"></div><div id="detail-modal-body" class="detail-modal-body"></div></div></div>
@@ -206,62 +138,106 @@
             <div id="mission-detail-modal" class="modal-overlay"><div class="modal-box" style="text-align:left;max-width:550px;"><div class="detail-modal-close" onclick="closeModal('mission-detail-modal')">×</div><h2 id="modal-mission-topic"></h2><div id="modal-mission-body"><p><strong>คำสั่ง:</strong> <span id="modal-mission-detail"></span></p><p><strong>กำหนดส่ง:</strong> <span id="modal-mission-dueDate"></span></p><p><strong>คะแนนเต็ม:</strong> <span id="modal-mission-maxPoints"></span></p><hr><p><strong>สถานะของคุณ:</strong> <span id="modal-mission-user-status"></span></p></div><div id="modal-mission-actions"></div></div></div>
             <div id="submission-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('submission-modal')">×</div><h2>ส่งภารกิจ: <span id="submission-modal-topic"></span></h2><div id="submission-form-area"><p>กรอกข้อมูลและแนบไฟล์เพื่อส่งงาน</p><label for="submission-link">ลิงก์ผลงาน (ถ้ามี)</label><input type="url" id="submission-link" placeholder="https://..."><label for="submission-file">แนบไฟล์ (ถ้ามี)</label><input type="file" id="submission-file"><div id="submission-error" class="modal-error"></div></div><div id="submission-loader" style="display:none;text-align:center;"><i class="fas fa-spinner fa-spin fa-2x"></i><p id="submission-loader-text"></p></div><div id="submission-buttons"><button class="btn-primary" onclick="handleSubmitMission()">ยืนยันการส่ง</button><button class="btn-secondary" onclick="closeModal('submission-modal')">ปิด</button></div></div></div>`;
         document.getElementById('user-area-btn').addEventListener('click', handleUserAreaClick);
-        document.getElementById('image-upload-input').addEventListener('change', handleFileSelect);
+        document.getElementById('image-upload-input').addEventListener('change', handleProfileUpdate);
     }
-
+    
     function renderStudentList() {
         const podiumContainer = document.getElementById('podium-section');
         const rosterList = document.getElementById('roster-list');
         const myRankContainer = document.getElementById('my-rank-pinned');
         if (!podiumContainer || !rosterList || !myRankContainer) return;
-
         const top3 = filteredSummaryData.slice(0, 3);
         const others = filteredSummaryData.slice(3);
-
         podiumContainer.innerHTML = '';
         const podiumOrder = [1, 0, 2];
         podiumOrder.forEach(index => {
             if (top3[index]) {
                 const student = top3[index];
                 const rankClass = `rank-${student.rank}`;
-                const profilePic = `${student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
-                podiumContainer.innerHTML += `<div class="podium-card ${rankClass}" onclick="showStudentDetailModal('${student.studentId}')">${student.rank === 1 ? '<i class="fas fa-crown"></i>' : ''}<div class="podium-rank">${student.rank}</div><img src="${profilePic}" class="podium-pic"><div class="podium-name">${student.name}</div><div class="podium-score">${student.totalScore} PTS</div></div>`;
+                const profilePic = `${student.profile_url || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}`;
+                podiumContainer.innerHTML += `<div class="podium-card ${rankClass}" onclick="showStudentDetailModal('${student.id}')">${student.rank === 1 ? '<i class="fas fa-crown"></i>' : ''}<div class="podium-rank">${student.rank}</div><img src="${profilePic}" class="podium-pic"><div class="podium-name">${student.name}</div><div class="podium-score">${student.total_score || 0} PTS</div></div>`;
             }
         });
-
         rosterList.innerHTML = others.map(student => {
-            const profilePic = `${student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
-            const isSelf = currentUser && String(currentUser.studentId) === String(student.studentId);
-            return `<li class="roster-row ${isSelf ? 'is-self' : ''}" onclick="showStudentDetailModal('${student.studentId}')"><div class="cell-rank">${student.rank}</div><div class="cell-player"><img src="${profilePic}" class="roster-pic"><span>${student.name}</span></div><div class="cell-score">${student.totalScore}</div><div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width:${student.progress}%;"></div></div><span>${student.progress}%</span></div></li>`;
+            const profilePic = `${student.profile_url || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}`;
+            const isSelf = currentUser && currentUser.id === student.id;
+            return `<li class="roster-row ${isSelf ? 'is-self' : ''}" onclick="showStudentDetailModal('${student.id}')"><div class="cell-rank">${student.rank}</div><div class="cell-player"><img src="${profilePic}" class="roster-pic"><span>${student.name}</span></div><div class="cell-score">${student.total_score || 0}</div><div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width:${student.progress}%;"></div></div><span>${student.progress}%</span></div></li>`;
         }).join('');
-
         myRankContainer.innerHTML = '';
         if (currentUser) {
-            const myData = filteredSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
+            const myData = filteredSummaryData.find(s => s.id === currentUser.id);
             if (myData && myData.rank > 3) {
-                const profilePic = `${myData.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
-                myRankContainer.innerHTML = `<div class="my-rank-title">My Rank</div><div class="roster-row is-self pinned"><div class="cell-rank">${myData.rank}</div><div class="cell-player"><img src="${profilePic}" class="roster-pic"><span>${myData.name}</span></div><div class="cell-score">${myData.totalScore}</div><div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width:${myData.progress}%;"></div></div><span>${myData.progress}%</span></div></div>`;
+                const profilePic = `${myData.profile_url || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}`;
+                myRankContainer.innerHTML = `<div class="my-rank-title">My Rank</div><div class="roster-row is-self pinned"><div class="cell-rank">${myData.rank}</div><div class="cell-player"><img src="${profilePic}" class="roster-pic"><span>${myData.name}</span></div><div class="cell-score">${myData.total_score || 0}</div><div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width:${myData.progress}%;"></div></div><span>${myData.progress}%</span></div></div>`;
             }
         }
     }
     
     // ======================================================
-    // USER MANAGEMENT & UI UPDATES
+    // USER MANAGEMENT & AUTHENTICATION
     // ======================================================
-    async function initializeUser() {
-        const storedUsername = localStorage.getItem('leaderboardUser');
-        if (storedUsername) {
-            try {
-                const sessionResult = await fetchGet({ action: 'checkUserSession', username: storedUsername });
-                currentUser = (sessionResult && sessionResult.user) ? sessionResult.user : null;
-                if (!currentUser) localStorage.removeItem('leaderboardUser');
-            } catch (err) {
-                currentUser = null;
-            }
+    function initializeUserFromStorage() {
+        const userJson = localStorage.getItem('leaderboardUser');
+        if (userJson) {
+            currentUser = JSON.parse(userJson);
         }
         updateUserUI();
     }
 
+    async function handleLogin() {
+        const username = document.getElementById('username-input').value.trim();
+        const password = document.getElementById('password-input').value.trim();
+        const errorEl = document.getElementById('login-error');
+        if (!username || !password) { errorEl.innerText = "กรุณากรอกข้อมูลให้ครบถ้วน"; return; }
+        errorEl.innerText = "กำลังตรวจสอบ...";
+        
+        const { data, error } = await supabase.from('users').select('*').eq('username', username).eq('password', password).single();
+
+        if (error || !data) {
+            errorEl.innerText = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
+        } else {
+            localStorage.setItem('leaderboardUser', JSON.stringify(data));
+            location.reload(); 
+        }
+    }
+
+    function handleLogout() {
+        localStorage.removeItem('leaderboardUser');
+        location.reload();
+    }
+    
+    async function handleProfileUpdate(event) {
+        const file = event.target.files[0];
+        if (!file || !currentUser) return;
+        const profileMessage = document.getElementById('profile-message');
+        profileMessage.innerText = 'กำลังอัปโหลด...';
+
+        try {
+            const fileName = `${currentUser.id}/${Date.now()}_${file.name}`;
+            const { error: uploadError } = await supabase.storage.from('profile-pictures').upload(fileName, file, {
+                cacheControl: '3600',
+                upsert: true
+            });
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage.from('profile-pictures').getPublicUrl(fileName);
+            const publicUrl = data.publicUrl;
+
+            const { error: updateError } = await supabase.from('users').update({ profile_url: publicUrl }).eq('id', currentUser.id);
+            if (updateError) throw updateError;
+            
+            showToast("อัปเดตรูปโปรไฟล์สำเร็จ!");
+            localStorage.removeItem('leaderboardUser'); // Clear old local data
+            location.reload();
+
+        } catch (error) {
+            profileMessage.innerText = '';
+            showToast(`อัปโหลดล้มเหลว: ${error.message}`, true);
+        } finally {
+            event.target.value = '';
+        }
+    }
+    
     function updateUserUI() {
         const userPicEl = document.getElementById('user-area-pic');
         const profilePreviewEl = document.getElementById('profile-preview');
@@ -270,16 +246,15 @@
         if (!userPicEl || !loginText || !adminTabBtn) return;
         const defaultPic = 'https://i.ibb.co/6BH4M3n/default-avatar.png';
         if (currentUser) {
-            let profileUrl = currentUser.profileUrl || defaultPic;
-            if (currentUser.profileUrl) profileUrl = `${currentUser.profileUrl}?t=${new Date().getTime()}`;
+            const profileUrl = currentUser.profile_url || defaultPic;
             userPicEl.src = profileUrl;
             if (profilePreviewEl) profilePreviewEl.src = profileUrl;
             loginText.style.display = 'none';
             if (currentUser.role === 'admin') adminTabBtn.style.display = 'inline-block';
             else adminTabBtn.style.display = 'none';
-            const userRecord = fullSummaryData.find(s => String(s.studentId) === String(currentUser.studentId));
+            const userRecord = fullSummaryData.find(s => s.id === currentUser.id);
             if (document.getElementById('profile-name')) document.getElementById('profile-name').innerText = currentUser.name;
-            if (document.getElementById('profile-score-text')) document.getElementById('profile-score-text').innerText = userRecord ? `คะแนนรวม: ${userRecord.totalScore}` : 'ไม่พบข้อมูลคะแนน';
+            if (document.getElementById('profile-score-text')) document.getElementById('profile-score-text').innerText = userRecord ? `คะแนนรวม: ${userRecord.total_score || 0}` : 'ไม่พบข้อมูลคะแนน';
         } else {
             userPicEl.src = defaultPic;
             loginText.style.display = 'inline-block';
@@ -287,189 +262,158 @@
         }
     }
 
-    // *** THIS FUNCTION IS NOW UPDATED ***
-    async function handleLogin() {
-        const username = document.getElementById('username-input').value.trim();
-        const password = document.getElementById('password-input').value.trim();
-        const errorEl = document.getElementById('login-error');
-        if (!username || !password) { errorEl.innerText = "กรุณากรอกข้อมูลให้ครบถ้วน"; return; }
-        errorEl.innerText = "กำลังตรวจสอบ...";
-        try {
-            const result = await fetchGet({ action: 'userLogin', username: username, password: password });
-            if (result.success) {
-                localStorage.setItem('leaderboardUser', result.user.username);
-                // Reload the entire page to get fresh data
-                location.reload(); 
-            } else {
-                errorEl.innerText = result.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
-            }
-        } catch (error) {
-            errorEl.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
-        }
-    }
-
-    async function handleLogout() {
-        localStorage.removeItem('leaderboardUser');
-        // Reload the entire page
-        location.reload();
-    }
-
-    function handleFileSelect(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        if (file.size > 2 * 1024 * 1024) { showToast("ขนาดไฟล์ต้องไม่เกิน 2MB", true); return; }
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-            const fileData = reader.result;
-            const profileMessage = document.getElementById('profile-message');
-            profileMessage.innerText = 'กำลังอัปโหลด...';
-            try {
-                const result = await postAdminAction('uploadProfileImage', { studentId: currentUser.studentId, fileData: fileData });
-                if (result.success) {
-                    showToast(result.message);
-                    profileMessage.innerText = '';
-                    currentUser.profileUrl = result.imageUrl;
-                    // Force a reload to reflect changes everywhere
-                    location.reload();
-                } else throw new Error(result.error);
-            } catch (error) {
-                profileMessage.innerText = '';
-                showToast(`อัปโหลดล้มเหลว: ${error.message}`, true);
-            } finally { event.target.value = ''; }
-        };
-        reader.readAsDataURL(file);
-    }
-    
-    // --- The rest of the functions can remain the same or be simplified ---
-    // (The following functions are complete and correct for the new layout)
-
+    // ======================================================
+    // MISSION & SUBMISSION LOGIC
+    // ======================================================
     async function handleSubmitMission() {
+        if (!currentUser || !currentMission) { showToast("เกิดข้อผิดพลาด: ไม่พบข้อมูลผู้ใช้หรือภารกิจ", true); return; }
         const errorEl = document.getElementById('submission-error');
         const link = document.getElementById('submission-link').value.trim();
         const fileInput = document.getElementById('submission-file');
         const file = fileInput.files[0];
-        if (!link && !file) { errorEl.innerText = 'กรุณากรอกลิงก์ หรือแนบไฟล์อย่างน้อย 1 อย่าง'; return; }
+        if (!link && !file) { errorEl.innerText = 'กรุณากรอกลิงก์ หรือแนบไฟล์'; return; }
+        
         const loader = document.getElementById('submission-loader');
         const loaderText = document.getElementById('submission-loader-text');
         document.getElementById('submission-form-area').style.display = 'none';
         document.getElementById('submission-buttons').style.display = 'none';
         loader.style.display = 'block';
         errorEl.innerText = '';
-        let fileId = null;
+        
+        let filePublicUrl = null;
+
         if (file) {
             try {
-                loaderText.innerText = 'กำลังขออนุญาตอัปโหลด...';
-                const urlResponse = await postAdminAction('createUploadUrl', { fileType: file.type, missionTopic: currentMissionTopic });
-                if (!urlResponse.success) throw new Error(urlResponse.error);
-                fileId = urlResponse.fileId;
                 loaderText.innerText = 'กำลังอัปโหลดไฟล์...';
-                const uploadResponse = await fetch(urlResponse.uploadUrl, { method: 'PUT', body: file });
-                if (!uploadResponse.ok) throw new Error('การอัปโหลดไฟล์ล้มเหลว');
+                const fileName = `${currentUser.student_id}/${currentMission.id}_${Date.now()}_${file.name}`;
+                const { error: uploadError } = await supabase.storage.from('mission-uploads').upload(fileName, file);
+                if (uploadError) throw uploadError;
+                const { data } = supabase.storage.from('mission-uploads').getPublicUrl(fileName);
+                filePublicUrl = data.publicUrl;
             } catch (error) {
-                errorEl.innerText = `เกิดข้อผิดพลาดระหว่างอัปโหลด: ${error.message}`;
+                errorEl.innerText = `อัปโหลดไฟล์ล้มเหลว: ${error.message}`;
+                // revert UI
                 document.getElementById('submission-form-area').style.display = 'block';
                 document.getElementById('submission-buttons').style.display = 'block';
                 loader.style.display = 'none';
                 return;
             }
         }
+        
         try {
             loaderText.innerText = 'กำลังบันทึกข้อมูล...';
-            const submissionResult = await postAdminAction('submitMission', {
-                missionTopic: currentMissionTopic, submissionLink: link, fileId: fileId,
-            });
-            if (submissionResult.success) {
-                showToast(submissionResult.message);
-                closeModal('submission-modal');
-                await loadInitialData(); // Reload data after submission
-            } else {
-                throw new Error(submissionResult.error);
-            }
+            const submissionData = { user_id: currentUser.id, mission_id: currentMission.id, submission_link: link, proof_url: filePublicUrl };
+            const { error } = await supabase.from('submissions').upsert(submissionData, { onConflict: 'user_id, mission_id' });
+            if (error) throw error;
+            showToast("ส่งงานสำเร็จ!");
+            closeModal('submission-modal');
+            await loadInitialData();
         } catch (error) {
-            errorEl.innerText = `เกิดข้อผิดพลาดตอนบันทึก: ${error.message}`;
+            errorEl.innerText = `บันทึกข้อมูลล้มเหลว: ${error.message}`;
+            // revert UI
             document.getElementById('submission-form-area').style.display = 'block';
             document.getElementById('submission-buttons').style.display = 'block';
             loader.style.display = 'none';
         }
     }
     
+    // ======================================================
+    // UI UTILITIES & EVENT HANDLERS
+    // ======================================================
+    function evaluateBadgesForStudent(studentData, allBadges) { /* ... same as your old script ... */ return []; }
+    function renderMapView() { /* ... same as your old script ... */ }
+    function showMissionDetail(missionId) {
+        currentMission = allMissions.find(m => m.id === missionId);
+        if (!currentMission) return;
+        // ... (rest of the logic from your old showMissionDetail, adapted for new data structure)
+        openModal('mission-detail-modal');
+    }
+    function openSubmissionModal(missionId) { /* ... */ }
+    function switchView(viewId, element) { /* ... */ }
+    async function showStudentDetailModal(userId) { /* ... */ }
+    function handleUserAreaClick() { currentUser ? openModal("profile-modal") : openModal("login-modal"); }
+    function openModal(id) { document.getElementById(id)?.classList.add("visible"); }
+    function closeModal(id) { document.getElementById(id)?.classList.remove("visible"); }
+    function showToast(message, isError = false) { /* ... */ }
+    function showError(error) { /* ... */ }
+    
+    // Placeholder full functions for copy-paste
+    function evaluateBadgesForStudent(studentData, allBadges) {
+      const earnedBadges = [];
+      if (!allBadges || allBadges.length === 0) return earnedBadges;
+      allBadges.forEach(badge => {
+        let earned = false;
+        const value = Number(badge.criteria_value);
+        switch (String(badge.criteria_type || '').toLowerCase()) {
+          case 'count': if (studentData.tasksSubmitted >= value) earned = true; break;
+          case 'percentage': if (studentData.progress >= value) earned = true; break;
+          case 'score': if (studentData.totalScore >= value) earned = true; break;
+        }
+        if (earned) earnedBadges.push({ id: badge.id, name: badge.name, icon_url: badge.icon_url, description: badge.description });
+      });
+      return earnedBadges;
+    }
     function renderMapView() {
         const container = document.getElementById('map-view-container');
         if (!container) return;
-        if (!currentUser) {
-            container.innerHTML = `<div class="login-overlay-wrapper"><div class="login-overlay-content"><i class="fas fa-lock"></i><h3>กรุณาล็อกอินก่อน</h3><p>เพื่อดูสถานะและส่งภารกิจของคุณ</p><button class="btn-primary" onclick="openModal('login-modal')">ไปที่หน้าล็อกอิน</button></div></div>`;
-            return;
-        }
+        if (!currentUser) { container.innerHTML = `<div class="login-overlay-wrapper"><div class="login-overlay-content"><i class="fas fa-lock"></i><h3>กรุณาล็อกอินก่อน</h3><p>เพื่อดูสถานะและส่งภารกิจของคุณ</p><button class="btn-primary" onclick="openModal('login-modal')">ไปที่หน้าล็อกอิน</button></div></div>`; return; }
         if (!missionsLoaded) { container.innerHTML = '<div style="text-align:center;padding:50px;">กำลังโหลดแผนที่...</div>'; return; }
-        const submissionMap = new Map(currentUserSubmissions.map(task => [task.task, task]));
-        const sortedMissions = [...allMissions].sort((a, b) => {
-            const aSub = submissionMap.get(a.topic), bSub = submissionMap.get(b.topic);
-            const aIsSubmitted = aSub && aSub.status !== 'ยังไม่ส่ง', bIsSubmitted = bSub && bSub.status !== 'ยังไม่ส่ง';
-            if (!aIsSubmitted && bIsSubmitted) return -1;
-            if (aIsSubmitted && !bIsSubmitted) return 1;
-            if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
-            if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
-            return a.dueDate - b.dueDate;
-        });
-        let missionHtml = sortedMissions.map((mission, index) => {
+        
+        let missionHtml = allMissions.map((mission, index) => {
             let statusClass = '', iconHtml = '';
-            const sub = submissionMap.get(mission.topic);
-            if (sub && sub.status === 'ตรวจแล้ว') { statusClass = 'completed'; iconHtml = `✔️ ${sub.score}`; } 
-            else if (sub && sub.status === 'รอตรวจ') { statusClass = 'completed pending'; iconHtml = '⌛'; } 
+            const sub = currentUserSubmissions.get(mission.id);
+            const today = new Date();
+            const dueDate = new Date(mission.due_date);
+            const assignedDate = new Date(mission.assigned_date);
+            today.setHours(0,0,0,0);
+            dueDate.setHours(23,59,59,999);
+            assignedDate.setHours(0,0,0,0);
+
+            let timingStatus = 'upcoming';
+            if (today >= assignedDate && today <= dueDate) timingStatus = 'active';
+            else if (today > dueDate) timingStatus = 'past';
+
+            if (sub && sub.score !== null) { statusClass = 'completed'; iconHtml = `✔️ ${sub.score}`; } 
+            else if (sub) { statusClass = 'completed pending'; iconHtml = '⌛'; } 
             else {
-                if (mission.timingStatus === 'active') { statusClass = 'available'; if (mission.urgency === 'urgent') statusClass += ' urgent-node'; iconHtml = `<b>${mission.maxPoints}</b><small>pt</small>`; } 
-                else { statusClass = 'locked'; if (mission.timingStatus === 'past') statusClass += ' overdue-node'; iconHtml = '🔒'; }
+                if (timingStatus === 'active') { statusClass = 'available'; iconHtml = `<b>${mission.max_points}</b><small>pt</small>`; } 
+                else { statusClass = 'locked'; }
             }
             const rowClass = (index % 2 === 0) ? 'mission-row-left' : 'mission-row-right';
-            return `<div class="mission-row ${rowClass}"><div class="mission-node ${statusClass}" onclick="showMissionDetail('${mission.topic}')" title="${mission.topic}"><div class="mission-node-topic">${mission.topic}</div><div class="mission-node-points">${iconHtml}</div></div></div>`;
+            return `<div class="mission-row ${rowClass}"><div class="mission-node ${statusClass}" onclick="showMissionDetail(${mission.id})" title="${mission.topic}"><div class="mission-node-topic">${mission.topic}</div><div class="mission-node-points">${iconHtml}</div></div></div>`;
         }).join('');
-        container.innerHTML = missionHtml || '<div style="text-align:center;padding:50px;color:#fff;">เยี่ยม! ไม่มีภารกิจที่ได้รับมอบหมายในขณะนี้</div>';
+        container.innerHTML = missionHtml || '<div style="text-align:center;padding:50px;color:#fff;">ไม่มีภารกิจในขณะนี้</div>';
     }
+    function showMissionDetail(missionId) {
+        currentMission = allMissions.find(m => m.id === missionId);
+        if (!currentMission) return;
+        const m = currentMission;
+        document.getElementById('modal-mission-topic').innerText = m.topic;
+        document.getElementById('modal-mission-detail').innerText = m.detail || '(ไม่มี)';
+        document.getElementById('modal-mission-maxPoints').innerText = `${m.max_points} คะแนน`;
+        document.getElementById('modal-mission-dueDate').innerText = `ส่งภายในวันที่: ${new Date(m.due_date).toLocaleDateString('th-TH')}`;
+        
+        const sub = currentUserSubmissions.get(m.id);
+        const statusEl = document.getElementById('modal-mission-user-status');
+        const actionsEl = document.getElementById('modal-mission-actions');
+        let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
 
-    function showMissionDetail(topic) {
-        const mission = allMissions.find(m => m.topic === topic);
-        if (!mission) return;
-        const modalTopic = document.getElementById('modal-mission-topic'), modalDetail = document.getElementById('modal-mission-detail'), modalPoints = document.getElementById('modal-mission-maxPoints'), modalDueDate = document.getElementById('modal-mission-dueDate'), modalStatus = document.getElementById('modal-mission-user-status'), modalActions = document.getElementById('modal-mission-actions');
-        modalTopic.innerText = mission.topic;
-        modalDetail.innerText = mission.detail || '(ไม่มีรายละเอียดเพิ่มเติม)';
-        modalPoints.innerText = `${mission.maxPoints} คะแนน`;
-        if (!currentUser) {
-            modalDueDate.innerText = `ส่งภายในวันที่: ${mission.dueDateString}`;
-            modalStatus.innerHTML = `<span style="color:var(--status-pending);">กรุณาล็อกอินเพื่อดูสถานะและส่งภารกิจนี้</span>`;
-            modalActions.innerHTML = `<button class="btn-primary" onclick="openModal('login-modal');closeModal('mission-detail-modal');">ไปที่หน้าล็อกอิน</button> <button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
-        } else {
-            const submission = currentUserSubmissions.find(s => s.task === topic);
-            const isSubmitted = submission && submission.status !== 'ยังไม่ส่ง';
-            let deadlineText = `ส่งภายในวันที่: ${mission.dueDateString}`;
-            if (mission.urgency === 'urgent' && !isSubmitted) deadlineText += ' <span style="color:#e74c3c;font-weight:bold;">(ใกล้หมดเขต!)</span>';
-            else if (mission.timingStatus === 'past' && !isSubmitted) deadlineText += ' <span style="color:#95a5a6;font-weight:bold;">(เลยกำหนดส่ง)</span>';
-            modalDueDate.innerHTML = deadlineText;
-            let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">ปิด</button>`;
-            if (submission && submission.status === 'ตรวจแล้ว') { modalStatus.innerHTML = `<span style="color:var(--status-graded);font-weight:bold;">ตรวจแล้ว (ได้ ${submission.score}/${mission.maxPoints} คะแนน) ✔️</span>`; } 
-            else if (submission && submission.status === 'รอตรวจ') { modalStatus.innerHTML = `<span style="color:var(--status-pending);font-weight:bold;">ส่งแล้ว (รอการตรวจสอบ) ⌛</span>`; actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">แก้ไขการส่ง</button>${actionsHtml}`; } 
-            else {
-                if (mission.timingStatus === 'active') { modalStatus.innerHTML = `<span style="font-weight:bold;color:var(--gold-color);">รอส่งงาน</span>`; actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal('${mission.topic}')">ส่งงาน</button>${actionsHtml}`; } 
-                else if (mission.timingStatus === 'upcoming') { modalStatus.innerHTML = `<span>ยังไม่ถึงเวลามอบหมาย (เริ่มวันที่ ${mission.assignedDateString})</span>`; } 
-                else { modalStatus.innerHTML = `<span style="color:#e74c3c;">เลยกำหนดส่งแล้ว</span>`; }
-            }
-            modalActions.innerHTML = actionsHtml;
-        }
+        if (sub && sub.score !== null) { statusEl.innerHTML = `<span style="color:var(--success);">ตรวจแล้ว (ได้ ${sub.score}/${m.max_points} คะแนน) ✔️</span>`; } 
+        else if (sub) { statusEl.innerHTML = `<span style="color:var(--gold);">ส่งแล้ว (รอตรวจ) ⌛</span>`; actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal()">แก้ไขการส่ง</button>${actionsHtml}`; } 
+        else { statusEl.innerHTML = `<span>ยังไม่ส่ง</span>`; actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal()">ส่งงาน</button>${actionsHtml}`; }
+        actionsEl.innerHTML = actionsHtml;
+        
         openModal('mission-detail-modal');
     }
-
-    function openSubmissionModal(topic) {
-        currentMissionTopic = topic;
-        document.getElementById('submission-form-area').style.display = 'block';
-        document.getElementById('submission-loader').style.display = 'none';
-        document.getElementById('submission-buttons').style.display = 'block';
+    function openSubmissionModal() {
+        if (!currentMission) return;
+        document.getElementById('submission-modal-topic').innerText = currentMission.topic;
         document.getElementById('submission-link').value = '';
         document.getElementById('submission-file').value = '';
         document.getElementById('submission-error').innerText = '';
-        document.getElementById('submission-modal-topic').innerText = topic;
         closeModal('mission-detail-modal');
         openModal('submission-modal');
     }
-
     function switchView(viewId, element) {
         document.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
         if(element) element.classList.add('active');
@@ -478,61 +422,34 @@
         if (viewElement) {
             viewElement.classList.add('active');
             if (viewId === 'map-view-container') renderMapView();
-            else if (viewId === 'admin-view') loadAdminData();
         }
     }
-
-    async function showStudentDetailModal(studentId) {
-        const student = fullSummaryData.find(s => String(s.studentId) === String(studentId));
+    async function showStudentDetailModal(userId) {
+        const student = fullSummaryData.find(s => s.id === userId);
         if (!student) return;
-        document.getElementById('detail-modal-pic').src = `${student.profileUrl || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}?t=${new Date().getTime()}`;
+        document.getElementById('detail-modal-pic').src = `${student.profile_url || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}`;
         document.getElementById('detail-modal-name').innerText = student.name;
-        document.getElementById('detail-modal-score').innerText = `คะแนนรวม: ${student.totalScore}`;
-        document.getElementById('detail-modal-badges').innerHTML = (student.earnedBadges || []).map(b => `<div class="badge-tooltip"><img src="${b.iconUrl}" alt="${b.name}" class="badge-icon"><span class="tooltip-text"><b>${b.name}</b><br>${b.description}</span></div>`).join('');
+        document.getElementById('detail-modal-score').innerText = `คะแนนรวม: ${student.total_score || 0}`;
+        document.getElementById('detail-modal-badges').innerHTML = (student.earnedBadges || []).map(b => `<div class="badge-tooltip"><img src="${b.icon_url}" alt="${b.name}" class="badge-icon"><span class="tooltip-text"><b>${b.name}</b><br>${b.description}</span></div>`).join('');
         const body = document.getElementById('detail-modal-body');
         body.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</div>';
         openModal('student-detail-modal');
-        try {
-            const result = await fetchGet({ action: "getStudentDetail", studentId: studentId });
-            if (result.error) throw new Error(result.error);
-            displayDetailsInModal(result.data);
-        } catch (err) {
-            body.innerHTML = `<p style="color:var(--danger-color);text-align:center;">เกิดข้อผิดพลาด: ${err.message}</p>`;
-        }
-    }
-
-    function displayDetailsInModal(data) {
-        if (!data || !data.tasks) {
-            document.getElementById('detail-modal-body').innerHTML = '<p>ไม่พบข้อมูลรายละเอียด</p>';
-            return;
-        }
-        document.getElementById('detail-modal-score').innerText = `คะแนนรวม: ${data.summary.totalScore}`;
+        const { data, error } = await supabase.from('submissions').select('missions(topic, max_points), score').eq('user_id', userId);
+        if (error) { body.innerHTML = `<p style="color:var(--danger)">เกิดข้อผิดพลาด: ${error.message}</p>`; return; }
+        
         let tableHtml = '<table class="detail-table"><thead><tr><th>ภารกิจ</th><th style="text-align:center;">สถานะ</th><th style="text-align:right;">คะแนน</th></tr></thead><tbody>';
-        data.tasks.forEach(item => {
-            let statusClass = '', statusText = '';
-            switch (item.status) {
-                case 'ตรวจแล้ว': statusClass = 'graded'; statusText = `<i class="fas fa-check-circle"></i> ตรวจแล้ว`; break;
-                case 'รอตรวจ': statusClass = 'pending'; statusText = `รอตรวจ`; break;
-                default: statusClass = 'not-submitted'; statusText = '✗ ยังไม่ส่ง';
+        allMissions.forEach(mission => {
+            const sub = data.find(s => s.missions.topic === mission.topic);
+            let statusText = '✗ ยังไม่ส่ง'; let scoreText = `0 / ${mission.max_points}`; let statusClass = 'not-submitted';
+            if(sub) {
+                if (sub.score !== null) { statusClass = 'graded'; statusText = `<i class="fas fa-check-circle"></i> ตรวจแล้ว`; scoreText = `${sub.score} / ${mission.max_points}`; }
+                else { statusClass = 'pending'; statusText = 'รอตรวจ'; scoreText = `- / ${mission.max_points}`; }
             }
-            tableHtml += `<tr><td>${item.task}</td><td class="status ${statusClass}" align="center">${statusText}</td><td align="right">${item.score} / ${item.maxPoints}</td></tr>`;
+            tableHtml += `<tr><td>${mission.topic}</td><td class="status ${statusClass}" align="center">${statusText}</td><td align="right">${scoreText}</td></tr>`;
         });
         tableHtml += '</tbody></table>';
-        document.getElementById('detail-modal-body').innerHTML = tableHtml;
+        body.innerHTML = tableHtml;
     }
-
-    function showLoader(show, text = "กำลังโหลด...") {
-        const loader = document.getElementById('initial-loader');
-        if(loader) loader.style.display = show ? 'block' : 'none';
-        if(show && loader) loader.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${text}`;
-    }
-    
-    function showError(error) {
-        console.error(error);
-        const errorMsg = (error && error.message) ? error.message : "เกิดข้อผิดพลาดไม่ทราบสาเหตุ";
-        document.getElementById('app-container').innerHTML = `<div style="padding:20px;text-align:center;color:#ffb8b8;background:rgba(0,0,0,0.3);border-radius:10px;"><h3>เกิดข้อผิดพลาด</h3><p>${errorMsg}</p></div>`;
-    }
-
     function showToast(message, isError = false) {
         const container = document.getElementById('toast-container');
         if (!container) return;
@@ -541,16 +458,17 @@
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(() => toast.classList.add('show'), 100);
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => { if (container.contains(toast)) container.removeChild(toast); }, 300);
-        }, 4000);
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => container.removeChild(toast), 300); }, 4000);
     }
-    
+    function showError(error) {
+        console.error(error);
+        const errorMsg = (error && error.message) ? error.message : "เกิดข้อผิดพลาดไม่ทราบสาเหตุ";
+        document.getElementById('app-container').innerHTML = `<div style="padding:20px;text-align:center;color:#ffb8b8;background:rgba(0,0,0,0.3);border-radius:10px;"><h3>เกิดข้อผิดพลาด</h3><p>${errorMsg}</p></div>`;
+    }
     function handleUserAreaClick() { currentUser ? openModal("profile-modal") : openModal("login-modal"); }
     function openModal(id) { document.getElementById(id)?.classList.add("visible"); }
     function closeModal(id) { document.getElementById(id)?.classList.remove("visible"); }
-
 </script>
+
 </body>
 </html>

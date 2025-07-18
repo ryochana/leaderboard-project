@@ -34,9 +34,8 @@
     const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
     
-    // *** THIS IS THE FIX ***
-    // We rename our client instance to avoid conflict with the global 'supabase' object.
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const DEFAULT_AVATAR = 'https://i.ibb.co/1ms2wz3/default-avatar.png'; // <-- NEW, WORKING AVATAR URL
 
     // ======================================================
     // GLOBAL VARIABLES
@@ -66,7 +65,7 @@
         const config = getGradeConfigFromUrl();
         document.title = `ENG ${config.title} NPC 68`;
         buildApp();
-        initializeUserFromStorage(); // No need to await this
+        initializeUserFromStorage();
         await loadInitialData();
     }
 
@@ -74,7 +73,6 @@
     // SUPABASE DATA FETCHING
     // ======================================================
     async function loadInitialData() {
-        // ... (rest of the code is the same, but every call to 'supabase' is replaced with 'supabaseClient')
         const listContainer = document.getElementById('roster-list');
         if (listContainer) listContainer.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading Roster...</div>';
         
@@ -88,8 +86,6 @@
                 currentUser ? supabaseClient.from('submissions').select('mission_id, score').eq('user_id', currentUser.id) : Promise.resolve({ data: [] })
             ]);
 
-            // ... (rest of the function remains the same, just with 'supabaseClient')
-
             if (leaderboardRes.error) throw leaderboardRes.error;
             if (missionsRes.error) throw missionsRes.error;
             if (badgesRes.error) throw badgesRes.error;
@@ -101,7 +97,6 @@
                 const progress = totalPossiblePoints > 0 ? Math.round(((user.total_score || 0) / totalPossiblePoints) * 100) : 0;
                 const studentEvalData = { tasksSubmitted: user.tasks_submitted || 0, progress: progress, totalScore: user.total_score || 0 };
                 const earnedBadges = evaluateBadgesForStudent(studentEvalData, badgesRes.data);
-
                 return { ...user, rank: index + 1, progress: progress, earnedBadges: earnedBadges };
             });
             
@@ -125,11 +120,7 @@
             document.getElementById('main-content-wrapper').style.display = 'block';
         }
     }
-    
-    // ... all other functions from before, but with `supabase` replaced by `supabaseClient`
-    
-    // The following is the complete, corrected script.
-    
+
     // ======================================================
     // UI BUILDING & RENDERING
     // ======================================================
@@ -137,7 +128,7 @@
         const mainContent = document.getElementById('main-content-wrapper');
         const config = getGradeConfigFromUrl();
         mainContent.innerHTML = `
-            <header class="event-banner"><div class="banner-titles"><h1 class="title-main">English Grand Challenge</h1><h2 class="title-sub">${config.title} - Term 1, 2025</h2></div><div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="https://i.ibb.co/6BH4M3n/default-avatar.png" alt="User"><span id="login-text">Login</span></button></div></header>
+            <header class="event-banner"><div class="banner-titles"><h1 class="title-main">English Grand Challenge</h1><h2 class="title-sub">${config.title} - Term 1, 2025</h2></div><div id="user-area"><button id="user-area-btn"><img id="user-area-pic" src="${DEFAULT_AVATAR}" alt="User"><span id="login-text">Login</span></button></div></header>
             <main class="leaderboard-main"><section id="podium-section" class="podium-container"></section><section class="roster-container"><div class="roster-header"><h3>All Challengers</h3><div class="action-tabs"><button class="tab-button active" onclick="switchView('leaderboard-view', this)"><i class="fas fa-trophy"></i> Leaderboard</button><button class="tab-button" onclick="switchView('map-view-container', this)"><i class="fas fa-map-signs"></i> Mission Map</button><button id="admin-tab-btn" class="tab-button admin-tab" onclick="switchView('admin-view', this)"><i class="fas fa-user-shield"></i> Admin</button></div></div><div id="leaderboard-view" class="content-view active"><div id="my-rank-pinned"></div><div class="roster-table-header"><div class="header-rank">Rank</div><div class="header-player">Player</div><div class="header-score">Score</div><div class="header-progress">Progress</div></div><ul id="roster-list" class="roster-list"></ul></div><div id="map-view-container" class="content-view"></div><div id="admin-view" class="content-view"></div></section></main>`;
         const modalsContainer = document.getElementById('modals-container');
         modalsContainer.innerHTML = `
@@ -163,12 +154,12 @@
             if (top3[index]) {
                 const student = top3[index];
                 const rankClass = `rank-${student.rank}`;
-                const profilePic = `${student.profile_url || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}`;
+                const profilePic = `${student.profile_url || DEFAULT_AVATAR}`;
                 podiumContainer.innerHTML += `<div class="podium-card ${rankClass}" onclick="showStudentDetailModal('${student.id}')">${student.rank === 1 ? '<i class="fas fa-crown"></i>' : ''}<div class="podium-rank">${student.rank}</div><img src="${profilePic}" class="podium-pic"><div class="podium-name">${student.name}</div><div class="podium-score">${student.total_score || 0} PTS</div></div>`;
             }
         });
         rosterList.innerHTML = others.map(student => {
-            const profilePic = `${student.profile_url || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}`;
+            const profilePic = `${student.profile_url || DEFAULT_AVATAR}`;
             const isSelf = currentUser && currentUser.id === student.id;
             return `<li class="roster-row ${isSelf ? 'is-self' : ''}" onclick="showStudentDetailModal('${student.id}')"><div class="cell-rank">${student.rank}</div><div class="cell-player"><img src="${profilePic}" class="roster-pic"><span>${student.name}</span></div><div class="cell-score">${student.total_score || 0}</div><div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width:${student.progress}%;"></div></div><span>${student.progress}%</span></div></li>`;
         }).join('');
@@ -176,7 +167,7 @@
         if (currentUser) {
             const myData = filteredSummaryData.find(s => s.id === currentUser.id);
             if (myData && myData.rank > 3) {
-                const profilePic = `${myData.profile_url || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}`;
+                const profilePic = `${myData.profile_url || DEFAULT_AVATAR}`;
                 myRankContainer.innerHTML = `<div class="my-rank-title">My Rank</div><div class="roster-row is-self pinned"><div class="cell-rank">${myData.rank}</div><div class="cell-player"><img src="${profilePic}" class="roster-pic"><span>${myData.name}</span></div><div class="cell-score">${myData.total_score || 0}</div><div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width:${myData.progress}%;"></div></div><span>${myData.progress}%</span></div></div>`;
             }
         }
@@ -185,10 +176,25 @@
     // ======================================================
     // USER MANAGEMENT & AUTHENTICATION
     // ======================================================
+    
+    // *** THIS FUNCTION IS NOW FIXED ***
     function initializeUserFromStorage() {
         const userJson = localStorage.getItem('leaderboardUser');
         if (userJson) {
-            currentUser = JSON.parse(userJson);
+            try {
+                const parsedData = JSON.parse(userJson);
+                // Check if it's a valid user object, not just a string like "m201"
+                if (typeof parsedData === 'object' && parsedData !== null && parsedData.id) {
+                    currentUser = parsedData;
+                } else {
+                    throw new Error("Invalid stored user format.");
+                }
+            } catch (e) {
+                // If it fails to parse or is invalid, clear the old data
+                console.warn("Clearing invalid user data from localStorage.");
+                localStorage.removeItem('leaderboardUser');
+                currentUser = null;
+            }
         }
         updateUserUI();
     }
@@ -223,21 +229,20 @@
 
         try {
             const fileName = `${currentUser.id}/${Date.now()}_${file.name}`;
-            const { error: uploadError } = await supabaseClient.storage.from('profile-pictures').upload(fileName, file, {
-                cacheControl: '3600',
-                upsert: true
-            });
+            const { error: uploadError } = await supabaseClient.storage.from('profile-pictures').upload(fileName, file, { cacheControl: '3600', upsert: true });
             if (uploadError) throw uploadError;
-
             const { data } = supabaseClient.storage.from('profile-pictures').getPublicUrl(fileName);
             const publicUrl = data.publicUrl;
-
             const { error: updateError } = await supabaseClient.from('users').update({ profile_url: publicUrl }).eq('id', currentUser.id);
             if (updateError) throw updateError;
             
-            showToast("อัปเดตรูปโปรไฟล์สำเร็จ!");
-            localStorage.removeItem('leaderboardUser'); // Clear old local data
-            location.reload();
+            showToast("อัปเดตรูปโปรไฟล์สำเร็จ! กำลังรีเฟรช...");
+            
+            // Update local user data before reload for smoother feel
+            currentUser.profile_url = publicUrl;
+            localStorage.setItem('leaderboardUser', JSON.stringify(currentUser));
+            
+            setTimeout(() => location.reload(), 1500);
 
         } catch (error) {
             profileMessage.innerText = '';
@@ -253,9 +258,9 @@
         const loginText = document.getElementById('login-text');
         const adminTabBtn = document.getElementById('admin-tab-btn');
         if (!userPicEl || !loginText || !adminTabBtn) return;
-        const defaultPic = 'https://i.ibb.co/6BH4M3n/default-avatar.png';
+        
         if (currentUser) {
-            const profileUrl = currentUser.profile_url || defaultPic;
+            const profileUrl = currentUser.profile_url || DEFAULT_AVATAR;
             userPicEl.src = profileUrl;
             if (profilePreviewEl) profilePreviewEl.src = profileUrl;
             loginText.style.display = 'none';
@@ -265,7 +270,7 @@
             if (document.getElementById('profile-name')) document.getElementById('profile-name').innerText = currentUser.name;
             if (document.getElementById('profile-score-text')) document.getElementById('profile-score-text').innerText = userRecord ? `คะแนนรวม: ${userRecord.total_score || 0}` : 'ไม่พบข้อมูลคะแนน';
         } else {
-            userPicEl.src = defaultPic;
+            userPicEl.src = DEFAULT_AVATAR;
             loginText.style.display = 'inline-block';
             adminTabBtn.style.display = 'none';
         }
@@ -342,7 +347,6 @@
       });
       return earnedBadges;
     }
-
     function renderMapView() {
         const container = document.getElementById('map-view-container');
         if (!container) return;
@@ -374,7 +378,6 @@
         }).join('');
         container.innerHTML = missionHtml || '<div style="text-align:center;padding:50px;color:#fff;">ไม่มีภารกิจในขณะนี้</div>';
     }
-
     function showMissionDetail(missionId) {
         currentMission = allMissions.find(m => m.id === missionId);
         if (!currentMission) return;
@@ -396,7 +399,6 @@
         
         openModal('mission-detail-modal');
     }
-
     function openSubmissionModal() {
         if (!currentMission) return;
         document.getElementById('submission-modal-topic').innerText = currentMission.topic;
@@ -406,7 +408,6 @@
         closeModal('mission-detail-modal');
         openModal('submission-modal');
     }
-
     function switchView(viewId, element) {
         document.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
         if(element) element.classList.add('active');
@@ -417,11 +418,10 @@
             if (viewId === 'map-view-container') renderMapView();
         }
     }
-
     async function showStudentDetailModal(userId) {
         const student = fullSummaryData.find(s => s.id === userId);
         if (!student) return;
-        document.getElementById('detail-modal-pic').src = `${student.profile_url || 'https://i.ibb.co/6BH4M3n/default-avatar.png'}`;
+        document.getElementById('detail-modal-pic').src = `${student.profile_url || DEFAULT_AVATAR}`;
         document.getElementById('detail-modal-name').innerText = student.name;
         document.getElementById('detail-modal-score').innerText = `คะแนนรวม: ${student.total_score || 0}`;
         document.getElementById('detail-modal-badges').innerHTML = (student.earnedBadges || []).map(b => `<div class="badge-tooltip"><img src="${b.icon_url}" alt="${b.name}" class="badge-icon"><span class="tooltip-text"><b>${b.name}</b><br>${b.description}</span></div>`).join('');
@@ -446,7 +446,6 @@
         tableHtml += '</tbody></table>';
         body.innerHTML = tableHtml;
     }
-
     function showToast(message, isError = false) {
         const container = document.getElementById('toast-container');
         if (!container) return;
@@ -457,17 +456,15 @@
         setTimeout(() => toast.classList.add('show'), 100);
         setTimeout(() => { toast.classList.remove('show'); setTimeout(() => { if (container.contains(toast)) container.removeChild(toast); }, 300); }, 4000);
     }
-
     function showError(error) {
         console.error(error);
         const errorMsg = (error && error.message) ? error.message : "เกิดข้อผิดพลาดไม่ทราบสาเหตุ";
         document.getElementById('app-container').innerHTML = `<div style="padding:20px;text-align:center;color:#ffb8b8;background:rgba(0,0,0,0.3);border-radius:10px;"><h3>เกิดข้อผิดพลาด</h3><p>${errorMsg}</p></div>`;
     }
-    
     function handleUserAreaClick() { currentUser ? openModal("profile-modal") : openModal("login-modal"); }
     function openModal(id) { document.getElementById(id)?.classList.add("visible"); }
     function closeModal(id) { document.getElementById(id)?.classList.remove("visible"); }
-
 </script>
+
 </body>
 </html>

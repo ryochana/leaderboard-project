@@ -189,3 +189,114 @@ body {
 /* Refresh Button */
 .refresh-button{position:fixed;bottom:20px;right:20px;width:48px;height:48px;background-color:var(--highlight-yellow);color:var(--bg-main);border:var(--border-width) solid var(--border-color);font-size:1.2em;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:999;transition:transform .2s}
 .refresh-button:hover{transform:rotate(180deg)}
+
+/* === MISSION MAP - RETRO RPG REDESIGN (THE FIX) === */
+
+#map-view-container {
+  /* New, working background image */
+  background-image: url('https://i.ibb.co/sQp8x2Z/pixel-map-bg.png');
+  background-size: cover;
+  background-position: center;
+  border: var(--border-width) solid var(--border-color);
+  padding: 30px 15px;
+  max-height: 70vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.mission-row {
+  display: flex;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.mission-row-left { justify-content: flex-start; padding-left: 15%; }
+.mission-row-right { justify-content: flex-end; padding-right: 15%; }
+
+.mission-node {
+  width: 160px;
+  border: var(--border-width) solid var(--border-color);
+  background: var(--panel-bg);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 15px;
+  box-shadow: 8px 8px 0px rgba(0,0,0,0.5); /* Pixelated shadow */
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mission-node:hover {
+  transform: translate(-4px, -4px);
+  box-shadow: 12px 12px 0px rgba(0,0,0,0.7);
+}
+
+.mission-node-topic {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9em;
+  line-height: 1.3;
+  margin-bottom: 10px;
+}
+
+.mission-node-points {
+  font-family: var(--font-pixel);
+  font-size: 0.8em;
+  background: var(--bg-main);
+  padding: 5px 10px;
+  border: 2px solid var(--border-color);
+}
+
+/* Mission Status Styles */
+.mission-node.available {
+  border-color: var(--highlight-yellow);
+}
+.mission-node.available .mission-node-points {
+  color: var(--highlight-yellow);
+  border-color: var(--highlight-yellow);
+}
+
+.mission-node.completed {
+  border-color: var(--success);
+}
+.mission-node.completed .mission-node-topic {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.mission-node.completed .mission-node-points {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.mission-node.locked {
+  filter: grayscale(1);
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: 4px 4px 0px rgba(0,0,0,0.3);
+}
+.mission-node.locked:hover {
+  transform: none;
+  box-shadow: 4px 4px 0px rgba(0,0,0,0.3);
+}
+
+/* Login Overlay for Map */
+.login-overlay-wrapper {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  background-color: rgba(10, 25, 47, 0.9);
+  z-index: 10;
+  border-radius: 0;
+}
+.login-overlay-content {
+  font-family: var(--font-pixel);
+}
+.login-overlay-content .fas { font-size: 3em; color: var(--danger); margin-bottom: 20px; }
+.login-overlay-content h3 { font-size: 1em; margin: 0 0 10px 0; }
+.login-overlay-content p { font-family: var(--font-body); opacity: 0.8; margin-bottom: 25px; }

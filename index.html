@@ -141,37 +141,87 @@
         document.getElementById('image-upload-input').addEventListener('change', handleProfileUpdate);
     }
     
-    function renderStudentList() {
-        const podiumContainer = document.getElementById('podium-section');
-        const rosterList = document.getElementById('roster-list');
-        const myRankContainer = document.getElementById('my-rank-pinned');
-        if (!podiumContainer || !rosterList || !myRankContainer) return;
-        const top3 = filteredSummaryData.slice(0, 3);
-        const others = filteredSummaryData.slice(3);
-        podiumContainer.innerHTML = '';
-        const podiumOrder = [1, 0, 2];
-        podiumOrder.forEach(index => {
-            if (top3[index]) {
-                const student = top3[index];
-                const rankClass = `rank-${student.rank}`;
-                const profilePic = `${student.profile_url || DEFAULT_AVATAR}`;
-                podiumContainer.innerHTML += `<div class="podium-card ${rankClass}" onclick="showStudentDetailModal('${student.id}')">${student.rank === 1 ? '<i class="fas fa-crown"></i>' : ''}<div class="podium-rank">${student.rank}</div><img src="${profilePic}" class="podium-pic"><div class="podium-name">${student.name}</div><div class="podium-score">${student.total_score || 0} PTS</div></div>`;
-            }
-        });
-        rosterList.innerHTML = others.map(student => {
-            const profilePic = `${student.profile_url || DEFAULT_AVATAR}`;
-            const isSelf = currentUser && currentUser.id === student.id;
-            return `<li class="roster-row ${isSelf ? 'is-self' : ''}" onclick="showStudentDetailModal('${student.id}')"><div class="cell-rank">${student.rank}</div><div class="cell-player"><img src="${profilePic}" class="roster-pic"><span>${student.name}</span></div><div class="cell-score">${student.total_score || 0}</div><div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width:${student.progress}%;"></div></div><span>${student.progress}%</span></div></li>`;
-        }).join('');
-        myRankContainer.innerHTML = '';
-        if (currentUser) {
-            const myData = filteredSummaryData.find(s => s.id === currentUser.id);
-            if (myData && myData.rank > 3) {
-                const profilePic = `${myData.profile_url || DEFAULT_AVATAR}`;
-                myRankContainer.innerHTML = `<div class="my-rank-title">My Rank</div><div class="roster-row is-self pinned"><div class="cell-rank">${myData.rank}</div><div class="cell-player"><img src="${profilePic}" class="roster-pic"><span>${myData.name}</span></div><div class="cell-score">${myData.total_score || 0}</div><div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width:${myData.progress}%;"></div></div><span>${myData.progress}%</span></div></div>`;
-            }
+    // --- แทนที่ฟังก์ชัน renderStudentList เดิมด้วยอันนี้ ---
+function renderStudentList() {
+    const podiumContainer = document.getElementById('podium-section');
+    const rosterList = document.getElementById('roster-list');
+    const myRankContainer = document.getElementById('my-rank-pinned');
+    if (!podiumContainer || !rosterList || !myRankContainer) return;
+
+    const top3 = filteredSummaryData.slice(0, 3);
+    const others = filteredSummaryData.slice(3);
+
+    // --- 1. สร้าง Podium (Top 3) ---
+    podiumContainer.innerHTML = '';
+    const podiumOrder = [1, 0, 2]; // [อันดับ 2, อันดับ 1, อันดับ 3]
+    podiumOrder.forEach(index => {
+        if (top3[index]) {
+            const student = top3[index];
+            const rankClass = `rank-${student.rank}`;
+            // *** IMAGE FIX IS HERE: Added onerror to fall back to default avatar ***
+            const profilePic = student.profile_url || DEFAULT_AVATAR;
+            podiumContainer.innerHTML += `
+                <div class="podium-card ${rankClass}" onclick="showStudentDetailModal('${student.id}')">
+                    ${student.rank === 1 ? '<i class="fas fa-crown"></i>' : ''}
+                    <div class="podium-rank">${student.rank}</div>
+                    <img src="${profilePic}" class="podium-pic" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}';">
+                    <div class="podium-name">${student.name}</div>
+                    <div class="podium-score">${student.total_score || 0} PTS</div>
+                </div>
+            `;
+        }
+    });
+
+    // --- 2. สร้าง Roster (อันดับ 4+) ---
+    rosterList.innerHTML = others.map(student => {
+        // *** IMAGE FIX IS HERE: Added onerror to fall back to default avatar ***
+        const profilePic = student.profile_url || DEFAULT_AVATAR;
+        const isSelf = currentUser && currentUser.id === student.id;
+        return `
+            <li class="roster-row ${isSelf ? 'is-self' : ''}" onclick="showStudentDetailModal('${student.id}')">
+                <div class="cell-rank">${student.rank}</div>
+                <div class="cell-player">
+                    <img src="${profilePic}" class="roster-pic" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}';">
+                    <span>${student.name}</span>
+                </div>
+                <div class="cell-score">${student.total_score || 0}</div>
+                <div class="cell-progress">
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${student.progress}%;"></div>
+                    </div>
+                    <span>${student.progress}%</span>
+                </div>
+            </li>
+        `;
+    }).join('');
+
+    // --- 3. แสดง "My Rank" ---
+    myRankContainer.innerHTML = '';
+    if (currentUser) {
+        const myData = filteredSummaryData.find(s => s.id === currentUser.id);
+        if (myData && myData.rank > 3) {
+            // *** IMAGE FIX IS HERE: Added onerror to fall back to default avatar ***
+            const profilePic = myData.profile_url || DEFAULT_AVATAR;
+            myRankContainer.innerHTML = `
+                <div class="my-rank-title">My Rank</div>
+                <div class="roster-row is-self pinned">
+                    <div class="cell-rank">${myData.rank}</div>
+                    <div class="cell-player">
+                        <img src="${profilePic}" class="roster-pic" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}';">
+                        <span>${myData.name}</span>
+                    </div>
+                    <div class="cell-score">${myData.total_score || 0}</div>
+                    <div class="cell-progress">
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: ${myData.progress}%;"></div>
+                        </div>
+                        <span>${myData.progress}%</span>
+                    </div>
+                </div>
+            `;
         }
     }
+}
     
     // ======================================================
     // USER MANAGEMENT & AUTHENTICATION

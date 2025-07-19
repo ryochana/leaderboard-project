@@ -4,27 +4,32 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': req.headers.get('Origin') || '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  }
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders,
-    })
-  }
+  const corsHeaders = { /* ... CORS headers as before ... */ }
+  if (req.method === 'OPTIONS') { /* ... OPTIONS handler as before ... */ }
 
   const { missionData } = await req.json()
 
-  // *** START: Corrected Admin Auth Check for NULL grade ***
   const authHeader = req.headers.get('Authorization') || ''
-  const adminStudentId = authHeader.split('Bearer ')[1]
+  const adminStudentIdString = authHeader.split('Bearer ')[1]
 
-  if (!adminStudentId) {
-    return new Response(JSON.stringify({ error: 'Authorization header missing or malformed' }), {
+  // --- START: DEBUGGING LOGIC ---
+  // Read the secret variable
+  const shouldBreak = Deno.env.get('SHOULD_BREAK_FOR_DEBUG');
+  
+  console.log('--- create-mission Function Log ---');
+  console.log('Authorization Header:', authHeader);
+  console.log('adminStudentIdString:', adminStudentIdString);
+
+  if (shouldBreak === 'true' && adminStudentIdString !== '999') { // *** เงื่อนไขสำหรับ Debug ***
+    // This will cause a controlled error to show debug info
+    throw new Error(`DEBUG_INFO: Expected student_id '999', got '${adminStudentIdString}'. Current grade: ${missionData.grade}`);
+  }
+  // --- END: DEBUGGING LOGIC ---
+
+  const adminStudentId = parseInt(adminStudentIdString, 10);
+  if (isNaN(adminStudentId)) {
+    console.error('Error: Parsed adminStudentId is NaN. Invalid token.');
+    return new Response(JSON.stringify({ error: 'Invalid Authorization token.' }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 401,
     })
@@ -35,21 +40,22 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   )
 
-  // Fetch the user by student_id
   const { data: user, error: userError } = await supabaseAdmin
     .from('users')
-    .select('role') // Only need the role
-    .eq('student_id', parseInt(adminStudentId, 10)) // Make sure to parse to INT
+    .select('role')
+    .eq('student_id', adminStudentId)
     .single()
   
-  // Check if user exists and has admin role
+  console.log('DB Query Result for Admin (user):', user);
+  console.log('DB Query Error for Admin (userError):', userError);
+
   if (userError || !user || user.role !== 'admin') {
+    console.error('Error: User not found, not admin, or DB error. Returning 403.');
     return new Response(JSON.stringify({ error: 'Permission denied. Admin access required or user not found.' }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 403,
     })
   }
-  // *** END: Corrected Admin Auth Check ***
 
   const { data, error } = await supabaseAdmin
     .from('missions')
@@ -63,6 +69,7 @@ serve(async (req) => {
     })
   
   if (error) {
+    console.error('Error inserting mission:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 400,

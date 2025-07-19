@@ -446,3 +446,49 @@ main h2 {
     font-size: 0.9em;
     color: #007bff;
 }
+
+/* Admin Panel Button */
+#admin-panel-button {
+    z-index: 999; /* Below modals, above background */
+}
+
+/* Admin Modal Specifics */
+#admin-modal .modal-content {
+    max-width: 500px;
+}
+#admin-modal h3 {
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+    margin-bottom: 20px;
+    color: #007bff;
+}
+#admin-modal form button {
+    background-color: #007bff;
+}
+#admin-modal form button:hover {
+    background-color: #0056b3;
+}
+#admin-modal select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+    background-color: white;
+    appearance: none; /* Remove default arrow */
+    -webkit-appearance: none;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292%22%20height%3D%22292%22%3E%3Cpath%20fill%3D%22%23007bff%22%20d%3D%22M287%2069L146%20208%205%2069z%22%2F%3E%3C%2Fsvg%3E'); /* Custom arrow */
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px;
+}
+#admin-modal textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+    min-height: 80px;
+    resize: vertical;
+}
+

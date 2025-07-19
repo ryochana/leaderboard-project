@@ -1,32 +1,51 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
+// supabase/functions/grade-submission/index.ts (หรือ .js)
 
-// Setup type definitions for built-in Supabase Runtime APIs
-import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log("Hello from Functions!")
+serve(async (req) => {
+  const { studentId, missionId, score, userToken } = await req.json()
 
-Deno.serve(async (req) => {
-  const { name } = await req.json()
-  const data = {
-    message: `Hello ${name}!`,
+  // Verify that the user calling this function is an admin
+  // (Simplified check again, real apps use JWT verification)
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  )
+
+  const { data: user, error: userError } = await supabaseAdmin
+    .from('users')
+    .select('role')
+    .eq('student_id', userToken) // Assuming userToken is student_id
+    .single()
+  
+  if (userError || user.role !== 'admin') {
+    return new Response(JSON.stringify({ error: 'Permission denied. Admin access required.' }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 403,
+    })
   }
 
-  return new Response(
-    JSON.stringify(data),
-    { headers: { "Content-Type": "application/json" } },
-  )
+  // Upsert the score
+  const { data, error } = await supabaseAdmin
+    .from('submissions')
+    .upsert({
+      student_id: studentId,
+      mission_id: missionId,
+      score: score, // Can be null if ungraded
+    }, {
+      onConflict: 'student_id,mission_id'
+    })
+  
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 400,
+    })
+  }
+
+  return new Response(JSON.stringify({ success: true, submission: data }), {
+    headers: { 'Content-Type': 'application/json' },
+    status: 200,
+  })
 })
-
-/* To invoke locally:
-
-  1. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
-  2. Make an HTTP request:
-
-  curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/grade-submission' \
-    --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0' \
-    --header 'Content-Type: application/json' \
-    --data '{"name":"Functions"}'
-
-*/

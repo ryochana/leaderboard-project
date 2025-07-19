@@ -27,7 +27,7 @@
 
 <script>
     // ======================================================
-    // CONFIGURATION & GLOBAL VARIABLES
+    // CONFIGURATION & GLOBAL STATE
     // ======================================================
     const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
@@ -153,7 +153,7 @@
         const rosterList = document.getElementById('roster-list');
         if (!podiumContainer || !rosterList) return;
         const top3 = filteredSummaryData.slice(0, 3);
-        const others = filteredSummaryData.slice(3);
+                const others = filteredSummaryData.slice(3);
         const podiumStands = { 1: '', 2: '', 3: '' };
         top3.forEach(student => {
             const profilePic = student.profile_url || DEFAULT_AVATAR;
@@ -401,7 +401,7 @@
         element.classList.add('active');
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById(viewId)?.classList.add('active');
-        updateUI(); // Re-render content for the new view
+        updateUI();
     }
     
     function showToast(message, isError = false) {
@@ -512,27 +512,30 @@
 
         scoreInput.disabled = true;
         try {
+            // 1. Update the submission score
             const { error: submissionError } = await supabaseClient.from('submissions').update({ score: score }).eq('id', submissionId);
             if(submissionError) throw submissionError;
 
-            // Recalculate total score for the user
+            // 2. Recalculate the user's total score from scratch for accuracy
             const { data: userSubmissions, error: fetchError } = await supabaseClient.from('submissions').select('score').eq('user_id', submission.users.id);
             if(fetchError) throw fetchError;
             
+            // The newly graded score is now in the database, so this fetch includes it
             const newTotalScore = userSubmissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
 
+            // 3. Update the user's total score
             const { error: userError } = await supabaseClient.from('users').update({ total_score: newTotalScore }).eq('id', submission.users.id);
             if(userError) throw userError;
 
             showToast("Score saved successfully!");
-            scoreInput.closest('tr')?.remove();
+            scoreInput.closest('tr')?.remove(); // Remove the row from the grading queue
             
-            // Refresh main leaderboard data in the background
+            // Refresh main leaderboard data in the background to reflect the change
             loadInitialData();
             
         } catch(error) {
             showToast(`Error saving score: ${error.message}`, true);
-            scoreInput.disabled = false;
+            scoreInput.disabled = false; // Re-enable on error
         }
     }
 </script>

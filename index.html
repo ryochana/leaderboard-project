@@ -26,7 +26,6 @@
         <div id="main-app-wrapper" style="display: none;"></div>
     </div>
     
-    <!-- Modals will be built here, but the Story Viewer is separate -->
     <div id="modals-container"></div>
     <div id="story-viewer-container"></div>
     <div id="toast-container"></div>
@@ -46,9 +45,10 @@
         missions: [],
         submissions: new Map(),
         badges: [],
-        currentView: 'feed',
-        config: getGradeConfigFromUrl()
+        config: getGradeConfigFromUrl(),
+        allSubmissionsForAdmin: [], // For admin panel
     };
+    let storyTimer;
 
     // ======================================================
     // INITIALIZATION
@@ -77,21 +77,24 @@
     // ======================================================
     async function loadInitialData() {
         try {
-            const [leaderboardRes, missionsRes, submissionsRes] = await Promise.all([
+            const [leaderboardRes, missionsRes, submissionsRes, userBadgesRes] = await Promise.all([
                 supabaseClient.from('users').select('*').eq('role', 'student').eq('level', AppState.config.level).order('total_score', { ascending: false, nullsFirst: false }),
                 supabaseClient.from('missions').select('*').eq('level', AppState.config.level).order('id', { ascending: true }),
-                AppState.currentUser ? supabaseClient.from('submissions').select('mission_id, score').eq('user_id', AppState.currentUser.id) : Promise.resolve({ data: [] })
+                AppState.currentUser ? supabaseClient.from('submissions').select('mission_id, score').eq('user_id', AppState.currentUser.id) : Promise.resolve({ data: [] }),
+                AppState.currentUser ? supabaseClient.from('user_badges').select('badges(name, description, icon_url)').eq('user_id', AppState.currentUser.id) : Promise.resolve({ data: [] })
             ]);
 
             if (leaderboardRes.error) throw leaderboardRes.error;
             if (missionsRes.error) throw missionsRes.error;
             if (submissionsRes.error) throw submissionsRes.error;
+            if (userBadgesRes.error) throw userBadgesRes.error;
             
             AppState.leaderboard = leaderboardRes.data;
             AppState.missions = missionsRes.data;
             AppState.submissions = new Map((submissionsRes.data || []).map(s => [s.mission_id, s]));
+            AppState.badges = userBadgesRes.data.map(b => b.badges);
             
-            renderMainHub(); // Initial render
+            renderMainHub();
         } catch (error) {
             showError(error);
         }
@@ -111,82 +114,63 @@
             </header>
             <div id="main-content"></div>
         `;
-        document.getElementById('profile-button').addEventListener('click', () => {
-            if (AppState.currentUser) {
-                // Open Profile Story/Modal
-            } else {
-                openLoginModal();
-            }
-        });
+        document.getElementById('profile-button').addEventListener('click', handleUserAreaClick);
+
+        const modalsContainer = document.getElementById('modals-container');
+        modalsContainer.innerHTML = `
+            <div id="login-modal" class="modal-overlay"><div class="modal-box"><div class="modal-close" onclick="closeModal()">×</div><h2>Login</h2><form onsubmit="event.preventDefault(); handleLogin();"><div id="login-error" class="modal-error"></div><input type="text" id="username-input" placeholder="Username"><input type="password" id="password-input" placeholder="Password"><button type="submit" class="btn-primary">Enter</button></form></div></div>
+            <div id="profile-modal" class="modal-overlay"><div class="modal-box profile-box"><div class="profile-header"><img id="profile-banner" src="https://i.ibb.co/L5hS0cW/space-bg.jpg"><img id="profile-avatar" class="profile-avatar"><button class="btn-change-avatar" onclick="document.getElementById('avatar-upload').click()"><i class="fas fa-camera"></i></button><input type="file" id="avatar-upload" style="display:none;" accept="image/*"></div><div class="profile-body"><h2 id="profile-name"></h2><div id="profile-title" class="profile-title"></div><div class="profile-stats"><div class="stat-item"><div id="profile-score" class="stat-value"></div><div class="stat-label">Total XP</div></div><div class="stat-item"><div id="profile-coins" class="stat-value"></div><div class="stat-label">Coins</div></div></div><hr><h3>Achievements</h3><div id="profile-badges" class="profile-badges"></div><button class="btn-danger" onclick="handleLogout()">Logout</button><button id="admin-panel-btn" class="btn-admin" style="display:none;" onclick="openAdminPanel()">Admin Panel</button></div><div class="modal-close" onclick="closeModal()">×</div></div></div>
+            <div id="mission-modal" class="modal-overlay"><div class="modal-box"><div id="mission-modal-content"></div><div class="modal-close" onclick="closeModal()">×</div></div></div>
+            <div id="admin-modal" class="modal-overlay admin-modal"><div class="modal-box admin-panel"><div class="admin-header"><h3><i class="fas fa-user-shield"></i> Teacher's Command Center</h3><div class="modal-close" onclick="closeModal()">×</div></div><div id="admin-content-container"></div></div></div>
+        `;
+        document.getElementById('avatar-upload').addEventListener('change', handleProfileUpdate);
     }
 
     function renderMainHub() {
         const mainContent = document.getElementById('main-content');
         if (!mainContent) return;
 
-        // Render Story Highlights
         const storyHighlightsHTML = `
             <div class="story-highlights-container">
                 <div class="story-highlight-item" onclick="showStory('leaderboard')">
-                    <div class="story-highlight-icon-wrapper">
-                        <div class="story-highlight-icon">🏆</div>
-                    </div>
+                    <div class="story-highlight-icon-wrapper"><div class="story-highlight-icon">🏆</div></div>
                     <span class="story-highlight-label">Top 3</span>
                 </div>
                 <div class="story-highlight-item" onclick="showStory('mission')">
-                    <div class="story-highlight-icon-wrapper">
-                        <div class="story-highlight-icon">✨</div>
-                    </div>
+                    <div class="story-highlight-icon-wrapper"><div class="story-highlight-icon">✨</div></div>
                     <span class="story-highlight-label">New Mission</span>
                 </div>
                  <div class="story-highlight-item" onclick="showStory('profile')">
-                    <div class="story-highlight-icon-wrapper">
-                        <div class="story-highlight-icon">📊</div>
-                    </div>
+                    <div class="story-highlight-icon-wrapper"><div class="story-highlight-icon">📊</div></div>
                     <span class="story-highlight-label">My Stats</span>
                 </div>
-            </div>
-        `;
+            </div>`;
 
-        // Render Activity Feed
         const activityFeedHTML = `
             <div class="activity-feed-container">
-                <div class="feed-item">
-                    <img src="${DEFAULT_AVATAR}" class="feed-avatar">
-                    <div>
-                        <div class="feed-content"><b>Teacher</b> posted a new mission: <b>Final Project</b>!</div>
-                        <div class="feed-time">1h ago</div>
-                    </div>
-                </div>
-                 <div class="feed-item">
-                    <img src="${DEFAULT_AVATAR}" class="feed-avatar">
-                    <div>
-                        <div class="feed-content"><b>John Doe</b> scored <b>100 PTS</b> on <b>Grammar Test</b>! 🎉</div>
-                        <div class="feed-time">2h ago</div>
-                        <div class="feed-actions">
-                            <button class="clap-button">👏</button>
-                            <span class="clap-count">5</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+                <!-- Feed items will be rendered by JS -->
+            </div>`;
 
         mainContent.innerHTML = storyHighlightsHTML + activityFeedHTML;
         
-        // Update profile button in header
-        const profileButtonImg = document.querySelector('#profile-button img');
-        if (profileButtonImg) {
-            profileButtonImg.src = AppState.currentUser ? AppState.currentUser.profile_url || DEFAULT_AVATAR : DEFAULT_AVATAR;
-        }
+        renderFeed();
+        updateProfileButton();
+    }
+    
+    function renderFeed() {
+        const container = document.querySelector('.activity-feed-container');
+        if (!container) return;
+        // Placeholder feed items
+        container.innerHTML = `
+            <div class="feed-item"><img src="${DEFAULT_AVATAR}" class="feed-avatar"><div><div class="feed-content"><b>Teacher</b> posted a new mission: <b>Final Project</b>!</div><div class="feed-time">1h ago</div></div></div>
+            <div class="feed-item"><img src="${DEFAULT_AVATAR}" class="feed-avatar"><div><div class="feed-content"><b>John Doe</b> scored <b>100 PTS</b> on <b>Grammar Test</b>! 🎉</div><div class="feed-time">2h ago</div><div class="feed-actions"><button class="clap-button">👏</button><span class="clap-count">5</span></div></div></div>`;
     }
 
     // ======================================================
     // STORY VIEWER LOGIC
     // ======================================================
-    let storyTimer;
-    
     function showStory(type) {
+        if (type === 'profile' && !AppState.currentUser) return openLoginModal();
         const container = document.getElementById('story-viewer-container');
         if (!container) return;
 
@@ -194,139 +178,60 @@
         if (type === 'leaderboard') {
             const top3 = AppState.leaderboard.slice(0, 3);
             const others = AppState.leaderboard.slice(3, 10);
-            
             pagesHTML = `
-                <!-- Page 1: Rank 1 -->
                 <div class="story-page leaderboard" data-duration="5000">
-                    <div class="podium-rank-icon">👑</div>
-                    <img src="${top3[0]?.profile_url || DEFAULT_AVATAR}" class="podium-avatar">
-                    <div class="podium-name">${top3[0]?.name || 'N/A'}</div>
-                    <div class="podium-score">${top3[0]?.total_score || 0} XP</div>
-                </div>
-                <!-- Page 2: Rank 2 & 3 -->
-                <div class="story-page leaderboard" data-duration="5000">
-                    <div class="leaderboard-story-grid">
-                        <div>
-                            <div class="podium-rank-icon">🥈</div>
-                            <img src="${top3[1]?.profile_url || DEFAULT_AVATAR}" class="podium-avatar">
-                            <div class="podium-name">${top3[1]?.name || 'N/A'}</div>
-                            <div class="podium-score">${top3[1]?.total_score || 0} XP</div>
-                        </div>
-                        <div>
-                            <div class="podium-rank-icon">🥉</div>
-                            <img src="${top3[2]?.profile_url || DEFAULT_AVATAR}" class="podium-avatar">
-                            <div class="podium-name">${top3[2]?.name || 'N/A'}</div>
-                            <div class="podium-score">${top3[2]?.total_score || 0} XP</div>
-                        </div>
-                    </div>
-                </div>
-                 <!-- Page 3: Roster -->
-                <div class="story-page leaderboard" data-duration="10000">
-                    <h3>Top 10 Challengers</h3>
-                    <ul class="roster-story-list">
-                        ${[...top3, ...others].map(user => `
-                            <li class="roster-story-item">
-                                <span class="rank">${user.rank}</span>
-                                <img src="${user.profile_url || DEFAULT_AVATAR}" class="avatar">
-                                <span class="name">${user.name}</span>
-                                <span class="score">${user.total_score || 0} XP</span>
-                            </li>
-                        `).join('')}
-                    </ul>
-                </div>
-            `;
+                    <div class="podium-rank-icon">👑</div><img src="${top3[0]?.profile_url || DEFAULT_AVATAR}" class="podium-avatar"><div class="podium-name">${top3[0]?.name || 'N/A'}</div><div class="podium-score">${top3[0]?.total_score || 0} XP</div></div>
+                <div class="story-page leaderboard" data-duration="5000"><div class="leaderboard-story-grid"><div><div class="podium-rank-icon">🥈</div><img src="${top3[1]?.profile_url || DEFAULT_AVATAR}" class="podium-avatar"><div class="podium-name">${top3[1]?.name || 'N/A'}</div><div class="podium-score">${top3[1]?.total_score || 0} XP</div></div><div><div class="podium-rank-icon">🥉</div><img src="${top3[2]?.profile_url || DEFAULT_AVATAR}" class="podium-avatar"><div class="podium-name">${top3[2]?.name || 'N/A'}</div><div class="podium-score">${top3[2]?.total_score || 0} XP</div></div></div></div>
+                <div class="story-page leaderboard" data-duration="10000"><h3>Top 10 Challengers</h3><ul class="roster-story-list">${[...top3, ...others].map(user => `<li class="roster-story-item"><span class="rank">${user.rank}</span><img src="${user.profile_url || DEFAULT_AVATAR}" class="avatar"><span class="name">${user.name}</span><span class="score">${user.total_score || 0} XP</span></li>`).join('')}</ul></div>`;
         } else if (type === 'mission') {
-            const latestMission = AppState.missions[AppState.missions.length - 1] || { topic: 'No new missions', detail: 'Check back later!' };
-            pagesHTML = `
-                 <div class="story-page mission" data-duration="7000">
-                    <div class="mission-icon">✨</div>
-                    <h2 class="mission-title">${latestMission.topic}</h2>
-                    <p class="mission-details">${latestMission.detail}</p>
-                    <div class="mission-info-bar">
-                        <span>🏆 ${latestMission.max_points || 0} XP</span>
-                        <span>📅 Due: ${latestMission.due_date ? new Date(latestMission.due_date).toLocaleDateString('th-TH') : 'N/A'}</span>
-                    </div>
-                    <button class="mission-button">View Mission</button>
-                 </div>
-            `;
-        } else {
-            // Placeholder for Profile/Event stories
-            pagesHTML = `<div class="story-page" data-duration="3000"><h2>Story for ${type} coming soon!</h2></div>`;
+            const latestMission = AppState.missions.find(m => new Date(m.assigned_date) <= new Date()) || AppState.missions[0] || { topic: 'No new missions' };
+            pagesHTML = `<div class="story-page mission" data-duration="7000"><div class="mission-icon">✨</div><h2 class="mission-title">${latestMission.topic}</h2><p class="mission-details">${latestMission.detail || ''}</p><div class="mission-info-bar"><span>🏆 ${latestMission.max_points || 0} XP</span><span>📅 Due: ${latestMission.due_date ? new Date(latestMission.due_date).toLocaleDateString('th-TH') : 'N/A'}</span></div><button class="mission-button" onclick="openFullMissionMap()">View All Missions</button></div>`;
+        } else if (type === 'profile') {
+            pagesHTML = `<div class="story-page profile" data-duration="8000"><h2>My Stats</h2><img src="${AppState.currentUser.profile_url || DEFAULT_AVATAR}" class="podium-avatar"><h3 class="podium-name">${AppState.currentUser.name}</h3><div class="mission-info-bar" style="margin-top:20px;"><span>🚀 ${AppState.currentUser.total_score || 0} XP</span><span>🪙 ${AppState.currentUser.coins || 0} Coins</span></div><p>${AppState.badges.length} Achievements Unlocked</p></div>`;
         }
-
-        container.innerHTML = `
-            <div class="story-viewer-overlay visible">
-                <div class="story-viewer-container">
-                    <div class="story-progress-bar-container"></div>
-                    <div class="story-header">
-                        <div></div> <!-- Placeholder for user info -->
-                        <div class="story-close-button" onclick="closeStory()">×</div>
-                    </div>
-                    <div class="story-nav-left" onclick="prevStory()"></div>
-                    <div class="story-nav-right" onclick="nextStory()"></div>
-                    ${pagesHTML}
-                </div>
-            </div>
-        `;
         
+        container.innerHTML = `<div class="story-viewer-overlay visible"><div class="story-viewer-container"><div class="story-progress-bar-container"></div><div class="story-header"><div class="story-user-info"></div><div class="story-close-button" onclick="closeStory()">×</div></div><div class="story-nav-left" onclick="prevStory()"></div><div class="story-nav-right" onclick="nextStory()"></div>${pagesHTML}</div></div>`;
         startStoryPlayback();
     }
     
     function startStoryPlayback() {
         const pages = document.querySelectorAll('.story-page');
-        if (pages.length === 0) return;
-
+        if (pages.length === 0) { closeStory(); return; }
         const progressBarContainer = document.querySelector('.story-progress-bar-container');
         progressBarContainer.innerHTML = Array.from(pages).map(() => `<div class="story-progress-bar"><div class="story-progress-bar-fill"></div></div>`).join('');
         
         let currentPageIndex = 0;
-
-            const progressBars = document.querySelectorAll('.story-progress-bar');
+        const progressBars = document.querySelectorAll('.story-progress-bar');
         
         function playPage(index) {
-            if (index < 0 || index >= pages.length) {
-                closeStory();
-                return;
-            }
+            if (index < 0 || index >= pages.length) { closeStory(); return; }
             currentPageIndex = index;
-            
             pages.forEach((page, i) => page.classList.toggle('active', i === index));
             progressBars.forEach((bar, i) => {
                 const fill = bar.querySelector('.story-progress-bar-fill');
-                if (i < index) fill.style.width = '100%';
-                else if (i === index) fill.style.width = '0%';
-                else fill.style.width = '0%';
+                if (i < index) { fill.style.transition = 'none'; fill.style.width = '100%'; }
+                else { fill.style.transition = 'none'; fill.style.width = '0%'; }
+                if (i === index) {
+                    const duration = pages[index].dataset.duration || 5000;
+                    void fill.offsetWidth; // Reflow trick
+                    fill.style.transition = `width ${duration / 1000}s linear`;
+                    fill.style.width = '100%';
+                    clearTimeout(storyTimer);
+                    storyTimer = setTimeout(() => playPage(index + 1), duration);
+                }
             });
-            
-            const currentFill = progressBars[index].querySelector('.story-progress-bar-fill');
-            const duration = pages[index].dataset.duration || 5000;
-            
-            // Force reflow to restart animation
-            currentFill.style.transitionDuration = '0s';
-            currentFill.style.width = '0%';
-            void currentFill.offsetWidth; // Reflow trick
-            currentFill.style.transitionDuration = `${duration / 1000}s`;
-            currentFill.style.width = '100%';
-
-            clearTimeout(storyTimer);
-            storyTimer = setTimeout(() => playPage(index + 1), duration);
         }
-
         window.nextStory = () => playPage(currentPageIndex + 1);
         window.prevStory = () => playPage(currentPageIndex - 1);
-
         playPage(0);
     }
-    
-    function closeStory() {
+
+        function closeStory() {
         clearTimeout(storyTimer);
         const viewer = document.querySelector('.story-viewer-overlay');
         if(viewer) {
             viewer.classList.remove('visible');
-            // Remove after transition to clean up DOM
-            setTimeout(() => {
-                viewer.remove();
-            }, 300);
+            setTimeout(() => { viewer.parentElement.innerHTML = '' }, 300); // Clear container
         }
     }
 
@@ -345,6 +250,25 @@
         }
     }
 
+    function updateProfileButton() {
+        const profileButton = document.getElementById('profile-button');
+        if (!profileButton) return;
+        const img = profileButton.querySelector('img');
+        if (AppState.currentUser) {
+            img.src = AppState.currentUser.profile_url || DEFAULT_AVATAR;
+        } else {
+            img.src = DEFAULT_AVATAR;
+        }
+    }
+
+    function handleUserAreaClick() {
+        if(AppState.currentUser) {
+            openProfileModal(AppState.currentUser.id);
+        } else {
+            openLoginModal();
+        }
+    }
+
     async function handleLogin() {
         const username = document.getElementById('username-input').value.trim();
         const password = document.getElementById('password-input').value.trim();
@@ -360,21 +284,269 @@
         }
     }
     
-    function openLoginModal() {
-        const container = document.getElementById('modals-container');
-        container.innerHTML = `
-            <div id="login-modal" class="modal-overlay visible">
-                <div class="modal-box">
-                    <div class="modal-close" onclick="closeModal()">×</div>
-                    <h2>Login</h2>
-                    <form onsubmit="event.preventDefault(); handleLogin();">
-                        <div id="login-error" class="modal-error"></div>
-                        <input type="text" id="username-input" placeholder="Username">
-                        <input type="password" id="password-input" placeholder="Password">
-                        <button type="submit" class="btn-primary">Enter</button>
-                    </form>
+    function handleLogout() {
+        localStorage.removeItem('leaderboardUser');
+        location.reload();
+    }
+
+    async function handleProfileUpdate(event) {
+        const file = event.target.files[0];
+        if (!file || !AppState.currentUser) return;
+        showToast('Uploading...');
+        try {
+            const fileName = `${AppState.currentUser.id}/${Date.now()}_${file.name}`;
+            const { error: uploadError } = await supabaseClient.storage.from('profile-pictures').upload(fileName, file, { upsert: true });
+            if (uploadError) throw uploadError;
+            const { data } = supabaseClient.storage.from('profile-pictures').getPublicUrl(fileName);
+            const { error: updateError } = await supabaseClient.from('users').update({ profile_url: data.publicUrl }).eq('id', AppState.currentUser.id);
+            if (updateError) throw updateError;
+            
+            AppState.currentUser.profile_url = data.publicUrl;
+            localStorage.setItem('leaderboardUser', JSON.stringify(AppState.currentUser));
+            showToast('Avatar updated!');
+            await openProfileModal(AppState.currentUser.id);
+        } catch (error) {
+            showToast(`Upload failed: ${error.message}`, true);
+        }
+    }
+
+    async function openProfileModal(userId) {
+        const { data: user, error: fetchError } = await supabaseClient.from('users').select('*').eq('id', userId).single();
+        if (fetchError || !user) { showToast("Could not find user data.", true); return; }
+        
+        openModal('profile-modal');
+        const adminBtn = document.getElementById('admin-panel-btn');
+        const changeAvatarContainer = document.querySelector('.btn-change-avatar').parentElement;
+        
+        document.getElementById('profile-avatar').src = user.profile_url || DEFAULT_AVATAR;
+        document.getElementById('profile-name').innerText = user.name;
+        document.getElementById('profile-title').innerText = user.title || 'New Voyager';
+        document.getElementById('profile-score').innerText = user.total_score || 0;
+        document.getElementById('profile-coins').innerText = `🪙 ${user.coins || 0}`;
+        
+        const isOwnProfile = AppState.currentUser && AppState.currentUser.id === userId;
+        changeAvatarContainer.style.display = isOwnProfile ? 'block' : 'none';
+        
+        if (isOwnProfile && AppState.currentUser.role === 'admin') adminBtn.style.display = 'block';
+        else adminBtn.style.display = 'none';
+        
+        const badgeContainer = document.getElementById('profile-badges');
+        badgeContainer.innerHTML = 'Loading achievements...';
+        const { data: userBadges, error } = await supabaseClient.from('user_badges').select('badges(name, description, icon_url)').eq('user_id', userId);
+        if(error) { badgeContainer.innerHTML = 'Could not load achievements.'; return; }
+        if(userBadges.length === 0) {
+            badgeContainer.innerHTML = '<p class="no-items">No achievements yet.</p>';
+            return;
+        }
+        badgeContainer.innerHTML = userBadges.map(b => `<div class="badge-item" title="${b.badges.name}: ${b.badges.description}"><img src="${b.badges.icon_url}" onerror="this.style.display='none'"></div>`).join('');
+    }
+
+    async function openMissionModal(missionId) {
+        const mission = AppState.missions.find(m => m.id === missionId);
+        if (!mission) return;
+        
+        const modalContent = document.getElementById('mission-modal-content');
+        modalContent.innerHTML = `
+            <h2>${mission.topic}</h2>
+            <div class="mission-details-body">
+                <p><strong>Objective:</strong> ${mission.detail || 'Complete the task as instructed.'}</p>
+                <p><strong>Reward:</strong> ${mission.max_points} XP</p>
+                <p><strong>Deadline:</strong> ${new Date(mission.due_date).toLocaleDateString('th-TH')}</p>
+            </div>
+            <div class="mission-submission-area">
+                <hr>
+                <h4>Submit Your Work</h4>
+                <div id="mission-submission-error" class="modal-error"></div>
+                <label>Link (e.g., Canva, Google Docs):</label>
+                <input type="url" id="mission-submission-link" placeholder="https://...">
+                <label>Or Upload a File:</label>
+                <input type="file" id="mission-submission-file">
+                <button class="btn-primary" onclick="handleSubmitMission(${mission.id})">Submit Mission</button>
+            </div>
+        `;
+        openModal('mission');
+    }
+
+    async function handleSubmitMission(missionId) {
+        if (!AppState.currentUser) return;
+        const link = document.getElementById('mission-submission-link').value.trim();
+        const file = document.getElementById('mission-submission-file').files[0];
+        const errorEl = document.getElementById('mission-submission-error');
+        if(!link && !file) { errorEl.innerText = 'Please provide a link or a file.'; return; }
+
+        showToast('Submitting mission...');
+        let fileUrl = null;
+        if(file) {
+            try {
+                const fileName = `${AppState.currentUser.student_id}/${missionId}_${Date.now()}_${file.name}`;
+                const { error } = await supabaseClient.storage.from('mission-uploads').upload(fileName, file);
+                if(error) throw error;
+                const { data } = supabaseClient.storage.from('mission-uploads').getPublicUrl(fileName);
+                fileUrl = data.publicUrl;
+            } catch(error) {
+                showToast(`File upload failed: ${error.message}`, true);
+                return;
+            }
+        }
+
+        try {
+            const submissionData = { user_id: AppState.currentUser.id, mission_id: missionId, submission_link: link, proof_url: fileUrl };
+            const { error } = await supabaseClient.from('submissions').upsert(submissionData, { onConflict: 'user_id, mission_id' });
+            if(error) throw error;
+            showToast('Mission submitted successfully!');
+            closeModal();
+            loadInitialData(); // Reload all data
+        } catch(error) {
+            showToast(`Submission failed: ${error.message}`, true);
+        }
+    }
+
+    function openFullMissionMap() {
+        closeStory();
+        // This is a placeholder. A full implementation would switch the main view.
+        showToast("Opening full mission map...");
+        // Example: switchView('learn', document.querySelector('.nav-button-for-learn'));
+    }
+
+    // ======================================================
+    // ADMIN PANEL
+    // ======================================================
+    async function openAdminPanel() {
+        if (!AppState.currentUser || AppState.currentUser.role !== 'admin') return;
+        openModal('admin');
+        const adminContainer = document.getElementById('admin-content-container');
+        adminContainer.innerHTML = 'Loading Admin Data...';
+        try {
+            const { data, error } = await supabaseClient.from('submissions')
+                .select(`id, created_at, score, proof_url, submission_link, users(id, name), missions(id, topic, max_points)`)
+                .eq('missions.level', AppState.config.level);
+            if (error) throw error;
+            AppState.allSubmissionsForAdmin = data;
+            adminContainer.innerHTML = `
+                <div class="admin-sidebar">
+                    <button class="admin-tab-button active" onclick="switchAdminView('dashboard', this)"><i class="fas fa-chart-line"></i> Dashboard</button>
+                    <button class="admin-tab-button" onclick="switchAdminView('grading', this)"><i class="fas fa-check-double"></i> Grading</button>
                 </div>
+                <div class="admin-main-content">
+                    <div id="admin-view-dashboard" class="admin-view active"></div>
+                    <div id="admin-view-grading" class="admin-view"></div>
+                </div>`;
+            renderAdminDashboard();
+        } catch(err) {
+            adminContainer.innerHTML = `<p class="error-display">${err.message}</p>`;
+        }
+    }
+
+        function switchAdminView(viewId, element) {
+        document.querySelectorAll('.admin-tab-button').forEach(btn => btn.classList.remove('active'));
+        element.classList.add('active');
+        document.querySelectorAll('.admin-view').forEach(v => v.classList.remove('active'));
+        const view = document.getElementById(`admin-view-${viewId}`);
+        if(view) {
+            view.classList.add('active');
+            if (viewId === 'dashboard') renderAdminDashboard();
+            else if (viewId === 'grading') renderGradingTable();
+        }
+    }
+    
+    function renderAdminDashboard() {
+        const container = document.getElementById('admin-view-dashboard');
+        if (!container) return;
+        const pendingCount = AppState.allSubmissionsForAdmin.filter(s => s.score === null).length;
+        container.innerHTML = `
+            <h4>Dashboard</h4>
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="value">${pendingCount}</div>
+                    <div class="label">Pending Grade</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value">${AppState.leaderboard.length}</div>
+                    <div class="label">Total Students</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value">${AppState.missions.length}</div>
+                    <div class="label">Total Missions</div>
+                </div>
+            </div>
+            <h4>Recent Submissions</h4>
+            <div class="admin-table-container">
+                <table class="admin-table">
+                    <thead><tr><th>Student</th><th>Mission</th><th>Submitted</th><th>Status</th></tr></thead>
+                    <tbody>
+                        ${AppState.allSubmissionsForAdmin
+                            .sort((a,b) => new Date(b.created_at) - new Date(a.created_at))
+                            .slice(0, 5)
+                            .map(s => `
+                            <tr>
+                                <td>${s.users.name}</td>
+                                <td>${s.missions.topic}</td>
+                                <td>${new Date(s.created_at).toLocaleDateString('th-TH')}</td>
+                                <td>${s.score === null ? '<span style="color:var(--status-pending);">Pending</span>' : `<span style="color:var(--status-success);">Graded</span>`}</td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>
             </div>`;
+    }
+
+    function renderGradingTable() {
+        const container = document.getElementById('admin-view-grading');
+        if (!container) return;
+        const pendingSubmissions = AppState.allSubmissionsForAdmin.filter(s => s.score === null);
+        container.innerHTML = `
+            <h4>Grade Submissions (${pendingSubmissions.length} pending)</h4>
+            <div class="admin-table-container">
+                <table class="admin-table">
+                    <thead><tr><th>Student</th><th>Mission</th><th>Link/File</th><th>Score</th><th>Action</th></tr></thead>
+                    <tbody>
+                        ${pendingSubmissions.sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(s => `
+                            <tr id="sub-row-${s.id}">
+                                <td>${s.users.name}</td>
+                                <td>${s.missions.topic}</td>
+                                <td>
+                                    ${s.submission_link ? `<a href="${s.submission_link}" target="_blank" class="link">Link</a>` : ''}
+                                    ${s.proof_url ? `<a href="${s.proof_url}" target="_blank" class="link">File</a>` : ''}
+                                </td>
+                                <td><input type="number" class="score-input" id="score-input-${s.id}" placeholder="/ ${s.missions.max_points}"></td>
+                                <td><button class="btn-primary" onclick="handleGradeSubmission(${s.id}, '${s.users.id}')">Save</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    }
+    
+    async function handleGradeSubmission(submissionId, userId) {
+        const scoreInput = document.getElementById(`score-input-${submissionId}`);
+        const score = parseInt(scoreInput.value, 10);
+        if (isNaN(score)) { showToast("Please enter a valid number.", true); return; }
+        
+        scoreInput.disabled = true;
+        try {
+            // 1. Update the submission score
+            const { error: submissionError } = await supabaseClient.from('submissions').update({ score: score }).eq('id', submissionId);
+            if(submissionError) throw submissionError;
+
+            // 2. Recalculate the user's total score from scratch for accuracy
+            const { data: userSubmissions, error: fetchError } = await supabaseClient.from('submissions').select('score').eq('user_id', userId);
+            if(fetchError) throw fetchError;
+            
+            const newTotalScore = userSubmissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+
+            // 3. Update the user's total score
+            const { error: userError } = await supabaseClient.from('users').update({ total_score: newTotalScore }).eq('id', userId);
+            if(userError) throw userError;
+
+            showToast("Score saved successfully!");
+            document.getElementById(`sub-row-${submissionId}`)?.remove();
+            
+            // Refresh main leaderboard data in the background
+            loadInitialData();
+            
+        } catch(error) {
+            showToast(`Error saving score: ${error.message}`, true);
+            scoreInput.disabled = false;
+        }
     }
 
     // ======================================================
@@ -383,9 +555,8 @@
     function showError(error) {
         console.error(error);
         const errorMsg = (error && error.message) ? error.message : "An unknown error occurred.";
-        document.getElementById('app-container').innerHTML = `<div style="padding:20px;text-align:center;color:var(--status-danger);"><h3>Oops!</h3><p>${errorMsg}</p></div>`;
+        document.getElementById('app-container').innerHTML = `<div class="error-display"><h3>Oops!</h3><p>${errorMsg}</p></div>`;
     }
-
     function showToast(message, isError = false) {
         const container = document.getElementById('toast-container');
         if (!container) return;
@@ -400,14 +571,15 @@
         }, 3000);
     }
     
-    function closeModal() {
-        document.querySelectorAll('.modal-overlay').forEach(m => {
-            m.classList.remove('visible');
-            // Remove after transition
-            setTimeout(() => m.remove(), 300);
-        });
+    function openModal(modalName) {
+        const modal = document.getElementById(`${modalName}-modal`);
+        if (modal) modal.classList.add('visible');
     }
-
+    
+    function closeModal() {
+        document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('visible'));
+    }
 </script>
 </body>
 </html>
+    

@@ -158,6 +158,9 @@ async function fetchAndDisplayLeaderboard() {
     renderLeaderboard(leaderboardData);
 }
 
+// ในไฟล์ main.js
+// แทนที่ฟังก์ชัน renderLeaderboard เก่าด้วยอันนี้
+
 function renderLeaderboard(leaderboardData) {
     if (leaderboardData.length === 0) {
         leaderboardContainer.innerHTML = '<p>ยังไม่มีข้อมูล</p>';
@@ -167,9 +170,15 @@ function renderLeaderboard(leaderboardData) {
     leaderboardData.forEach((student, index) => {
         const item = document.createElement('div');
         item.className = 'leaderboard-item';
+
+        // *** จุดแก้ไข: เปลี่ยน URL ของรูปโปรไฟล์สำรอง ***
+        // เราจะใช้บริการของ "robohash.org" ที่สร้างรูปหุ่นยนต์จากชื่อนักเรียนแทน
+        // ซึ่งจะน่ารักกว่าและไม่ค่อยมีปัญหาเรื่องการบล็อก
+        const profileImageUrl = student.profile_picture_url || `https://robohash.org/${student.student_id}.png?set=set4&size=40x40`;
+
         item.innerHTML = `
             <div class="rank">${index + 1}</div>
-            <img src="${student.profile_picture_url || 'https://via.placeholder.com/40'}" alt="Profile" class="profile-pic">
+            <img src="${profileImageUrl}" alt="Profile" class="profile-pic">
             <div class="student-info">
                 <div class="student-name">${student.full_name}</div>
             </div>

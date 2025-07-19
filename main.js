@@ -293,34 +293,88 @@ function renderLeaderboard(leaderboardData) {
  */
 async function fetchAndDisplayMissions() {
     missionsContainer.innerHTML = '<div class="loader"></div>';
-    const { data, error } = await supabase
+    
+    // 1. Fetch all missions for the current grade
+    const { data: allMissions, error: missionsError } = await supabase
         .from('missions')
         .select('*')
         .eq('grade', currentGrade)
-        .order('due_date', { ascending: false });
-    if (error) return missionsContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลดภารกิจได้</p>`;
-    renderMissions(data);
+        .order('due_date', { ascending: true }); // เรียงจากเก่าไปใหม่ เพื่อให้แสดงผลถูกต้อง
+
+    if (missionsError) {
+        missionsContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลดภารกิจได้</p>`;
+        return;
+    }
+
+    // 2. If a user is logged in, fetch their submissions to determine status
+    let submissionMap = new Map();
+    if (currentUser) {
+        const { data: userSubmissions, error: subsError } = await supabase
+            .from('submissions')
+            .select('mission_id, score')
+            .eq('student_id', currentUser.student_id);
+        
+        if (subsError) {
+            console.error("Could not fetch user submissions, statuses may be incorrect.");
+        } else {
+            submissionMap = new Map(userSubmissions.map(s => [s.mission_id, s]));
+        }
+    }
+    
+    renderMissions(allMissions, submissionMap);
 }
 
-function renderMissions(missions) {
+function renderMissions(missions, submissionMap) {
     missionsContainer.innerHTML = '';
     if (missions.length === 0) {
         missionsContainer.innerHTML = '<p>ยังไม่มีภารกิจ</p>';
         return;
     }
+
+    const now = new Date();
+    const twoDaysFromNow = new Date();
+    twoDaysFromNow.setDate(now.getDate() + 2);
+
     missions.forEach(mission => {
-        const item = document.createElement('div');
-        item.className = 'mission-item';
-        const dueDate = new Date(mission.due_date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-        item.innerHTML = `
-            <div class="mission-info">
-                <div class="mission-topic">${mission.topic}</div>
-                <div class="mission-details">
-                    ส่งภายในวันที่: ${dueDate} | คะแนนเต็ม: ${mission.max_points}
-                </div>
-            </div>
+        const dueDate = new Date(mission.due_date);
+        let statusClass = 'status-not-submitted'; // Default status
+
+        // Determine status if a user is logged in
+        if (currentUser) {
+            const submission = submissionMap.get(mission.id);
+            if (submission) {
+                statusClass = submission.score !== null ? 'status-graded' : 'status-pending';
+            } else {
+                // Not submitted yet, check for urgency or if it's overdue
+                if (now > dueDate) {
+                    statusClass = 'status-overdue';
+                } else if (dueDate <= twoDaysFromNow) {
+                    statusClass = 'status-urgent';
+                }
+            }
+        } else {
+            // Public view, only check for overdue
+             if (now > dueDate) {
+                statusClass = 'status-overdue';
+            }
+        }
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mission-node-wrapper';
+
+        const node = document.createElement('div');
+        node.className = `mission-node ${statusClass}`;
+        
+        node.innerHTML = `
+            <div class="mission-node-topic">${mission.topic}</div>
+            <div class="mission-node-points">${mission.max_points} pts</div>
         `;
-        missionsContainer.appendChild(item);
+        
+        // TODO: Add click event to open mission detail/submission form
+        // node.onclick = () => openMissionModal(mission.id);
+
+        wrapper.appendChild(node);
+        missionsContainer.appendChild(wrapper);
     });
 }
 

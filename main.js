@@ -2,7 +2,7 @@
 // CONFIGURATION
 // ================================================================
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE'; // *** ใส่ anon key ของคุณที่นี่ ***
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE'; // *** ใส่ anon key ของคุณที่นี่ ***
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -25,6 +25,11 @@ const studentDetailModal = document.getElementById('student-detail-modal');
 const modalCloseButton = document.querySelector('#student-detail-modal .close-button');
 const modalHeader = document.getElementById('modal-header');
 const modalBody = document.getElementById('modal-body');
+// For Admin grading/deleting in student detail modal
+const studentDetailAdminActions = document.createElement('div'); // Create a div for admin actions
+studentDetailAdminActions.id = 'student-detail-admin-actions';
+studentDetailAdminActions.style.marginTop = '20px';
+
 
 // Mission Modal elements
 const missionModal = document.getElementById('mission-modal');
@@ -41,6 +46,8 @@ const adminModal = document.getElementById('admin-modal');
 const adminModalCloseButton = adminModal ? adminModal.querySelector('.close-button') : null;
 const addMissionForm = document.getElementById('add-mission-form');
 const gradeSubmissionForm = document.getElementById('grade-submission-form');
+const adminMissionList = document.getElementById('admin-mission-list'); // For admin mission management
+const adminStudentList = document.getElementById('admin-student-list'); // For admin student management
 
 
 // ================================================================
@@ -73,6 +80,7 @@ function getGradeFromHostname() {
 function showLoginScreen() {
     loginError.textContent = '';
     loginForm.reset();
+    document.getElementById('username').focus(); // Focus on username field
     loginScreen.classList.add('active');
     appContainer.classList.add('blur-background');
 }
@@ -83,18 +91,6 @@ function showLoginScreen() {
 function hideLoginScreen() {
     loginScreen.classList.remove('active');
     appContainer.classList.remove('blur-background');
-}
-
-/**
- * Shows the student detail modal.
- */
-function showStudentDetailModal(studentId) {
-    studentDetailModal.style.display = 'block';
-    modalHeader.innerHTML = '<div class="loader"></div>';
-    modalBody.innerHTML = ''; // Clear previous content
-
-    // This part now directly calls fetch logic. No longer async itself.
-    fetchStudentDetailsForModal(studentId); 
 }
 
 /**
@@ -300,6 +296,7 @@ async function fetchAndDisplayMissions() {
  * Fetches and renders student details for the modal.
  */
 async function fetchStudentDetailsForModal(studentId) {
+    // 1. Fetch all missions for the current grade
     const { data: allMissions, error: missionsError } = await supabase
         .from('missions')
         .select('id, topic, detail, max_points')
@@ -311,9 +308,10 @@ async function fetchStudentDetailsForModal(studentId) {
         return;
     }
 
+    // 2. Fetch all submissions for this specific student
     const { data: studentSubmissions, error: subsError } = await supabase
         .from('submissions')
-        .select('mission_id, score, proof_url')
+        .select('id, mission_id, score, proof_url') // Get submission ID too
         .eq('student_id', studentId);
     
     if (subsError) {
@@ -321,6 +319,7 @@ async function fetchStudentDetailsForModal(studentId) {
         return;
     }
     
+    // 3. Find the student's main info from the users table
     const { data: studentInfo, error: userError } = await supabase
         .from('users')
         .select('full_name, profile_picture_url')
@@ -349,6 +348,7 @@ async function fetchStudentDetailsForModal(studentId) {
     allMissions.forEach(mission => {
         const submission = submissionMap.get(mission.id);
         let status, statusClass, scoreText, proofLink = '';
+        let adminActionsHtml = ''; // For admin buttons
 
         if (submission) {
             if (submission.score !== null && submission.score !== undefined) {
@@ -363,10 +363,26 @@ async function fetchStudentDetailsForModal(studentId) {
             if (submission.proof_url) {
                 proofLink = `<a href="${submission.proof_url}" target="_blank" style="margin-left: 10px; color:#007bff;">ดูงาน</a>`;
             }
+            // Admin actions for submitted tasks
+            if (currentUser && currentUser.role === 'admin') {
+                adminActionsHtml = `
+                    <input type="number" class="admin-score-input" value="${submission.score || ''}" placeholder="คะแนน">
+                    <button class="admin-grade-btn" data-submission-id="${submission.id}">บันทึก</button>
+                    <button class="admin-delete-btn" data-submission-id="${submission.id}">ลบ</button>
+                `;
+            }
+
         } else {
             status = 'ยังไม่ส่ง';
             statusClass = 'status-not-submitted';
             scoreText = `- / ${mission.max_points}`;
+            // Admin actions for unsubmitted tasks (can't grade/delete, but can add score if needed)
+            if (currentUser && currentUser.role === 'admin') {
+                 adminActionsHtml = `
+                    <input type="number" class="admin-score-input" value="" placeholder="คะแนน">
+                    <button class="admin-grade-btn" data-submission-id="new" data-student-id="${studentId}" data-mission-id="${mission.id}">บันทึก</button>
+                `;
+            }
         }
 
         const taskItem = document.createElement('div');
@@ -375,11 +391,79 @@ async function fetchStudentDetailsForModal(studentId) {
             <span class="task-name">${mission.topic}</span>
             <span class="task-status ${statusClass}">${status}</span>
             <span>${scoreText} ${proofLink}</span>
+            <div class="admin-actions">${adminActionsHtml}</div>
         `;
         modalBody.appendChild(taskItem);
     });
+
+    // Add event listeners for admin buttons within the modal
+    if (currentUser && currentUser.role === 'admin') {
+        const gradeButtons = modalBody.querySelectorAll('.admin-grade-btn');
+        gradeButtons.forEach(button => {
+            button.addEventListener('click', async (event) => {
+                const submissionId = event.target.dataset.submissionId;
+                const scoreInput = event.target.previousElementSibling; // The input field
+                const score = parseInt(scoreInput.value, 10);
+                
+                // For new submissions, get studentId and missionId from dataset
+                const studentId = event.target.dataset.studentId || studentId; // Fallback to current studentId in modal
+                const missionId = event.target.dataset.missionId || mission.id; // Fallback to current mission ID
+                
+                if (isNaN(score)) { alert('กรุณาใส่คะแนนเป็นตัวเลข'); return; }
+                await handleAdminGradeSubmission(studentId, missionId, score, submissionId);
+            });
+        });
+
+        const deleteButtons = modalBody.querySelectorAll('.admin-delete-btn');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', async (event) => {
+                const submissionId = event.target.dataset.submissionId;
+                if (confirm('คุณต้องการลบการส่งงานนี้ใช่หรือไม่?')) {
+                    await handleAdminDeleteSubmission(submissionId);
+                }
+            });
+        });
+    }
 }
 
+
+// ================================================================
+// AUTHENTICATION & UI UPDATES
+// ================================================================
+
+/**
+ * Updates the header based on whether a user is logged in.
+ */
+function updateHeaderUI() {
+    if (currentUser) {
+        userProfile.innerHTML = `
+            <span>สวัสดี, ${currentUser.full_name}</span>
+            ${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}
+        `;
+        userProfile.style.display = 'block';
+        logoutButton.textContent = 'ออกจากระบบ';
+        logoutButton.onclick = handleLogout;
+
+        if (adminPanelButton && currentUser.role === 'admin') {
+            adminPanelButton.style.display = 'block';
+        } else if (adminPanelButton) {
+            adminPanelButton.style.display = 'none';
+        }
+
+    } else {
+        userProfile.style.display = 'none';
+        logoutButton.textContent = 'เข้าสู่ระบบ';
+        logoutButton.onclick = showLoginScreen;
+        if (adminPanelButton) {
+            adminPanelButton.style.display = 'none';
+        }
+    }
+}
+
+
+// ================================================================
+// MISSION SUBMISSION FUNCTIONS
+// ================================================================
 
 /**
  * Handles the mission submission form.
@@ -431,7 +515,7 @@ async function handleMissionSubmit(event) {
         hideMissionModal();
         fetchAndDisplayMissions();
 
-    } catch (error) {
+    } /* ... (error handling) ... */ catch (error) {
         console.error('Submission Error:', error);
         alert(`เกิดข้อผิดพลาดในการส่งงาน: ${error.message}`);
         submitMissionButton.disabled = false;
@@ -441,37 +525,91 @@ async function handleMissionSubmit(event) {
 
 
 // ================================================================
-// AUTHENTICATION & UI UPDATES
+// ADMIN PANEL FUNCTIONS
 // ================================================================
 
-/**
- * Updates the header based on whether a user is logged in.
- */
-function updateHeaderUI() {
-    if (currentUser) {
-        userProfile.innerHTML = `
-            <span>สวัสดี, ${currentUser.full_name}</span>
-            ${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}
-        `;
-        userProfile.style.display = 'block';
-        logoutButton.textContent = 'ออกจากระบบ';
-        logoutButton.onclick = handleLogout;
+// This function is defined above in HELPER FUNCTIONS for hoisting
+// function showAdminModal() { ... }
 
-        if (adminPanelButton && currentUser.role === 'admin') {
-            adminPanelButton.style.display = 'block';
-        } else if (adminPanelButton) {
-            adminPanelButton.style.display = 'none';
+// This function is defined above in HELPER FUNCTIONS for hoisting
+// function hideAdminModal() { ... }
+
+async function handleAdminGradeSubmission(studentId, missionId, score, submissionId = null) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
+        return;
+    }
+
+    try {
+        const { data, error } = await supabase.rpc('grade_submission', {
+            p_student_id: parseInt(studentId, 10),
+            p_mission_id: parseInt(missionId, 10),
+            p_score: score,
+            p_admin_student_id: currentUser.student_id
+        });
+
+        if (error) {
+            console.error('RPC Error:', error);
+            throw new Error(error.message);
         }
 
-    } else {
-        userProfile.style.display = 'none';
-        logoutButton.textContent = 'เข้าสู่ระบบ';
-        logoutButton.onclick = showLoginScreen;
-        if (adminPanelButton) {
-            adminPanelButton.style.display = 'none';
+        if (data.success) {
+            alert('บันทึกคะแนนสำเร็จ!');
+            // Refresh data after grading
+            fetchAndDisplayLeaderboard();
+            fetchAndDisplayMissions();
+            // Re-fetch student details if modal is open
+            if (studentDetailModal.style.display === 'block') {
+                 showStudentDetailModal(studentId); // Re-open with updated data
+            }
+            // If grading from admin panel main form, reset it
+            if (gradeSubmissionForm.contains(document.activeElement)) { // Check if focus is still on the form
+                gradeSubmissionForm.reset();
+            }
+        } else {
+            console.error('API Error Response:', data.error);
+            throw new Error(data.error);
         }
+    } catch (error) {
+        console.error('Error grading submission:', error);
+        alert(`เกิดข้อผิดพลาดในการบันทึกคะแนน: ${error.message}`);
     }
 }
+
+async function handleAdminDeleteSubmission(submissionId) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
+        return;
+    }
+
+    try {
+        const { data, error } = await supabase.from('submissions').delete().eq('id', submissionId);
+
+        if (error) throw error;
+
+        alert('ลบการส่งงานสำเร็จ!');
+        // Refresh data
+        fetchAndDisplayLeaderboard();
+        fetchAndDisplayMissions();
+        // Re-fetch student details if modal is open
+        if (studentDetailModal.style.display === 'block') {
+            const currentStudentIdInModal = modalHeader.querySelector('h3').textContent.match(/\((\d+)\)/); // Assuming student ID is in parentheses in header
+            if (currentStudentIdInModal) {
+                 showStudentDetailModal(currentStudentIdInModal[1]);
+            }
+        }
+
+    } catch (error) {
+        console.error('Error deleting submission:', error);
+        alert(`เกิดข้อผิดพลาดในการลบการส่งงาน: ${error.message}`);
+    }
+}
+
+
+// These functions are defined above in ADMIN PANEL FUNCTIONS section
+// async function handleAddMission(event) { ... }
+// async function populateGradeSubmissionDropdowns() { ... }
+// async function handleGradeSubmission(event) { ... }
 
 
 // ================================================================

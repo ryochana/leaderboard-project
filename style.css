@@ -382,3 +382,67 @@ main h2 {
 .status-graded { background-color: #d4edda; color: #155724; }
 .status-pending { background-color: #fff3cd; color: #856404; }
 .status-not-submitted { background-color: #f8d7da; color: #721c24; }
+
+/* ---- ADD THIS TO YOUR style.css FILE ---- */
+
+/* Mission Modal Specifics */
+#mission-modal-header h3 {
+    margin: 0 0 5px 0;
+    font-size: 1.6em;
+}
+#mission-modal-header p {
+    margin: 0;
+    color: #666;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+#submission-status {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: 500;
+    text-align: center;
+}
+/* Form Styling */
+.form-group {
+    margin-bottom: 20px;
+}
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+.form-group input[type="url"],
+.form-group input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box; /* Important */
+}
+#submit-mission-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+#submit-mission-button:hover {
+    background-color: #218838;
+}
+#submit-mission-button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+#file-upload-status {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.9em;
+    color: #007bff;
+}

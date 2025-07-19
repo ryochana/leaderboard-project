@@ -1,4 +1,4 @@
-// supabase/functions/grade-submission/index.ts (ฉบับสมบูรณ์)
+// supabase/functions/grade-submission/index.ts
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -27,7 +27,7 @@ serve(async (req) => {
           status: 400,
       });
   }
-  const { studentId, missionId, score, userToken } = requestBody;
+  const { studentId, missionId, score, userToken } = requestBody; // userToken คือ Base64 token
 
   // --- START: Admin Authentication Logic ---
   const supabaseAdmin = createClient(
@@ -35,32 +35,42 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   )
 
-  const adminStudentId = parseInt(userToken, 10);
-  if (isNaN(adminStudentId)) {
-    console.error('Error: Parsed adminStudentId is NaN in grade-submission. Invalid userToken.');
-    return new Response(JSON.stringify({ error: 'Invalid userToken provided. Please log in again.' }), {
+  const base64Token = userToken; // ใช้ userToken ที่ส่งมาเป็น Base64 token
+
+  console.log('--- grade-submission Function Log ---');
+  console.log('Base64 Token:', base64Token);
+
+  if (!base64Token) { // ถ้าไม่มี Token
+    console.error('Error: Base64 token missing. Returning 401.');
+    return new Response(JSON.stringify({ error: 'Authorization token missing.' }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 401,
+      status: 401, // Unauthorized
     })
   }
 
-  const { data: user, error: userError } = await supabaseAdmin
-    .from('users')
-    .select('role')
-    .eq('student_id', adminStudentId)
-    .single()
-  
-  console.log('--- grade-submission Function Log ---');
-  console.log('userToken received:', userToken);
-  console.log('Parsed adminStudentId (integer):', adminStudentId);
-  console.log('DB Query Result for Admin (user):', user);
-  console.log('DB Query Error for Admin (userError):', userError);
-
-  if (userError || !user || user.role !== 'admin') {
-    console.error('Error: User not found, not admin, or DB error in grade-submission. Returning 403.');
-    return new Response(JSON.stringify({ error: 'Permission denied. Admin access required or user not found.' }), {
+  let decodedToken;
+  try {
+    decodedToken = JSON.parse(atob(base64Token)); // ถอดรหัส Base64 และแปลงเป็น JSON
+  } catch (decodeError) { // ถ้าถอดรหัสไม่ได้ หรือ JSON ไม่ถูกต้อง
+    console.error('Error decoding or parsing token:', decodeError);
+    return new Response(JSON.stringify({ error: 'Invalid token format.' }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 403,
+      status: 401, // Unauthorized
+    })
+  }
+
+  const adminStudentId = parseInt(decodedToken.student_id, 10); // ดึง student_id
+  const adminRole = decodedToken.role; // ดึง role
+
+  console.log('Decoded Token:', decodedToken);
+  console.log('Parsed adminStudentId:', adminStudentId);
+  console.log('Parsed adminRole:', adminRole);
+
+  if (isNaN(adminStudentId) || adminRole !== 'admin') { // ตรวจสอบ ID และ Role ต้องเป็นตัวเลขและ Admin
+    console.error('Error: Invalid Admin ID or Role. Returning 403.');
+    return new Response(JSON.stringify({ error: 'Permission denied. Invalid Admin credentials.' }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      status: 403, // Forbidden
     })
   }
   // --- END: Admin Authentication Logic ---
@@ -79,12 +89,12 @@ serve(async (req) => {
     console.error('Error upserting submission:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 400,
+      status: 400, // Bad Request
     })
   }
 
   return new Response(JSON.stringify({ success: true, submission: data }), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    status: 200,
+    status: 200, // OK
   })
 })

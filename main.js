@@ -10,7 +10,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // DOM ELEMENTS
 // ================================================================
 const loginScreen = document.getElementById('login-screen');
-const mainScreen = document.getElementById('main-screen');
+const mainContent = document.getElementById('main-content'); // แก้จาก mainScreen
 const loginForm = document.getElementById('login-form');
 const loginError = document.getElementById('login-error');
 const classTitle = document.getElementById('class-title');
@@ -30,27 +30,21 @@ let currentGrade = 0;
 // INITIALIZATION & ROUTING
 // ================================================================
 
-/**
- * Main initialization function. Runs on page load.
- */
 async function init() {
     currentGrade = getGradeFromHostname();
     classTitle.textContent = `ห้องเรียน ม.${currentGrade}`;
 
-    // Load public data immediately
+    // Load public data for everyone
     fetchAndDisplayLeaderboard();
     fetchAndDisplayMissions();
     
-    // Check for a logged-in user and update the UI accordingly
+    // Check for a logged-in user from previous session
     const storedSession = localStorage.getItem('app_user_session');
     if (storedSession) {
         const userData = JSON.parse(storedSession);
-        // If user is admin, they can be on any page.
-        // If user is student, check if they are on the correct grade's website.
         if (userData.role === 'admin' || userData.grade === currentGrade) {
             currentUser = userData;
         } else {
-            // Student is on the wrong page, clear their session
             localStorage.removeItem('app_user_session');
         }
     }
@@ -59,31 +53,24 @@ async function init() {
     setupEventListeners();
 }
 
-/**
- * Determines the current grade based on the URL hostname.
- */
 function getGradeFromHostname() {
     const hostname = window.location.hostname;
     if (hostname.includes('m1')) return 1;
     if (hostname.includes('m2')) return 2;
     if (hostname.includes('m3')) return 3;
-    return 2; // Default to M.2 if no match
+    return 2;
 }
 
 // ================================================================
 // AUTHENTICATION
 // ================================================================
 
-/**
- * Handles the login form submission.
- */
 async function handleLogin(event) {
     event.preventDefault();
     loginError.textContent = '';
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
 
-    // Find the user by username, without filtering by grade yet.
     const { data: users, error } = await supabase
         .from('users')
         .select('*')
@@ -96,31 +83,23 @@ async function handleLogin(event) {
 
     const user = users[0];
 
-    // Check password
     if (user.password !== password) {
         loginError.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
         return;
     }
 
-    // Check role and grade
     if (user.role === 'student' && user.grade !== currentGrade) {
         loginError.textContent = `คุณเป็นนักเรียน ม.${user.grade} กรุณาไปที่เว็บของชั้นเรียนให้ถูกต้อง`;
         return;
     }
 
-    // Login success!
     currentUser = user;
     localStorage.setItem('app_user_session', JSON.stringify(currentUser));
     
-    // Hide the login screen and update the header
-    loginScreen.classList.remove('active');
-    appContainer.classList.remove('blur-background');
+    hideLoginScreen();
     updateHeaderUI();
 }
 
-/**
- * Handles logout.
- */
 function handleLogout() {
     localStorage.removeItem('app_user_session');
     currentUser = null;
@@ -131,12 +110,8 @@ function handleLogout() {
 // UI & DISPLAY LOGIC
 // ================================================================
 
-/**
- * Updates the header based on whether a user is logged in.
- */
 function updateHeaderUI() {
     if (currentUser) {
-        // Logged in state
         userProfile.innerHTML = `
             <span>สวัสดี, ${currentUser.full_name}</span>
             ${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}
@@ -145,19 +120,22 @@ function updateHeaderUI() {
         logoutButton.textContent = 'ออกจากระบบ';
         logoutButton.onclick = handleLogout;
     } else {
-        // Logged out state
         userProfile.style.display = 'none';
         logoutButton.textContent = 'เข้าสู่ระบบ';
         logoutButton.onclick = showLoginScreen;
     }
 }
 
-/**
- * Shows the login modal.
- */
 function showLoginScreen() {
+    loginError.textContent = ''; // Clear previous errors
+    loginForm.reset(); // Clear form fields
     loginScreen.classList.add('active');
     appContainer.classList.add('blur-background');
+}
+
+function hideLoginScreen() {
+    loginScreen.classList.remove('active');
+    appContainer.classList.remove('blur-background');
 }
 
 /**

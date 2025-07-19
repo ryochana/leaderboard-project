@@ -25,8 +25,7 @@ const studentDetailModal = document.getElementById('student-detail-modal');
 const modalCloseButton = document.querySelector('#student-detail-modal .close-button');
 const modalHeader = document.getElementById('modal-header');
 const modalBody = document.getElementById('modal-body');
-// For Admin grading/deleting in student detail modal
-const studentDetailAdminActions = document.createElement('div'); // Create a div for admin actions
+const studentDetailAdminActions = document.createElement('div');
 studentDetailAdminActions.id = 'student-detail-admin-actions';
 studentDetailAdminActions.style.marginTop = '20px';
 
@@ -46,8 +45,8 @@ const adminModal = document.getElementById('admin-modal');
 const adminModalCloseButton = adminModal ? adminModal.querySelector('.close-button') : null;
 const addMissionForm = document.getElementById('add-mission-form');
 const gradeSubmissionForm = document.getElementById('grade-submission-form');
-const adminMissionList = document.getElementById('admin-mission-list'); // For admin mission management
-const adminStudentList = document.getElementById('admin-student-list'); // For admin student management
+const adminMissionList = document.getElementById('admin-mission-list'); 
+const adminStudentList = document.getElementById('admin-student-list'); 
 
 
 // ================================================================
@@ -92,6 +91,18 @@ function hideLoginScreen() {
     loginScreen.classList.remove('active');
     appContainer.classList.remove('blur-background');
 }
+
+// *** แก้ไขและเพิ่มฟังก์ชัน showMainScreen() ที่หายไป ***
+/**
+ * Updates UI to show main content and hides login screen.
+ */
+function showMainScreen() {
+    loginScreen.classList.remove('active'); // Hide login modal
+    appContainer.classList.remove('blur-background'); // Remove blur
+    // No need to hide/show mainContent explicitly as it's always visible by default
+    // Its visibility is controlled by the login modal's presence
+}
+
 
 /**
  * Hides the student detail modal.
@@ -367,8 +378,8 @@ async function fetchStudentDetailsForModal(studentId) {
             if (currentUser && currentUser.role === 'admin') {
                 adminActionsHtml = `
                     <input type="number" class="admin-score-input" value="${submission.score || ''}" placeholder="คะแนน">
-                    <button class="admin-grade-btn" data-submission-id="${submission.id}">บันทึก</button>
-                    <button class="admin-delete-btn" data-submission-id="${submission.id}">ลบ</button>
+                    <button class="admin-grade-btn" data-submission-id="${submission.id}" data-student-id="${studentId}" data-mission-id="${mission.id}">บันทึก</button>
+                    <button class="admin-delete-btn" data-submission-id="${submission.id}" data-student-id="${studentId}">ลบ</button>
                 `;
             }
 
@@ -398,19 +409,19 @@ async function fetchStudentDetailsForModal(studentId) {
 
     // Add event listeners for admin buttons within the modal
     if (currentUser && currentUser.role === 'admin') {
+        // Since buttons are created dynamically, add event listeners after rendering
         const gradeButtons = modalBody.querySelectorAll('.admin-grade-btn');
         gradeButtons.forEach(button => {
             button.addEventListener('click', async (event) => {
                 const submissionId = event.target.dataset.submissionId;
-                const scoreInput = event.target.previousElementSibling; // The input field
+                const scoreInput = event.target.previousElementSibling;
                 const score = parseInt(scoreInput.value, 10);
                 
-                // For new submissions, get studentId and missionId from dataset
-                const studentId = event.target.dataset.studentId || studentId; // Fallback to current studentId in modal
-                const missionId = event.target.dataset.missionId || mission.id; // Fallback to current mission ID
+                const studentIdForSubmission = event.target.dataset.studentId;
+                const missionIdForSubmission = event.target.dataset.missionId;
                 
                 if (isNaN(score)) { alert('กรุณาใส่คะแนนเป็นตัวเลข'); return; }
-                await handleAdminGradeSubmission(studentId, missionId, score, submissionId);
+                await handleAdminGradeSubmission(studentIdForSubmission, missionIdForSubmission, score, submissionId);
             });
         });
 
@@ -418,45 +429,12 @@ async function fetchStudentDetailsForModal(studentId) {
         deleteButtons.forEach(button => {
             button.addEventListener('click', async (event) => {
                 const submissionId = event.target.dataset.submissionId;
+                const studentIdForDeletion = event.target.dataset.studentId; // Get studentId for re-opening modal
                 if (confirm('คุณต้องการลบการส่งงานนี้ใช่หรือไม่?')) {
-                    await handleAdminDeleteSubmission(submissionId);
+                    await handleAdminDeleteSubmission(submissionId, studentIdForDeletion);
                 }
             });
         });
-    }
-}
-
-
-// ================================================================
-// AUTHENTICATION & UI UPDATES
-// ================================================================
-
-/**
- * Updates the header based on whether a user is logged in.
- */
-function updateHeaderUI() {
-    if (currentUser) {
-        userProfile.innerHTML = `
-            <span>สวัสดี, ${currentUser.full_name}</span>
-            ${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}
-        `;
-        userProfile.style.display = 'block';
-        logoutButton.textContent = 'ออกจากระบบ';
-        logoutButton.onclick = handleLogout;
-
-        if (adminPanelButton && currentUser.role === 'admin') {
-            adminPanelButton.style.display = 'block';
-        } else if (adminPanelButton) {
-            adminPanelButton.style.display = 'none';
-        }
-
-    } else {
-        userProfile.style.display = 'none';
-        logoutButton.textContent = 'เข้าสู่ระบบ';
-        logoutButton.onclick = showLoginScreen;
-        if (adminPanelButton) {
-            adminPanelButton.style.display = 'none';
-        }
     }
 }
 
@@ -515,7 +493,7 @@ async function handleMissionSubmit(event) {
         hideMissionModal();
         fetchAndDisplayMissions();
 
-    } /* ... (error handling) ... */ catch (error) {
+    } catch (error) {
         console.error('Submission Error:', error);
         alert(`เกิดข้อผิดพลาดในการส่งงาน: ${error.message}`);
         submitMissionButton.disabled = false;
@@ -525,7 +503,7 @@ async function handleMissionSubmit(event) {
 
 
 // ================================================================
-// ADMIN PANEL FUNCTIONS
+// ADMIN PANEL FUNCTIONS (Core Logic for Admin Actions)
 // ================================================================
 
 // This function is defined above in HELPER FUNCTIONS for hoisting
@@ -534,13 +512,131 @@ async function handleMissionSubmit(event) {
 // This function is defined above in HELPER FUNCTIONS for hoisting
 // function hideAdminModal() { ... }
 
-async function handleAdminGradeSubmission(studentId, missionId, score, submissionId = null) {
-    if (!currentUser || currentUser.role !== 'admin') {
+/**
+ * Handles adding a new mission via RPC.
+ */
+async function handleAddMission(event) {
+    event.preventDefault();
+    const topic = document.getElementById('add-mission-topic').value;
+    const detail = document.getElementById('add-mission-detail').value;
+    const dueDate = document.getElementById('add-mission-due-date').value;
+    const maxPoints = parseInt(document.getElementById('add-mission-max-points').value, 10);
+
+    console.log('Form data:', { topic, detail, dueDate, maxPoints }); 
+
+    if (!topic || !dueDate || isNaN(maxPoints)) {
+        alert('กรุณากรอกข้อมูลภารกิจให้ครบถ้วน');
+        return;
+    }
+
+    if (!currentUser || currentUser.role !== 'admin' || !currentUser.student_id) {
         alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
         return;
     }
 
     try {
+        const { data, error } = await supabase.rpc('add_mission', {
+            p_topic: topic,
+            p_detail: detail,
+            p_assigned_date: new Date().toISOString(),
+            p_due_date: new Date(dueDate).toISOString(),
+            p_max_points: maxPoints,
+            p_grade: currentGrade,
+            p_admin_student_id: currentUser.student_id
+        });
+
+        if (error) {
+            console.error('RPC Error:', error);
+            throw new Error(error.message);
+        }
+
+        if (data.success) {
+            alert('เพิ่มภารกิจสำเร็จ!');
+            addMissionForm.reset();
+            fetchAndDisplayMissions(); 
+        } else {
+            console.error('API Error Response:', data.error);
+            throw new Error(data.error);
+        }
+    } catch (error) {
+        console.error('Error adding mission:', error);
+        alert(`เกิดข้อผิดพลาดในการเพิ่มภารกิจ: ${error.message}`);
+    }
+}
+
+/**
+ * Populates dropdowns for grading submissions in Admin Panel.
+ */
+async function populateGradeSubmissionDropdowns() {
+    const studentDropdown = document.getElementById('grade-student-id');
+    const missionDropdown = document.getElementById('grade-mission-topic');
+    
+    studentDropdown.innerHTML = '<option value="">เลือกนักเรียน</option>';
+    missionDropdown.innerHTML = '<option value="">เลือกภารกิจ</option>';
+
+    const { data: students, error: studentError } = await supabase
+        .from('users')
+        .select('student_id, full_name')
+        .eq('grade', currentGrade)
+        .eq('role', 'student');
+    
+    if (studentError) { console.error('Error fetching students:', studentError); return; }
+    students.forEach(s => {
+        const option = document.createElement('option');
+        option.value = s.student_id;
+        option.textContent = `${s.full_name} (${s.student_id})`;
+        studentDropdown.appendChild(option);
+    });
+
+    const { data: missions, error: missionError } = await supabase
+        .from('missions')
+        .select('id, topic')
+        .eq('grade', currentGrade);
+    
+    if (missionError) { console.error('Error fetching missions:', missionError); return; }
+    missions.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m.id;
+        option.textContent = m.topic;
+        missionDropdown.appendChild(option);
+    });
+}
+
+/**
+ * Handles grading a submission via RPC (from main Admin Panel form).
+ */
+async function handleGradeSubmission(event) {
+    event.preventDefault();
+    const studentId = document.getElementById('grade-student-id').value;
+    const missionId = document.getElementById('grade-mission-topic').value;
+    const score = parseInt(document.getElementById('grade-score').value, 10);
+
+    if (!studentId || !missionId || isNaN(score)) {
+        alert('กรุณาเลือกนักเรียน ภารกิจ และใส่คะแนน');
+        return;
+    }
+
+    if (!currentUser || currentUser.role !== 'admin' || !currentUser.student_id) {
+        alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
+        return;
+    }
+
+    await handleAdminGradeSubmission(studentId, missionId, score); // Re-use the handler
+    gradeSubmissionForm.reset(); // Reset after submission
+}
+
+
+/**
+ * Handles grading/updating a submission via RPC (from Student Detail Modal or Admin Panel).
+ */
+async function handleAdminGradeSubmission(studentId, missionId, score, submissionId = null) { // submissionId is optional, only for existing records
+    if (!currentUser || currentUser.role !== 'admin' || !currentUser.student_id) {
+        alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
+        return;
+    }
+
+    try {
+        // RPC function takes student_id, mission_id, score, admin_student_id
         const { data, error } = await supabase.rpc('grade_submission', {
             p_student_id: parseInt(studentId, 10),
             p_mission_id: parseInt(missionId, 10),
@@ -555,16 +651,11 @@ async function handleAdminGradeSubmission(studentId, missionId, score, submissio
 
         if (data.success) {
             alert('บันทึกคะแนนสำเร็จ!');
-            // Refresh data after grading
-            fetchAndDisplayLeaderboard();
+            fetchAndDisplayLeaderboard(); // Refresh data
             fetchAndDisplayMissions();
-            // Re-fetch student details if modal is open
+            // Re-fetch student details if modal is open and we graded from there
             if (studentDetailModal.style.display === 'block') {
                  showStudentDetailModal(studentId); // Re-open with updated data
-            }
-            // If grading from admin panel main form, reset it
-            if (gradeSubmissionForm.contains(document.activeElement)) { // Check if focus is still on the form
-                gradeSubmissionForm.reset();
             }
         } else {
             console.error('API Error Response:', data.error);
@@ -576,29 +667,38 @@ async function handleAdminGradeSubmission(studentId, missionId, score, submissio
     }
 }
 
-async function handleAdminDeleteSubmission(submissionId) {
-    if (!currentUser || currentUser.role !== 'admin') {
+/**
+ * Handles deleting a submission via RPC.
+ */
+async function handleAdminDeleteSubmission(submissionId, studentIdForModal = null) {
+    if (!currentUser || currentUser.role !== 'admin' || !currentUser.student_id) {
         alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
         return;
     }
 
     try {
-        const { data, error } = await supabase.from('submissions').delete().eq('id', submissionId);
+        const { data, error } = await supabase.rpc('delete_submission', {
+            p_submission_id: parseInt(submissionId, 10),
+            p_admin_student_id: currentUser.student_id
+        });
 
-        if (error) throw error;
-
-        alert('ลบการส่งงานสำเร็จ!');
-        // Refresh data
-        fetchAndDisplayLeaderboard();
-        fetchAndDisplayMissions();
-        // Re-fetch student details if modal is open
-        if (studentDetailModal.style.display === 'block') {
-            const currentStudentIdInModal = modalHeader.querySelector('h3').textContent.match(/\((\d+)\)/); // Assuming student ID is in parentheses in header
-            if (currentStudentIdInModal) {
-                 showStudentDetailModal(currentStudentIdInModal[1]);
-            }
+        if (error) {
+            console.error('RPC Error:', error);
+            throw new Error(error.message);
         }
 
+        if (data.success) {
+            alert('ลบการส่งงานสำเร็จ!');
+            fetchAndDisplayLeaderboard(); // Refresh data
+            fetchAndDisplayMissions();
+            // Re-fetch student details if modal is open
+            if (studentDetailModal.style.display === 'block' && studentIdForModal) {
+                 showStudentDetailModal(studentIdForModal);
+            }
+        } else {
+            console.error('API Error Response:', data.error);
+            throw new Error(data.error);
+        }
     } catch (error) {
         console.error('Error deleting submission:', error);
         alert(`เกิดข้อผิดพลาดในการลบการส่งงาน: ${error.message}`);
@@ -606,10 +706,12 @@ async function handleAdminDeleteSubmission(submissionId) {
 }
 
 
-// These functions are defined above in ADMIN PANEL FUNCTIONS section
-// async function handleAddMission(event) { ... }
-// async function populateGradeSubmissionDropdowns() { ... }
-// async function handleGradeSubmission(event) { ... }
+// ================================================================
+// AUTHENTICATION & UI UPDATES
+// ================================================================
+
+// This function is defined above in HELPER FUNCTIONS for hoisting
+// function updateHeaderUI() { ... }
 
 
 // ================================================================

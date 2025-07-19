@@ -4,32 +4,28 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 serve(async (req) => {
-  // --- NEW CORS HANDLING BLOCK ---
-  // Headers to allow CORS requests from your Netlify domain(s)
   const corsHeaders = {
-    'Access-Control-Allow-Origin': req.headers.get('Origin') || '*', // Dynamically allows the requesting origin. Safer than hardcoding.
-    'Access-Control-Allow-Methods': 'POST, OPTIONS', // Allowed HTTP methods
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', // Allowed request headers
+    'Access-Control-Allow-Origin': req.headers.get('Origin') || '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   }
 
-  // Handle OPTIONS request (preflight request from browser)
   if (req.method === 'OPTIONS') {
     return new Response(null, {
-      status: 204, // 204 No Content for successful OPTIONS response
+      status: 204,
       headers: corsHeaders,
     })
   }
-  // --- END NEW CORS HANDLING BLOCK ---
 
   const { missionData } = await req.json()
 
-  // Verify that the user calling this function is an admin
+  // *** START: Corrected Admin Auth Check for NULL grade ***
   const authHeader = req.headers.get('Authorization') || ''
-  const token = authHeader.split('Bearer ')[1]
+  const adminStudentId = authHeader.split('Bearer ')[1]
 
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Authorization header missing' }), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }, // Include CORS headers in error response
+  if (!adminStudentId) {
+    return new Response(JSON.stringify({ error: 'Authorization header missing or malformed' }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 401,
     })
   }
@@ -39,18 +35,21 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   )
 
+  // Fetch the user by student_id
   const { data: user, error: userError } = await supabaseAdmin
     .from('users')
-    .select('role')
-    .eq('student_id', token)
+    .select('role') // Only need the role
+    .eq('student_id', parseInt(adminStudentId, 10)) // Make sure to parse to INT
     .single()
   
-  if (userError || user.role !== 'admin') {
-    return new Response(JSON.stringify({ error: 'Permission denied. Admin access required.' }), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }, // Include CORS headers in error response
+  // Check if user exists and has admin role
+  if (userError || !user || user.role !== 'admin') {
+    return new Response(JSON.stringify({ error: 'Permission denied. Admin access required or user not found.' }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 403,
     })
   }
+  // *** END: Corrected Admin Auth Check ***
 
   const { data, error } = await supabaseAdmin
     .from('missions')
@@ -65,13 +64,13 @@ serve(async (req) => {
   
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }, // Include CORS headers in error response
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 400,
     })
   }
 
   return new Response(JSON.stringify({ success: true, mission: data }), {
-    headers: { 'Content-Type': 'application/json', ...corsHeaders }, // Include CORS headers in success response
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
     status: 200,
   })
 })

@@ -23,12 +23,20 @@ const studentDetailModal = document.getElementById('student-detail-modal');
 const modalCloseButton = document.querySelector('.close-button');
 const modalHeader = document.getElementById('modal-header');
 const modalBody = document.getElementById('modal-body');
+const missionModal = document.getElementById('mission-modal');
+const missionModalHeader = document.getElementById('mission-modal-header');
+const missionModalBody = document.getElementById('mission-modal-body');
+const submissionStatus = document.getElementById('submission-status');
+const submissionForm = document.getElementById('submission-form');
+const submitMissionButton = document.getElementById('submit-mission-button');
+const fileUploadStatus = document.getElementById('file-upload-status');
 
 // ================================================================
 // STATE MANAGEMENT
 // ================================================================
 let currentUser = null;
 let currentGrade = 0;
+let currentlyOpenMission = null;
 
 // ================================================================
 // INITIALIZATION & ROUTING
@@ -114,6 +122,117 @@ function handleLogout() {
 // UI & DISPLAY LOGIC
 // ================================================================
 
+function openMissionModal(mission, submission) {
+    if (!currentUser) {
+        alert("กรุณาล็อกอินก่อนส่งงาน");
+        showLoginScreen();
+        return;
+    }
+    
+    currentlyOpenMission = mission; // Store the currently open mission
+    missionModal.style.display = 'block';
+
+    // 1. Render Header
+    missionModalHeader.innerHTML = `
+        <h3>${mission.topic}</h3>
+        <p>${mission.detail || 'ไม่มีคำอธิบายเพิ่มเติม'}</p>
+    `;
+
+    // 2. Reset form
+    submissionForm.reset();
+    fileUploadStatus.textContent = '';
+    submitMissionButton.disabled = false;
+    submitMissionButton.textContent = 'ส่งงาน';
+
+    // 3. Render Status and control form visibility
+    if (submission) {
+        if (submission.score !== null) {
+            submissionStatus.className = 'status-graded';
+            submissionStatus.innerHTML = `ตรวจแล้ว! คุณได้ <b>${submission.score}</b> คะแนน`;
+            submissionForm.style.display = 'none'; // Hide form if graded
+        } else {
+            submissionStatus.className = 'status-pending';
+            submissionStatus.innerHTML = `ส่งงานแล้ว - รอการตรวจ`;
+            submissionForm.style.display = 'block'; // Allow re-submission
+            submitMissionButton.textContent = 'ส่งงานอีกครั้ง';
+        }
+    } else {
+        submissionStatus.innerHTML = '';
+        submissionStatus.className = '';
+        submissionForm.style.display = 'block';
+    }
+}
+
+/**
+ * Hides the mission modal.
+ */
+function hideMissionModal() {
+    missionModal.style.display = 'none';
+    currentlyOpenMission = null;
+}
+
+/**
+ * Handles the submission form.
+ */
+async function handleMissionSubmit(event) {
+    event.preventDefault();
+    submitMissionButton.disabled = true;
+    submitMissionButton.textContent = 'กำลังส่ง...';
+    fileUploadStatus.textContent = '';
+    
+    const submissionLink = document.getElementById('submission-link').value;
+    const fileInput = document.getElementById('submission-file');
+    const file = fileInput.files[0];
+    let proofUrl = '';
+
+    try {
+        // Step 1: Upload file if it exists
+        if (file) {
+            fileUploadStatus.textContent = `กำลังอัปโหลด: ${file.name}`;
+            const filePath = `${currentUser.grade}/${currentUser.student_id}/${currentlyOpenMission.id}-${file.name}`;
+            
+            const { error: uploadError } = await supabase.storage
+                .from('submissions') // The name of your storage bucket
+                .upload(filePath, file, { upsert: true }); // upsert: true allows overwriting
+
+            if (uploadError) throw uploadError;
+
+            // Get public URL of the uploaded file
+            const { data } = supabase.storage
+                .from('submissions')
+                .getPublicUrl(filePath);
+            
+            proofUrl = data.publicUrl;
+            fileUploadStatus.textContent = 'อัปโหลดไฟล์สำเร็จ!';
+        }
+
+        // Step 2: Upsert submission record in the database
+        const { error: dbError } = await supabase
+            .from('submissions')
+            .upsert({
+                student_id: currentUser.student_id,
+                mission_id: currentlyOpenMission.id,
+                submission_date: new Date().toISOString(),
+                proof_url: proofUrl || submissionLink || '' // Use file URL first, then link
+            }, {
+                onConflict: 'student_id, mission_id'
+            });
+
+        if (dbError) throw dbError;
+
+        // Step 3: Success!
+        alert('ส่งงานสำเร็จ!');
+        hideMissionModal();
+        // Refresh missions to show updated status
+        fetchAndDisplayMissions();
+
+    } catch (error) {
+        console.error('Submission Error:', error);
+        alert(`เกิดข้อผิดพลาดในการส่งงาน: ${error.message}`);
+        submitMissionButton.disabled = false;
+        submitMissionButton.textContent = 'ลองอีกครั้ง';
+    }
+}
  
 async function showStudentDetailModal(studentId) {
     studentDetailModal.style.display = 'block';
@@ -336,7 +455,7 @@ function renderMissions(missions, submissionMap) {
     twoDaysFromNow.setDate(now.getDate() + 2);
 
     missions.forEach(mission => {
-        const dueDate = new Date(mission.due_date);
+        const submission = submissionMap.get(mission.id);
         let statusClass = 'status-not-submitted'; // Default status
 
         // Determine status if a user is logged in
@@ -370,8 +489,7 @@ function renderMissions(missions, submissionMap) {
             <div class="mission-node-points">${mission.max_points} pts</div>
         `;
         
-        // TODO: Add click event to open mission detail/submission form
-        // node.onclick = () => openMissionModal(mission.id);
+        node.onclick = () => openMissionModal(mission, submission);
 
         wrapper.appendChild(node);
         missionsContainer.appendChild(wrapper);
@@ -407,7 +525,15 @@ function setupEventListeners() {
             }
         }
     });
-    // *** END OF ADDED PART ***
+
+    const missionModalCloseButton = missionModal.querySelector('.close-button');
+    missionModalCloseButton.addEventListener('click', hideMissionModal);
+    missionModal.addEventListener('click', (event) => {
+        if (event.target === missionModal) {
+            hideMissionModal();
+        }
+    });
+    submissionForm.addEventListener('submit', handleMissionSubmit);
 }
 
 // ================================================================

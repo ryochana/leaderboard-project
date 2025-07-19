@@ -8,11 +8,13 @@
     <!-- Import Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
+<!-- ในไฟล์ index.html -->
+<!-- แก้ไขส่วนนี้ -->
 
+<body>
     <div id="app-container">
-        <!-- Login Screen -->
-        <div id="login-screen" class="screen active">
+        <!-- Login Screen (เอา class="active" ออก) -->
+        <div id="login-screen" class="screen">
             <div class="login-card">
                 <h1 id="class-title"></h1>
                 <p>กรุณาเข้าสู่ระบบ</p>
@@ -25,27 +27,25 @@
             </div>
         </div>
 
-        <!-- Main Content (will be populated by JS) -->
-        <div id="main-screen" class="screen">
+        <!-- Main Content (เอา class="screen" ออก แล้วใส่ id="main-content" แทน) -->
+        <div id="main-content">
             <header>
                 <div id="user-profile"></div>
-                <button id="logout-button">ออกจากระบบ</button>
+                <button id="logout-button">เข้าสู่ระบบ</button>
             </header>
             <main>
                 <h2>กระดานผู้นำ (Leaderboard)</h2>
                 <div id="leaderboard-container">
-                    <div class="loader"></div>
+                    <!-- เนื้อหาจะถูกสร้างโดย JS -->
                 </div>
                 
                 <h2>ภารกิจทั้งหมด</h2>
                 <div id="missions-container">
-                    <div class="loader"></div>
+                    <!-- เนื้อหาจะถูกสร้างโดย JS -->
                 </div>
             </main>
         </div>
     </div>
 
-    <!-- Link to our JavaScript file -->
     <script type="module" src="main.js"></script>
 </body>
-</html>

@@ -589,6 +589,9 @@ function hideAdminModal() {
     appContainer.classList.remove('blur-background');
 }
 
+// ในไฟล์ main.js
+// แก้ไขฟังก์ชัน handleAddMission และ handleGradeSubmission
+
 async function handleAddMission(event) {
     event.preventDefault();
     const topic = document.getElementById('add-mission-topic').value;
@@ -608,7 +611,7 @@ async function handleAddMission(event) {
         return;
     }
 
-    // Create Admin Token for Header (Base64 encoded)
+    // *** จุดที่แก้ไข: เปลี่ยน Header จาก 'Authorization' เป็น 'X-Admin-Auth' ***
     const adminToken = btoa(JSON.stringify({ student_id: currentUser.student_id, role: currentUser.role }));
 
     try {
@@ -616,7 +619,7 @@ async function handleAddMission(event) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${adminToken}`, 
+                'X-Admin-Auth': adminToken, // <--- ใช้ Custom Header นี้แทน
             },
             body: JSON.stringify({
                 missionData: { 
@@ -632,10 +635,10 @@ async function handleAddMission(event) {
 
         const result = await response.json();
 
-        if (response.ok) { // response.ok is true for 2xx status codes
+        if (response.ok) {
             alert('เพิ่มภารกิจสำเร็จ!');
             addMissionForm.reset();
-            fetchAndDisplayMissions(); // Refresh mission list
+            fetchAndDisplayMissions();
         } else {
             console.error('API Error Response:', result);
             throw new Error(result.error || response.statusText || 'Failed to add mission');
@@ -644,43 +647,6 @@ async function handleAddMission(event) {
         console.error('Error adding mission:', error);
         alert(`เกิดข้อผิดพลาดในการเพิ่มภารกิจ: ${error.message}`);
     }
-}
-
-async function populateGradeSubmissionDropdowns() {
-    const studentDropdown = document.getElementById('grade-student-id');
-    const missionDropdown = document.getElementById('grade-mission-topic');
-    
-    studentDropdown.innerHTML = '<option value="">เลือกนักเรียน</option>';
-    missionDropdown.innerHTML = '<option value="">เลือกภารกิจ</option>';
-
-    // Fetch students for the current grade
-    const { data: students, error: studentError } = await supabase
-        .from('users')
-        .select('student_id, full_name')
-        .eq('grade', currentGrade)
-        .eq('role', 'student');
-    
-    if (studentError) { console.error('Error fetching students:', studentError); return; }
-    students.forEach(s => {
-        const option = document.createElement('option');
-        option.value = s.student_id;
-        option.textContent = `${s.full_name} (${s.student_id})`;
-        studentDropdown.appendChild(option);
-    });
-
-    // Fetch missions for the current grade
-    const { data: missions, error: missionError } = await supabase
-        .from('missions')
-        .select('id, topic')
-        .eq('grade', currentGrade);
-    
-    if (missionError) { console.error('Error fetching missions:', missionError); return; }
-    missions.forEach(m => {
-        const option = document.createElement('option');
-        option.value = m.id; // Use mission.id
-        option.textContent = m.topic;
-        missionDropdown.appendChild(option);
-    });
 }
 
 async function handleGradeSubmission(event) {
@@ -699,7 +665,7 @@ async function handleGradeSubmission(event) {
         return;
     }
 
-    // Create Admin Token for Header (Base64 encoded)
+    // *** จุดที่แก้ไข: เปลี่ยน Header จาก 'Authorization' เป็น 'X-Admin-Auth' ***
     const adminToken = btoa(JSON.stringify({ student_id: currentUser.student_id, role: currentUser.role }));
 
     try {
@@ -707,13 +673,13 @@ async function handleGradeSubmission(event) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${adminToken}` // Send the created token
+                'X-Admin-Auth': adminToken // <--- ใช้ Custom Header นี้แทน
             },
             body: JSON.stringify({
                 studentId: parseInt(studentId, 10),
                 missionId: parseInt(missionId, 10),
                 score: score,
-                userToken: adminToken // Send the token in body for admin verification in Edge Function
+                userToken: adminToken // ส่ง token ใน body (userToken) ก็เปลี่ยนเป็น custom token
             })
         });
 
@@ -722,7 +688,6 @@ async function handleGradeSubmission(event) {
         if (response.ok) {
             alert('บันทึกคะแนนสำเร็จ!');
             gradeSubmissionForm.reset();
-            // Refresh leaderboard and missions to show updated data
             fetchAndDisplayLeaderboard();
             fetchAndDisplayMissions();
         } else {

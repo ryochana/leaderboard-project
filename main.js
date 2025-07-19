@@ -330,13 +330,31 @@ function renderMissions(missions) {
 // ================================================================
 function setupEventListeners() {
     loginForm.addEventListener('submit', handleLogin);
-    // Add event listener to close login screen if user clicks outside the card
     loginScreen.addEventListener('click', (event) => {
         if (event.target === loginScreen) {
-            loginScreen.classList.remove('active');
-            appContainer.classList.remove('blur-background');
+            hideLoginScreen();
         }
     });
+
+    // *** ADD THIS PART ***
+    modalCloseButton.addEventListener('click', hideStudentDetailModal);
+    window.addEventListener('click', (event) => {
+        if (event.target === studentDetailModal) {
+            hideStudentDetailModal();
+        }
+    });
+    
+    leaderboardContainer.addEventListener('click', (event) => {
+        // Find the closest parent with the class 'leaderboard-item'
+        const leaderboardItem = event.target.closest('.leaderboard-item');
+        if (leaderboardItem) {
+            const studentId = leaderboardItem.dataset.studentId;
+            if (studentId) {
+                showStudentDetailModal(studentId);
+            }
+        }
+    });
+    // *** END OF ADDED PART ***
 }
 
 // ================================================================

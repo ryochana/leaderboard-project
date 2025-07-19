@@ -30,6 +30,11 @@ const submissionStatus = document.getElementById('submission-status');
 const submissionForm = document.getElementById('submission-form');
 const submitMissionButton = document.getElementById('submit-mission-button');
 const fileUploadStatus = document.getElementById('file-upload-status');
+const adminPanelButton = document.getElementById('admin-panel-button'); 
+const adminModal = document.getElementById('admin-modal');
+const adminModalCloseButton = adminModal ? adminModal.querySelector('.close-button') : null; 
+const addMissionForm = document.getElementById('add-mission-form');
+const gradeSubmissionForm = document.getElementById('grade-submission-form'); 
 
 // ================================================================
 // STATE MANAGEMENT

@@ -151,8 +151,16 @@ async function handleAddMission(event) {
     const dueDate = document.getElementById('add-mission-due-date').value;
     const maxPoints = parseInt(document.getElementById('add-mission-max-points').value, 10);
 
+    // ตรวจสอบข้อมูลที่ได้จากฟอร์ม
+    console.log('Form data:', { topic, detail, dueDate, maxPoints }); 
+
     if (!topic || !dueDate || isNaN(maxPoints)) {
         alert('กรุณากรอกข้อมูลภารกิจให้ครบถ้วน');
+        return;
+    }
+
+    if (!currentUser || !currentUser.student_id) {
+        alert('กรุณาล็อกอินด้วยบัญชี Admin ที่ถูกต้องก่อนดำเนินการ');
         return;
     }
 
@@ -161,16 +169,17 @@ async function handleAddMission(event) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${currentUser.student_id}` // ส่ง student_id ของ admin ไปให้ function ตรวจสอบ
+                'Authorization': `Bearer ${currentUser.student_id}`, 
             },
             body: JSON.stringify({
-                missionData: {
-                    topic,
-                    detail,
-                    assignedDate: new Date().toISOString(),
+                // *** ตรวจสอบว่าโครงสร้าง JSON ที่ส่งไปตรงกับที่ Edge Function คาดหวัง ({ missionData: { ... } }) ***
+                missionData: { 
+                    topic: topic, // ตรวจสอบชื่อ key
+                    detail: detail,
+                    assignedDate: new Date().toISOString(), // ตรวจสอบรูปแบบวันที่
                     dueDate: new Date(dueDate).toISOString(),
-                    maxPoints,
-                    grade: currentGrade,
+                    maxPoints: maxPoints,
+                    grade: currentGrade, // ตรวจสอบว่า grade มีค่าถูกต้อง
                 }
             })
         });
@@ -180,9 +189,10 @@ async function handleAddMission(event) {
         if (response.ok) {
             alert('เพิ่มภารกิจสำเร็จ!');
             addMissionForm.reset();
-            fetchAndDisplayMissions(); // Refresh mission list
+            fetchAndDisplayMissions();
         } else {
-            throw new Error(result.error || 'Failed to add mission');
+            console.error('API Error Response:', result);
+            throw new Error(result.error || response.statusText || 'Failed to add mission');
         }
     } catch (error) {
         console.error('Error adding mission:', error);

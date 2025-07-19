@@ -443,6 +443,9 @@ async function fetchAndDisplayMissions() {
     renderMissions(allMissions, submissionMap);
 }
 
+// ในไฟล์ main.js
+// แทนที่ฟังก์ชัน renderMissions เก่าด้วยอันนี้
+
 function renderMissions(missions, submissionMap) {
     missionsContainer.innerHTML = '';
     if (missions.length === 0) {
@@ -455,26 +458,28 @@ function renderMissions(missions, submissionMap) {
     twoDaysFromNow.setDate(now.getDate() + 2);
 
     missions.forEach(mission => {
-        // *** จุดแก้ไข: ย้ายการประกาศ dueDate เข้ามาใน loop ***
-        const missionDueDate = new Date(mission.due_date); // ใช้ชื่อตัวแปรใหม่เพื่อไม่ให้ซ้ำกับ dueDate ใน console.log
+        const missionDueDate = new Date(mission.due_date);
         let statusClass = 'status-not-submitted'; // Default status
+        
+        // *** จุดแก้ไข: ประกาศ 'submission' ไว้ตรงนี้ และกำหนดค่าเริ่มต้นเป็น null ***
+        let submission = null; 
 
         // Determine status if a user is logged in
         if (currentUser) {
-            const submission = submissionMap.get(mission.id);
+            submission = submissionMap.get(mission.id); // กำหนดค่าให้ submission ที่นี่
             if (submission) {
                 statusClass = submission.score !== null ? 'status-graded' : 'status-pending';
             } else {
                 // Not submitted yet, check for urgency or if it's overdue
-                if (now > missionDueDate) { // ใช้ missionDueDate
+                if (now > missionDueDate) {
                     statusClass = 'status-overdue';
-                } else if (missionDueDate <= twoDaysFromNow) { // ใช้ missionDueDate
+                } else if (missionDueDate <= twoDaysFromNow) {
                     statusClass = 'status-urgent';
                 }
             }
         } else {
             // Public view, only check for overdue
-             if (now > missionDueDate) { // ใช้ missionDueDate
+             if (now > missionDueDate) {
                 statusClass = 'status-overdue';
             }
         }
@@ -490,7 +495,7 @@ function renderMissions(missions, submissionMap) {
             <div class="mission-node-points">${mission.max_points} pts</div>
         `;
         
-        node.onclick = () => openMissionModal(mission, submission);
+        node.onclick = () => openMissionModal(mission, submission); // ตอนนี้ 'submission' จะถูกส่งไปเสมอ ไม่ว่าจะเป็น null หรือมีค่า
 
         wrapper.appendChild(node);
         missionsContainer.appendChild(wrapper);

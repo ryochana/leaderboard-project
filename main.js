@@ -151,7 +151,6 @@ async function handleAddMission(event) {
     const dueDate = document.getElementById('add-mission-due-date').value;
     const maxPoints = parseInt(document.getElementById('add-mission-max-points').value, 10);
 
-    // ตรวจสอบข้อมูลที่ได้จากฟอร์ม
     console.log('Form data:', { topic, detail, dueDate, maxPoints }); 
 
     if (!topic || !dueDate || isNaN(maxPoints)) {
@@ -164,22 +163,25 @@ async function handleAddMission(event) {
         return;
     }
 
+    // *** จุดที่แก้ไข: สร้าง Admin Token สำหรับ Header ***
+    const adminToken = btoa(JSON.stringify({ student_id: currentUser.student_id, role: currentUser.role })); // สร้าง base64 token ง่ายๆ
+    // นี่ไม่ใช่ JWT จริงๆ แต่เป็นวิธีง่ายๆ ที่จะส่งข้อมูล user ไปให้ Edge Function โดยไม่ใช้ Supabase Auth เต็มรูปแบบ
+
     try {
         const response = await fetch(`${SUPABASE_URL}/functions/v1/create-mission`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${currentUser.student_id}`, 
+                'Authorization': `Bearer ${adminToken}`, // ส่ง token ที่สร้างขึ้น
             },
             body: JSON.stringify({
-                // *** ตรวจสอบว่าโครงสร้าง JSON ที่ส่งไปตรงกับที่ Edge Function คาดหวัง ({ missionData: { ... } }) ***
                 missionData: { 
-                    topic: topic, // ตรวจสอบชื่อ key
+                    topic: topic,
                     detail: detail,
-                    assignedDate: new Date().toISOString(), // ตรวจสอบรูปแบบวันที่
+                    assignedDate: new Date().toISOString(),
                     dueDate: new Date(dueDate).toISOString(),
                     maxPoints: maxPoints,
-                    grade: currentGrade, // ตรวจสอบว่า grade มีค่าถูกต้อง
+                    grade: currentGrade,
                 }
             })
         });
@@ -200,39 +202,55 @@ async function handleAddMission(event) {
     }
 }
 
-async function populateGradeSubmissionDropdowns() {
-    const studentDropdown = document.getElementById('grade-student-id');
-    const missionDropdown = document.getElementById('grade-mission-topic');
-    
-    studentDropdown.innerHTML = '<option value="">เลือกนักเรียน</option>';
-    missionDropdown.innerHTML = '<option value="">เลือกภารกิจ</option>';
+async function handleGradeSubmission(event) {
+    event.preventDefault();
+    const studentId = document.getElementById('grade-student-id').value;
+    const missionId = document.getElementById('grade-mission-topic').value;
+    const score = parseInt(document.getElementById('grade-score').value, 10);
 
-    const { data: students, error: studentError } = await supabase
-        .from('users')
-        .select('student_id, full_name')
-        .eq('grade', currentGrade)
-        .eq('role', 'student');
-    
-    if (studentError) { console.error('Error fetching students:', studentError); return; }
-    students.forEach(s => {
-        const option = document.createElement('option');
-        option.value = s.student_id;
-        option.textContent = `${s.full_name} (${s.student_id})`;
-        studentDropdown.appendChild(option);
-    });
+    if (!studentId || !missionId || isNaN(score)) {
+        alert('กรุณาเลือกนักเรียน ภารกิจ และใส่คะแนน');
+        return;
+    }
 
-    const { data: missions, error: missionError } = await supabase
-        .from('missions')
-        .select('id, topic')
-        .eq('grade', currentGrade);
-    
-    if (missionError) { console.error('Error fetching missions:', missionError); return; }
-    missions.forEach(m => {
-        const option = document.createElement('option');
-        option.value = m.id; // ใช้ mission.id
-        option.textContent = m.topic;
-        missionDropdown.appendChild(option);
-    });
+    if (!currentUser || !currentUser.student_id) {
+        alert('กรุณาล็อกอินด้วยบัญชี Admin ที่ถูกต้องก่อนดำเนินการ');
+        return;
+    }
+
+    // *** จุดที่แก้ไข: สร้าง Admin Token สำหรับ Header ***
+    const adminToken = btoa(JSON.stringify({ student_id: currentUser.student_id, role: currentUser.role }));
+
+    try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/grade-submission`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminToken}` // ส่ง token ที่สร้างขึ้น
+            },
+            body: JSON.stringify({
+                studentId: parseInt(studentId, 10),
+                missionId: parseInt(missionId, 10),
+                score: score,
+                userToken: adminToken // ส่ง token ที่สร้างขึ้น
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('บันทึกคะแนนสำเร็จ!');
+            gradeSubmissionForm.reset();
+            fetchAndDisplayLeaderboard();
+            fetchAndDisplayMissions();
+        } else {
+            console.error('API Error Response:', result);
+            throw new Error(result.error || response.statusText || 'Failed to grade submission');
+        }
+    } catch (error) {
+        console.error('Error grading submission:', error);
+        alert(`เกิดข้อผิดพลาดในการบันทึกคะแนน: ${error.message}`);
+    }
 }
 
 async function handleGradeSubmission(event) {

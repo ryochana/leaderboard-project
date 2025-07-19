@@ -154,76 +154,35 @@ async function handleAddMission(event) {
         return;
     }
 
-    const adminToken = btoa(JSON.stringify({ student_id: currentUser.student_id, role: currentUser.role }));
-
     try {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/create-mission`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Admin-Auth': adminToken, // Custom Header
-            },
-            body: JSON.stringify({
-                missionData: { 
-                    topic: topic,
-                    detail: detail,
-                    assignedDate: new Date().toISOString(),
-                    dueDate: new Date(dueDate).toISOString(),
-                    maxPoints: maxPoints,
-                    grade: currentGrade,
-                }
-            })
+        // *** จุดที่แก้ไข: เรียกใช้ supabase.rpc() แทน fetch() ***
+        const { data, error } = await supabase.rpc('add_mission', {
+            p_topic: topic,
+            p_detail: detail,
+            p_assigned_date: new Date().toISOString(), // assigned_date เป็นวันที่ปัจจุบัน
+            p_due_date: new Date(dueDate).toISOString(),
+            p_max_points: maxPoints,
+            p_grade: currentGrade,
+            p_admin_student_id: currentUser.student_id // ส่ง student_id ของ admin ไปด้วย
         });
 
-        const result = await response.json();
+        if (error) {
+            console.error('RPC Error:', error);
+            throw new Error(error.message);
+        }
 
-        if (response.ok) {
+        if (data.success) { // ตรวจสอบจาก success flag ใน response JSON
             alert('เพิ่มภารกิจสำเร็จ!');
             addMissionForm.reset();
-            fetchAndDisplayMissions(); 
+            fetchAndDisplayMissions();
         } else {
-            console.error('API Error Response:', result);
-            throw new Error(result.error || response.statusText || 'Failed to add mission');
+            console.error('API Error Response:', data.error);
+            throw new Error(data.error);
         }
     } catch (error) {
         console.error('Error adding mission:', error);
         alert(`เกิดข้อผิดพลาดในการเพิ่มภารกิจ: ${error.message}`);
     }
-}
-
-async function populateGradeSubmissionDropdowns() {
-    const studentDropdown = document.getElementById('grade-student-id');
-    const missionDropdown = document.getElementById('grade-mission-topic');
-    
-    studentDropdown.innerHTML = '<option value="">เลือกนักเรียน</option>';
-    missionDropdown.innerHTML = '<option value="">เลือกภารกิจ</option>';
-
-    const { data: students, error: studentError } = await supabase
-        .from('users')
-        .select('student_id, full_name')
-        .eq('grade', currentGrade)
-        .eq('role', 'student');
-    
-    if (studentError) { console.error('Error fetching students:', studentError); return; }
-    students.forEach(s => {
-        const option = document.createElement('option');
-        option.value = s.student_id;
-        option.textContent = `${s.full_name} (${s.student_id})`;
-        studentDropdown.appendChild(option);
-    });
-
-    const { data: missions, error: missionError } = await supabase
-        .from('missions')
-        .select('id, topic')
-        .eq('grade', currentGrade);
-    
-    if (missionError) { console.error('Error fetching missions:', missionError); return; }
-    missions.forEach(m => {
-        const option = document.createElement('option');
-        option.value = m.id;
-        option.textContent = m.topic;
-        missionDropdown.appendChild(option);
-    });
 }
 
 async function handleGradeSubmission(event) {
@@ -242,33 +201,28 @@ async function handleGradeSubmission(event) {
         return;
     }
 
-    const adminToken = btoa(JSON.stringify({ student_id: currentUser.student_id, role: currentUser.role }));
-
     try {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/grade-submission`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Admin-Auth': adminToken // Custom Header
-            },
-            body: JSON.stringify({
-                studentId: parseInt(studentId, 10),
-                missionId: parseInt(missionId, 10),
-                score: score,
-                userToken: adminToken // Send token in body as userToken for verification (fallback)
-            })
+        // *** จุดที่แก้ไข: เรียกใช้ supabase.rpc() แทน fetch() ***
+        const { data, error } = await supabase.rpc('grade_submission', {
+            p_student_id: parseInt(studentId, 10),
+            p_mission_id: parseInt(missionId, 10),
+            p_score: score,
+            p_admin_student_id: currentUser.student_id // ส่ง student_id ของ admin ไปด้วย
         });
 
-        const result = await response.json();
+        if (error) {
+            console.error('RPC Error:', error);
+            throw new Error(error.message);
+        }
 
-        if (response.ok) {
+        if (data.success) { // ตรวจสอบจาก success flag ใน response JSON
             alert('บันทึกคะแนนสำเร็จ!');
             gradeSubmissionForm.reset();
             fetchAndDisplayLeaderboard();
             fetchAndDisplayMissions();
         } else {
-            console.error('API Error Response:', result);
-            throw new Error(result.error || response.statusText || 'Failed to grade submission');
+            console.error('API Error Response:', data.error);
+            throw new Error(data.error);
         }
     } catch (error) {
         console.error('Error grading submission:', error);

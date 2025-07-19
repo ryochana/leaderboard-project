@@ -455,7 +455,8 @@ function renderMissions(missions, submissionMap) {
     twoDaysFromNow.setDate(now.getDate() + 2);
 
     missions.forEach(mission => {
-        const submission = submissionMap.get(mission.id);
+        // *** จุดแก้ไข: ย้ายการประกาศ dueDate เข้ามาใน loop ***
+        const missionDueDate = new Date(mission.due_date); // ใช้ชื่อตัวแปรใหม่เพื่อไม่ให้ซ้ำกับ dueDate ใน console.log
         let statusClass = 'status-not-submitted'; // Default status
 
         // Determine status if a user is logged in
@@ -465,15 +466,15 @@ function renderMissions(missions, submissionMap) {
                 statusClass = submission.score !== null ? 'status-graded' : 'status-pending';
             } else {
                 // Not submitted yet, check for urgency or if it's overdue
-                if (now > dueDate) {
+                if (now > missionDueDate) { // ใช้ missionDueDate
                     statusClass = 'status-overdue';
-                } else if (dueDate <= twoDaysFromNow) {
+                } else if (missionDueDate <= twoDaysFromNow) { // ใช้ missionDueDate
                     statusClass = 'status-urgent';
                 }
             }
         } else {
             // Public view, only check for overdue
-             if (now > dueDate) {
+             if (now > missionDueDate) { // ใช้ missionDueDate
                 statusClass = 'status-overdue';
             }
         }

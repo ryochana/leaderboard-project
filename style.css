@@ -80,22 +80,110 @@ main h2 {
     color: #0056b3;
 }
 
-/* Leaderboard & Missions */
-#leaderboard-container, #missions-container {
+/* Leaderboard Styling (Separated for clarity) */
+#leaderboard-container {
     background: white;
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
 }
-.leaderboard-item, .mission-item {
+
+.leaderboard-item {
     display: flex;
     align-items: center;
     padding: 15px 10px;
     border-bottom: 1px solid #eee;
 }
-.leaderboard-item:last-child, .mission-item:last-child {
+.leaderboard-item:last-child {
     border-bottom: none;
 }
+
+
+/* Missions Section - NEW Duolingo Style */
+#missions-container {
+    background: none; /* No background for the container itself */
+    box-shadow: none;
+    padding: 20px 0;
+    text-align: center; /* Center the nodes */
+}
+
+.mission-node-wrapper {
+    position: relative;
+    margin-bottom: 20px; /* Space between nodes */
+    display: inline-block; /* Allows centering */
+}
+
+/* The connecting line */
+.mission-node-wrapper:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    bottom: -25px; /* Position below the node */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 25px; /* Length of the line */
+    background-color: #dbe0e4;
+}
+
+.mission-node {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 6px solid;
+    position: relative;
+}
+
+.mission-node:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
+
+.mission-node-topic {
+    font-weight: bold;
+    font-size: 1em;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.mission-node-points {
+    font-size: 0.8em;
+    color: white;
+    background-color: rgba(0,0,0,0.2);
+    padding: 2px 6px;
+    border-radius: 8px;
+    margin-top: 5px;
+}
+
+/* --- STATUS COLORS --- */
+
+/* Graded (Green) */
+.status-graded { background-color: #28a745; border-color: #208a38; }
+
+/* Pending (Yellow) */
+.status-pending { background-color: #ffc107; border-color: #d39e00; }
+
+/* Not Submitted (Default/Blue) */
+.status-not-submitted { background-color: #007bff; border-color: #0062cc; }
+
+/* Overdue (Gray) */
+.status-overdue { background-color: #6c757d; border-color: #545b62; opacity: 0.7; }
+.status-overdue .mission-node-topic { text-decoration: line-through; }
+
+/* Urgent (Red) */
+.status-urgent { background-color: #dc3545; border-color: #b02a37; animation: pulse 1.5s infinite; }
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
 .rank { font-size: 1.2em; font-weight: bold; color: #6c757d; width: 40px; text-align: center; }
 .profile-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 15px; background-color: #e9ecef; }
 .student-info { flex-grow: 1; }

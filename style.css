@@ -112,6 +112,53 @@ main h2 {
     animation: spin 1s linear infinite;
     margin: 20px auto;
 }
+
+/* ---- ADD THIS TO YOUR style.css FILE ---- */
+
+/* Login Modal Styling */
+#login-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none; /* Initially hidden */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+#login-screen.active {
+    display: flex; /* Show when active */
+}
+
+.login-card {
+    margin-top: 0; /* Reset margin from previous style */
+}
+
+/* Blur effect for the background when modal is open */
+.blur-background > *:not(#login-screen) {
+    filter: blur(5px);
+    transition: filter 0.3s ease-in-out;
+}
+
+/* Admin Badge Style */
+.admin-badge {
+    background-color: #dc3545;
+    color: white;
+    font-size: 0.7em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* Improved Profile Pic in Leaderboard */
+.profile-pic {
+    width: 50px;
+    height: 50px;
+}
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }

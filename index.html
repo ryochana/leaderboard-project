@@ -4,7 +4,7 @@
     <base target="_top">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ENG NPC 68 Challenge</title>
+    <title>ENG NPC 68 QUEST</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,10 +16,14 @@
 </head>
 <body>
     <div id="app-container">
-        <div id="initial-loader" style="text-align: center; padding-top: 100px; font-size: 1.2em; color: white;">
-          <i class="fas fa-spinner fa-spin"></i> Loading Challenge...
+        <!-- Initial Loader -->
+        <div id="initial-loader">
+            <div class="loader-icon">🚀</div>
+            <div class="loader-text">Launching English OS...</div>
         </div>
-        <div id="main-content-wrapper" style="display: none; height: 100%; flex-direction: column;"></div>
+
+        <!-- Main App Structure will be built here by JS -->
+        <div id="main-app-wrapper" style="display: none;"></div>
     </div>
     
     <div id="modals-container"></div>
@@ -34,12 +38,16 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const DEFAULT_AVATAR = 'https://i.ibb.co/RkgFJztg/AVATAR.jpg';
     
-    let currentUser = null;
-    let fullSummaryData = [], filteredSummaryData = [];
-    let allMissions = [];
-    let allSubmissionsForAdmin = [];
-    let currentUserSubmissions = new Map();
-    let currentMission = null;
+    const AppState = {
+        currentUser: null,
+        leaderboard: [],
+        missions: [],
+        submissions: new Map(),
+        allSubmissionsForAdmin: [],
+        badges: [],
+        currentView: 'league',
+        config: getGradeConfigFromUrl()
+    };
 
     // ======================================================
     // INITIALIZATION
@@ -54,171 +62,187 @@
     }
 
     async function initializeApp() {
-        const config = getGradeConfigFromUrl();
-        document.title = `ENG ${config.title} Challenge`;
-        buildApp();
+        document.title = `English OS - ${AppState.config.title}`;
+        buildAppShell();
         initializeUserFromStorage();
         await loadInitialData();
+        
+        document.getElementById('initial-loader').style.display = 'none';
+        document.getElementById('main-app-wrapper').style.display = 'flex';
     }
 
     // ======================================================
     // DATA FETCHING
     // ======================================================
     async function loadInitialData() {
-        const config = getGradeConfigFromUrl();
         try {
-            const [leaderboardRes, missionsRes, submissionsRes] = await Promise.all([
-                supabaseClient.from('users').select('*').eq('role', 'student').eq('level', config.level).order('total_score', { ascending: false, nullsFirst: false }),
-                supabaseClient.from('missions').select('*').eq('level', config.level).order('id', { ascending: true }),
-                currentUser ? supabaseClient.from('submissions').select('mission_id, score').eq('user_id', currentUser.id) : Promise.resolve({ data: [] })
+            const [leaderboardRes, missionsRes, submissionsRes, badgesRes] = await Promise.all([
+                supabaseClient.from('users').select('*').eq('role', 'student').eq('level', AppState.config.level).order('total_score', { ascending: false, nullsFirst: false }),
+                supabaseClient.from('missions').select('*').eq('level', AppState.config.level).order('id', { ascending: true }),
+                AppState.currentUser ? supabaseClient.from('submissions').select('mission_id, score').eq('user_id', AppState.currentUser.id) : Promise.resolve({ data: [] }),
+                supabaseClient.from('badges').select('*')
             ]);
 
             if (leaderboardRes.error) throw leaderboardRes.error;
             if (missionsRes.error) throw missionsRes.error;
             if (submissionsRes.error) throw submissionsRes.error;
-
-            const totalPossiblePoints = missionsRes.data.reduce((sum, m) => sum + (m.max_points || 0), 0);
-            fullSummaryData = leaderboardRes.data.map((user, index) => {
-                const progress = totalPossiblePoints > 0 ? Math.round(((user.total_score || 0) / totalPossiblePoints) * 100) : 0;
-                return { ...user, rank: index + 1, progress: progress };
-            });
-            filteredSummaryData = fullSummaryData;
-            allMissions = missionsRes.data;
-            currentUserSubmissions = new Map((submissionsRes.data || []).map(s => [s.mission_id, s]));
+            if (badgesRes.error) throw badgesRes.error;
             
-            updateUI();
+            AppState.leaderboard = leaderboardRes.data.map((user, index) => ({ ...user, rank: index + 1 }));
+            AppState.missions = missionsRes.data;
+            AppState.submissions = new Map((submissionsRes.data || []).map(s => [s.mission_id, s]));
+            AppState.badges = badgesRes.data;
+            
+            renderCurrentView();
+            updateSidebar();
+
         } catch (error) {
             showError(error);
-        } finally {
-            document.getElementById('initial-loader').style.display = 'none';
-            document.getElementById('main-content-wrapper').style.display = 'flex';
         }
     }
 
     // ======================================================
-    // UI BUILDING & RENDERING
+    // UI SHELL & NAVIGATION
     // ======================================================
-    function buildApp() {
-        const mainContent = document.getElementById('main-content-wrapper');
-        const config = getGradeConfigFromUrl();
-        mainContent.innerHTML = `
-            <header class="app-header">
-                <div class="header-title">
-                    <div class="title-main">NONPAKCHEE ENGLISH QUEST</div>
-                    <div class="title-sub">${config.title} ADVENTURE 2025</div>
-                </div>
-                <div class="app-nav">
-                    <button class="nav-button active" onclick="switchView('leaderboard-view', this)">Leaderboard</button>
-                    <button class="nav-button" onclick="switchView('mission-map-view', this)">Mission Map</button>
-                </div>
-                <button id="profile-button"><img src="${DEFAULT_AVATAR}" alt="Profile"></button>
-            </header>
-            <div class="view-container">
-                <div id="leaderboard-view" class="view active">
-                    <section id="podium-section" class="podium-container"></section>
-                    <ul id="roster-list" class="roster-list"></ul>
-                </div>
-                <div id="mission-map-view" class="view"></div>
-            </div>`;
+    function buildAppShell() {
+        document.getElementById('main-app-wrapper').innerHTML = `
+            <nav id="sidebar-nav"></nav>
+            <main id="main-content"><div id="view-content"></div></main>`;
+        document.getElementById('sidebar-nav').innerHTML = `
+            <div class="sidebar-header"><div class="sidebar-logo">🚀</div><div class="sidebar-title">English OS</div></div>
+            <div class="sidebar-menu">
+                <button class="nav-button" onclick="switchView('feed', this)"><i class="fas fa-newspaper"></i> <span>Feed</span></button>
+                <button class="nav-button active" onclick="switchView('league', this)"><i class="fas fa-shield-alt"></i> <span>League</span></button>
+                <button class="nav-button" onclick="switchView('learn', this)"><i class="fas fa-book-open"></i> <span>Learn</span></button>
+                <button class="nav-button" onclick="switchView('shop', this)"><i class="fas fa-store"></i> <span>Shop</span></button>
+            </div>
+            <div id="profile-button-container" class="sidebar-footer"></div>`;
         
-        const modalsContainer = document.getElementById('modals-container');
-        modalsContainer.innerHTML = `
-            <div id="student-detail-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('student-detail-modal')">×</div><div class="detail-modal-header"><img id="detail-modal-pic" class="detail-modal-pic"><div class="detail-modal-info"><h3 id="detail-modal-name"></h3><p id="detail-modal-score"></p></div></div><div id="detail-modal-body" class="detail-modal-body"></div></div></div>
-            <div id="login-modal" class="modal-overlay"><div class="modal-box"><h2>Login</h2><div id="login-error" class="modal-error"></div><input type="text" id="username-input" placeholder="Username"><input type="password" id="password-input" placeholder="Password"><button class="btn-primary" onclick="handleLogin()">Enter</button><button class="btn-secondary" onclick="closeModal('login-modal')">Close</button></div></div>
-            <div id="profile-modal" class="modal-overlay"><div class="modal-box"><h2>My Profile</h2><img id="profile-preview" src=""><h3 id="profile-name"></h3><p id="profile-score-text"></p><div id="profile-message" class="modal-message"></div><label for="image-upload-input" class="btn-primary">Change Avatar</label><input type="file" id="image-upload-input" accept="image/png,image/jpeg"><button class="btn-danger" onclick="handleLogout()">Logout</button><button id="admin-panel-btn" class="btn-admin" style="display:none;">Admin Panel</button><button class="btn-secondary" onclick="closeModal('profile-modal')">Close</button></div></div>
-            <div id="mission-detail-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('mission-detail-modal')">×</div><h2 id="modal-mission-topic"></h2><div id="modal-mission-body"></div><div id="modal-mission-actions"></div></div></div>
-            <div id="submission-modal" class="modal-overlay"><div class="modal-box"><div class="detail-modal-close" onclick="closeModal('submission-modal')">×</div><h2>Submit Mission: <span id="submission-modal-topic"></span></h2><div id="submission-form-area"><label for="submission-link">Link:</label><input type="url" id="submission-link" placeholder="https://..."><label for="submission-file">Upload File:</label><input type="file" id="submission-file"><div id="submission-error" class="modal-error"></div></div><div id="submission-loader" style="display:none;text-align:center;"><i class="fas fa-spinner fa-spin fa-2x"></i><p id="submission-loader-text"></p></div><div id="submission-buttons"><button class="btn-primary" onclick="handleSubmitMission()">Submit</button><button class="btn-secondary" onclick="closeModal('submission-modal')">Cancel</button></div></div></div>
-            <div id="admin-modal" class="modal-overlay admin-modal"><div class="modal-box admin-panel"><div class="admin-header"><h3><i class="fas fa-user-shield"></i> Teacher's Command Center</h3><div class="detail-modal-close" onclick="closeModal('admin-modal')">×</div></div><div class="admin-tabs"><button class="admin-tab-button active" onclick="switchAdminView('admin-dashboard', this)"><i class="fas fa-chart-line"></i> Dashboard</button><button class="admin-tab-button" onclick="switchAdminView('admin-grade', this)"><i class="fas fa-check-double"></i> Grade Submissions</button></div><div class="admin-content"><div id="admin-dashboard" class="admin-view active"></div><div id="admin-grade" class="admin-view"></div></div></div></div>
+        document.getElementById('modals-container').innerHTML = `
+            <div id="login-modal" class="modal-overlay"><div class="modal-box"><div class="modal-close" onclick="closeModal()">×</div><h2>Login</h2><form onsubmit="event.preventDefault(); handleLogin();"><div id="login-error" class="modal-error"></div><input type="text" id="username-input" placeholder="Username"><input type="password" id="password-input" placeholder="Password"><button type="submit" class="btn-primary">Enter</button></form></div></div>
+            <div id="profile-modal" class="modal-overlay"><div class="modal-box profile-box"><div class="profile-header"><img id="profile-banner" src="https://i.ibb.co/L5hS0cW/space-bg.jpg"><img id="profile-avatar" class="profile-avatar"><button class="btn-change-avatar" onclick="document.getElementById('avatar-upload').click()"><i class="fas fa-camera"></i></button><input type="file" id="avatar-upload" style="display:none;" accept="image/*"></div><div class="profile-body"><h2 id="profile-name"></h2><div id="profile-title" class="profile-title"></div><div class="profile-stats"><div class="stat-item"><div id="profile-score" class="stat-value"></div><div class="stat-label">Total XP</div></div><div class="stat-item"><div id="profile-coins" class="stat-value"></div><div class="stat-label">Coins</div></div></div><hr><h3>Achievements</h3><div id="profile-badges" class="profile-badges"></div><button class="btn-danger" onclick="handleLogout()">Logout</button><button id="admin-panel-btn" class="btn-admin" style="display:none;" onclick="openAdminPanel()">Admin Panel</button></div><div class="modal-close" onclick="closeModal()">×</div></div></div>
+            <div id="mission-modal" class="modal-overlay"><div class="modal-box"><div id="mission-modal-content"></div><div class="modal-close" onclick="closeModal()">×</div></div></div>
+            <div id="admin-modal" class="modal-overlay admin-modal"><div class="modal-box admin-panel"><div class="admin-header"><h3><i class="fas fa-user-shield"></i> Teacher's Command Center</h3><div class="modal-close" onclick="closeModal()">×</div></div><div id="admin-content-container"></div></div></div>
         `;
-        
-        document.getElementById('profile-button').addEventListener('click', handleUserAreaClick);
-        document.getElementById('image-upload-input').addEventListener('change', handleProfileUpdate);
-        const adminBtn = document.getElementById('admin-panel-btn');
-        if(adminBtn) adminBtn.addEventListener('click', openAdminPanel);
-    }
-    
-    function updateUI() {
-        updateUserUI();
-        const activeView = document.querySelector('.view.active');
-        if (!activeView) return; 
-        if (activeView.id === 'leaderboard-view') {
-            renderStudentList();
-        } else if (activeView.id === 'mission-map-view') {
-            renderMapView();
-        }
+
+        document.getElementById('avatar-upload').addEventListener('change', handleProfileUpdate);
     }
 
-    function renderStudentList() {
-        const podiumContainer = document.getElementById('podium-section');
-        const rosterList = document.getElementById('roster-list');
-        if (!podiumContainer || !rosterList) return;
-        const top3 = filteredSummaryData.slice(0, 3);
-                const others = filteredSummaryData.slice(3);
-        const podiumStands = { 1: '', 2: '', 3: '' };
-        top3.forEach(student => {
-            const profilePic = student.profile_url || DEFAULT_AVATAR;
-            const rankMeta = {
-                1: { class: 'gold-crown', icon: '👑' },
-                2: { class: 'silver-crown', icon: '👑' },
-                3: { class: 'bronze-crown', icon: '👑' }
-            };
-            podiumStands[student.rank] = `
-                <div class="podium-card rank-${student.rank}" onclick="showStudentDetailModal('${student.id}')">
-                    <div class="podium-player">
-                        <div class="podium-rank ${rankMeta[student.rank].class}">${rankMeta[student.rank].icon}</div>
-                        <img src="${profilePic}" class="podium-pic" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}';">
-                        <div class="podium-name">${student.name}</div>
-                        <div class="podium-score">${student.total_score || 0} PTS</div>
-                    </div>
-                </div>`;
-        });
-        podiumContainer.innerHTML = podiumStands[2] + podiumStands[1] + podiumStands[3];
-        rosterList.innerHTML = others.map(student => {
-            const profilePic = student.profile_url || DEFAULT_AVATAR;
-            const isSelf = currentUser && currentUser.id === student.id;
-            return `
-                <li class="roster-row ${isSelf ? 'is-self' : ''}" onclick="showStudentDetailModal('${student.id}')">
-                    <div class="cell-rank">${student.rank}</div>
-                    <img src="${profilePic}" class="cell-player-pic" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}';">
-                    <div class="cell-player-name">${student.name}</div>
-                    <div class="cell-progress"><div class="progress-container"><div class="progress-bar" style="width: ${student.progress}%;"></div></div></div>
-                    <div class="cell-score">${student.total_score || 0} PTS</div>
-                </li>`;
-        }).join('');
+    function switchView(viewId, element) {
+        AppState.currentView = viewId;
+        document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
+        element.classList.add('active');
+        renderCurrentView();
+    }
+
+    function renderCurrentView() {
+        const viewContent = document.getElementById('view-content');
+        if (!viewContent) return;
+        viewContent.innerHTML = '<div class="loader-spinner"></div>';
+        setTimeout(() => {
+            switch(AppState.currentView) {
+                case 'feed': viewContent.innerHTML = renderFeedView(); break;
+                case 'league': viewContent.innerHTML = renderLeagueView(); break;
+                case 'learn': viewContent.innerHTML = renderLearnView(); break;
+                case 'shop': viewContent.innerHTML = renderShopView(); break;
+            }
+        }, 100);
     }
     
     // ======================================================
-    // USER MANAGEMENT
+    // VIEW RENDERERS
+    // ======================================================
+    function renderFeedView() {
+        return `<div class="view-header"><h2>Activity Feed</h2></div><div class="feed-container"><div class="feed-item"><img src="${DEFAULT_AVATAR}" class="feed-avatar"><div class="feed-content"><b>Teacher</b> posted a new mission: <b>Final Project</b>!</div><div class="feed-time">1h ago</div></div><div class="feed-item"><img src="${DEFAULT_AVATAR}" class="feed-avatar"><div class="feed-content"><b>John Doe</b> scored <b>100 PTS</b> on <b>Grammar Test</b>! 🎉</div><div class="feed-time">2h ago</div></div></div>`;
+    }
+
+    function renderLeagueView() {
+        const top3 = AppState.leaderboard.slice(0, 3);
+        const others = AppState.leaderboard.slice(3);
+        const hallOfFame = top3.map(user => `<div class="fame-card rank-${user.rank}" onclick="openProfileModal('${user.id}')"><div class="fame-rank">${user.rank === 1 ? '🥇' : user.rank === 2 ? '🥈' : '🥉'}</div><img src="${user.profile_url || DEFAULT_AVATAR}" class="fame-avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}';"><div class="fame-name">${user.name}</div></div>`).join('');
+        const roster = others.map(user => {
+            const isSelf = AppState.currentUser && AppState.currentUser.id === user.id;
+            return `<div class="roster-row ${isSelf ? 'is-self' : ''}" onclick="openProfileModal('${user.id}')"><div class="cell-rank">${user.rank}</div><div class="cell-player"><img src="${user.profile_url || DEFAULT_AVATAR}" class="roster-avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}';"><span>${user.name}</span></div><div class="cell-score">${user.total_score || 0} XP</div></div>`;
+        }).join('');
+        return `<div class="view-header"><h2>Bronze League <small>(Ends in 3 days)</small></h2></div><div class="hall-of-fame">${hallOfFame}</div><div class="roster-table"><div class="roster-header"><div>Rank</div><div>Player</div><div>XP</div></div><div class="roster-body">${roster}</div></div>`;
+    }
+    
+    function renderLearnView() {
+        if (!AppState.currentUser) {
+            return `<div class="view-header"><h2>Learning Path</h2></div><div class="locked-view"><i class="fas fa-lock"></i><h3>Please Login to Learn</h3><p>Login to start your adventure and complete missions!</p><button class="btn-primary" onclick="openModal('login')">Login</button></div>`;
+        }
+        const units = AppState.missions.reduce((acc, mission) => {
+            const unitName = mission.mission_type || 'General Missions';
+            if (!acc[unitName]) acc[unitName] = [];
+            acc[unitName].push(mission);
+            return acc;
+        }, {});
+        const unitsHtml = Object.keys(units).map(unitName => {
+            const nodesHtml = units[unitName].map(mission => {
+                const sub = AppState.submissions.get(mission.id);
+                let statusClass = 'locked', icon = '<i class="fas fa-lock"></i>';
+                const today = new Date(); today.setHours(0,0,0,0);
+                if (new Date(mission.assigned_date) <= today) { statusClass = 'available'; icon = '<i class="fas fa-star"></i>'; }
+                if (sub && sub.score !== null) { statusClass = 'completed'; icon = '✔️'; }
+                else if (sub) { statusClass = 'pending'; icon = '⌛'; }
+                return `<div class="mission-node ${statusClass}" onclick="openMissionModal(${mission.id})">${icon}</div>`;
+            }).join('<div class="path-connector"></div>');
+            return `<div class="learning-unit"><div class="learning-unit-header"><h3>${unitName}</h3></div><div class="unit-path">${nodesHtml}</div></div>`;
+        }).join('<div class="treasure-chest" onclick="showToast(\'You found 50 Coins! ✨\')"><i class="fas fa-gem"></i></div>');
+        return `<div class="view-header"><h2>Learning Path</h2></div><div class="learning-path-container">${unitsHtml}</div>`;
+    }
+
+    function renderShopView() {
+        return `<div class="view-header"><h2>Item Shop</h2></div><p style="text-align:center;">Coming soon!</p>`;
+    }
+
+    // ======================================================
+    // USER MANAGEMENT & MODALS
     // ======================================================
     function initializeUserFromStorage() {
         const userJson = localStorage.getItem('leaderboardUser');
         if (userJson) {
             try {
                 const parsedData = JSON.parse(userJson);
-                if (typeof parsedData === 'object' && parsedData.id) currentUser = parsedData;
-                else throw new Error("Invalid stored user format.");
+                if (typeof parsedData === 'object' && parsedData.id) AppState.currentUser = parsedData;
             } catch (e) {
                 localStorage.removeItem('leaderboardUser');
-                currentUser = null;
             }
         }
     }
+    
+    function updateSidebar() {
+        const profileContainer = document.getElementById('profile-button-container');
+        if (!profileContainer) return;
+        if (AppState.currentUser) {
+            profileContainer.innerHTML = `
+                <button class="profile-button" onclick="openProfileModal('${AppState.currentUser.id}')">
+                    <img src="${AppState.currentUser.profile_url || DEFAULT_AVATAR}" class="profile-avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}';">
+                    <div class="profile-info">
+                        <span class="profile-name">${AppState.currentUser.name}</span>
+                        <span class="profile-coins">🪙 ${AppState.currentUser.coins || 0}</span>
+                    </div>
+                </button>`;
+        } else {
+            profileContainer.innerHTML = `<button class="login-button" onclick="openModal('login')">Login / Sign Up</button>`;
+        }
+    }
 
-    async function handleLogin() {
+        async function handleLogin() {
         const username = document.getElementById('username-input').value.trim();
         const password = document.getElementById('password-input').value.trim();
         const errorEl = document.getElementById('login-error');
-        if (!username || !password) { errorEl.innerText = "Please enter all fields."; return; }
-        errorEl.innerText = "Checking...";
+        if (!username || !password) { errorEl.innerText = "Please fill all fields."; return; }
+        errorEl.innerText = "Verifying...";
         const { data, error } = await supabaseClient.from('users').select('*').eq('username', username).eq('password', password).single();
         if (error || !data) {
-            errorEl.innerText = "Invalid username or password.";
+            errorEl.innerText = "Incorrect username or password.";
         } else {
             localStorage.setItem('leaderboardUser', JSON.stringify(data));
             location.reload(); 
         }
     }
-
+    
     function handleLogout() {
         localStorage.removeItem('leaderboardUser');
         location.reload();
@@ -226,184 +250,237 @@
     
     async function handleProfileUpdate(event) {
         const file = event.target.files[0];
-        if (!file || !currentUser) return;
-        const profileMessage = document.getElementById('profile-message');
-        profileMessage.innerText = 'Uploading...';
+        if (!file || !AppState.currentUser) return;
+        showToast('Uploading...');
         try {
-            const fileName = `${currentUser.id}/${Date.now()}_${file.name}`;
-            const { error: uploadError } = await supabaseClient.storage.from('profile-pictures').upload(fileName, file, { cacheControl: '3600', upsert: true });
+            const fileName = `${AppState.currentUser.id}/${Date.now()}_${file.name}`;
+            const { error: uploadError } = await supabaseClient.storage.from('profile-pictures').upload(fileName, file, { upsert: true });
             if (uploadError) throw uploadError;
             const { data } = supabaseClient.storage.from('profile-pictures').getPublicUrl(fileName);
-            const { error: updateError } = await supabaseClient.from('users').update({ profile_url: data.publicUrl }).eq('id', currentUser.id);
+            const { error: updateError } = await supabaseClient.from('users').update({ profile_url: data.publicUrl }).eq('id', AppState.currentUser.id);
             if (updateError) throw updateError;
-            showToast("Avatar updated! Reloading...");
-            currentUser.profile_url = data.publicUrl;
-            localStorage.setItem('leaderboardUser', JSON.stringify(currentUser));
-            setTimeout(() => location.reload(), 1500);
+            
+            AppState.currentUser.profile_url = data.publicUrl;
+            localStorage.setItem('leaderboardUser', JSON.stringify(AppState.currentUser));
+            showToast('Avatar updated!');
+            await openProfileModal(AppState.currentUser.id); // Re-render profile modal
         } catch (error) {
-            profileMessage.innerText = '';
             showToast(`Upload failed: ${error.message}`, true);
-        } finally {
-            event.target.value = '';
-        }
-    }
-    
-    function updateUserUI() {
-        const profileBtn = document.getElementById('profile-button');
-        const profileModalPreview = document.getElementById('profile-preview');
-        const adminBtn = document.getElementById('admin-panel-btn');
-        if (!profileBtn) return;
-        
-        if (currentUser) {
-            profileBtn.innerHTML = `<img src="${currentUser.profile_url || DEFAULT_AVATAR}" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}';">`;
-            if (profileModalPreview) {
-                profileModalPreview.src = currentUser.profile_url || DEFAULT_AVATAR;
-                document.getElementById('profile-name').innerText = currentUser.name;
-                const userRecord = fullSummaryData.find(s => s.id === currentUser.id);
-                document.getElementById('profile-score-text').innerText = `Total Score: ${userRecord ? userRecord.total_score || 0 : 'N/A'}`;
-            }
-            if (adminBtn) {
-                if (currentUser.role === 'admin') adminBtn.style.display = 'block';
-                else adminBtn.style.display = 'none';
-            }
-        } else {
-            profileBtn.innerHTML = `<img src="${DEFAULT_AVATAR}" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}';">`;
-            if (adminBtn) adminBtn.style.display = 'none';
         }
     }
 
-    // ======================================================
-    // MISSION & SUBMISSION
-    // ======================================================
-    async function handleSubmitMission() {
-        if (!currentUser || !currentMission) { showToast("Error: User or Mission data not found", true); return; }
-        const errorEl = document.getElementById('submission-error');
-        const link = document.getElementById('submission-link').value.trim();
-        const fileInput = document.getElementById('submission-file');
-        const file = fileInput.files[0];
-        if (!link && !file) { errorEl.innerText = 'Please provide a link or a file.'; return; }
-        const loader = document.getElementById('submission-loader'), loaderText = document.getElementById('submission-loader-text');
-        document.getElementById('submission-form-area').style.display = 'none';
-        document.getElementById('submission-buttons').style.display = 'none';
-        loader.style.display = 'block'; errorEl.innerText = '';
-        let filePublicUrl = null;
-        if (file) {
+    async function openProfileModal(userId) {
+        let user;
+        // Fetch the latest user data to ensure it's fresh
+        const { data, error: fetchError } = await supabaseClient.from('users').select('*').eq('id', userId).single();
+        if (fetchError || !data) {
+            showToast("Could not find user data.", true);
+            return;
+        }
+        user = data;
+        
+        openModal('profile');
+        const adminBtn = document.getElementById('admin-panel-btn');
+        const changeAvatarContainer = document.querySelector('.btn-change-avatar').parentElement;
+        
+        document.getElementById('profile-avatar').src = user.profile_url || DEFAULT_AVATAR;
+        document.getElementById('profile-name').innerText = user.name;
+        document.getElementById('profile-title').innerText = user.title || 'New Voyager';
+        document.getElementById('profile-score').innerText = user.total_score || 0;
+        document.getElementById('profile-coins').innerText = `🪙 ${user.coins || 0}`;
+        
+        const isOwnProfile = AppState.currentUser && AppState.currentUser.id === userId;
+        changeAvatarContainer.style.display = isOwnProfile ? 'block' : 'none';
+        
+        if (isOwnProfile && AppState.currentUser.role === 'admin') {
+            adminBtn.style.display = 'block';
+        } else {
+            adminBtn.style.display = 'none';
+        }
+        
+        const badgeContainer = document.getElementById('profile-badges');
+        badgeContainer.innerHTML = 'Loading achievements...';
+        const { data: userBadges, error } = await supabaseClient.from('user_badges').select('badges(name, description, icon_url)').eq('user_id', userId);
+        if(error) { badgeContainer.innerHTML = 'Could not load achievements.'; return; }
+        if(userBadges.length === 0) {
+            badgeContainer.innerHTML = '<p class="no-items">No achievements yet.</p>';
+            return;
+        }
+        badgeContainer.innerHTML = userBadges.map(b => `<div class="badge-item" title="${b.badges.name}: ${b.badges.description}"><img src="${b.badges.icon_url}" onerror="this.style.display='none'"></div>`).join('');
+    }
+
+    async function openMissionModal(missionId) {
+        const mission = AppState.missions.find(m => m.id === missionId);
+        if (!mission) return;
+        
+        const modalContent = document.getElementById('mission-modal-content');
+        modalContent.innerHTML = `
+            <h2>${mission.topic}</h2>
+            <div class="mission-details-body">
+                <p><strong>Objective:</strong> ${mission.detail || 'Complete the task as instructed.'}</p>
+                <p><strong>Reward:</strong> ${mission.max_points} XP</p>
+                <p><strong>Deadline:</strong> ${new Date(mission.due_date).toLocaleDateString('th-TH')}</p>
+            </div>
+            <div class="mission-submission-area">
+                <hr>
+                <h4>Submit Your Work</h4>
+                <div id="mission-submission-error" class="modal-error"></div>
+                <label>Link (e.g., Canva, Google Docs):</label>
+                <input type="url" id="mission-submission-link" placeholder="https://...">
+                <label>Or Upload a File:</label>
+                <input type="file" id="mission-submission-file">
+                <button class="btn-primary" onclick="handleSubmitMission(${mission.id})">Submit Mission</button>
+            </div>
+        `;
+        openModal('mission');
+    }
+
+    async function handleSubmitMission(missionId) {
+        if (!AppState.currentUser) return;
+        const link = document.getElementById('mission-submission-link').value.trim();
+        const file = document.getElementById('mission-submission-file').files[0];
+        const errorEl = document.getElementById('mission-submission-error');
+        if(!link && !file) { errorEl.innerText = 'Please provide a link or a file.'; return; }
+
+        showToast('Submitting mission...');
+        let fileUrl = null;
+        if(file) {
             try {
-                loaderText.innerText = 'Uploading file...';
-                const fileName = `${currentUser.student_id}/${currentMission.id}_${Date.now()}_${file.name}`;
-                const { error: uploadError } = await supabaseClient.storage.from('mission-uploads').upload(fileName, file);
-                if (uploadError) throw uploadError;
+                const fileName = `${AppState.currentUser.student_id}/${missionId}_${Date.now()}_${file.name}`;
+                const { error } = await supabaseClient.storage.from('mission-uploads').upload(fileName, file);
+                if(error) throw error;
                 const { data } = supabaseClient.storage.from('mission-uploads').getPublicUrl(fileName);
-                filePublicUrl = data.publicUrl;
-            } catch (error) {
-                errorEl.innerText = `Upload failed: ${error.message}`;
-                document.getElementById('submission-form-area').style.display = 'block';
-                document.getElementById('submission-buttons').style.display = 'block';
-                loader.style.display = 'none';
+                fileUrl = data.publicUrl;
+            } catch(error) {
+                showToast(`File upload failed: ${error.message}`, true);
                 return;
             }
         }
+
         try {
-            loaderText.innerText = 'Saving data...';
-            const submissionData = { user_id: currentUser.id, mission_id: currentMission.id, submission_link: link, proof_url: filePublicUrl };
+            const submissionData = { user_id: AppState.currentUser.id, mission_id: missionId, submission_link: link, proof_url: fileUrl };
             const { error } = await supabaseClient.from('submissions').upsert(submissionData, { onConflict: 'user_id, mission_id' });
-            if (error) throw error;
-            showToast("Mission Submitted!");
-            closeModal('submission-modal');
-            await loadInitialData();
-        } catch (error) {
-            errorEl.innerText = `Save failed: ${error.message}`;
-            document.getElementById('submission-form-area').style.display = 'block';
-            document.getElementById('submission-buttons').style.display = 'block';
-            loader.style.display = 'none';
+            if(error) throw error;
+            showToast('Mission submitted successfully!');
+            closeModal();
+            loadInitialData(); // Reload all data
+        } catch(error) {
+            showToast(`Submission failed: ${error.message}`, true);
         }
     }
-    
+
     // ======================================================
-    // UI UTILITIES & EVENT HANDLERS
+    // ADMIN PANEL
     // ======================================================
-    function renderMapView() {
-        const container = document.getElementById('mission-map-view');
-        if (!container) return;
-        if (!currentUser) { container.innerHTML = `<div class="login-overlay-wrapper"><div class="login-overlay-content"><h3>PLEASE LOGIN</h3><p>to see your mission status.</p><button class="btn-primary" onclick="openModal('login-modal'); switchView('leaderboard-view', document.querySelector('.nav-button'))">LOGIN</button></div></div>`; return; }
-        
-        const pathHTML = allMissions.map((mission, index) => {
-             const sub = currentUserSubmissions.get(mission.id);
-             let statusClass = 'locked', icon = '<i class="fas fa-lock"></i>';
-             const today = new Date(); today.setHours(0,0,0,0);
-             if (new Date(mission.assigned_date) <= today) {
-                statusClass = 'available';
-                icon = `<i class="fas fa-star"></i>`;
-             }
-             if (sub && sub.score !== null) { statusClass = 'completed'; icon = '✔️'; }
-             else if (sub) { statusClass = 'pending'; icon = '⌛'; }
-             
-             const alignClass = index % 2 === 0 ? 'align-left' : 'align-right';
-             return `<div class="mission-node ${statusClass} ${alignClass}" onclick="showMissionDetail(${mission.id})"><div class="mission-node-icon">${icon}</div><div class="mission-node-topic">${mission.topic}</div></div>`;
-        }).join('');
-        container.innerHTML = `<div class="mission-path">${pathHTML || 'No missions available.'}</div>`;
+    async function openAdminPanel(){
+        if (!AppState.currentUser || AppState.currentUser.role !== 'admin') return;
+        openModal('admin');
+        const adminContainer = document.getElementById('admin-content-container');
+        adminContainer.innerHTML = 'Loading Admin Data...';
+        try {
+            const { data, error } = await supabaseClient.from('submissions')
+                .select(`id, created_at, score, proof_url, submission_link, users(id, name), missions(id, topic, max_points)`)
+                .eq('missions.level', AppState.config.level);
+            if (error) throw error;
+            AppState.allSubmissionsForAdmin = data;
+            adminContainer.innerHTML = `
+                <div class="admin-sidebar">
+                    <button class="admin-tab-button active" onclick="switchAdminView('dashboard', this)"><i class="fas fa-chart-line"></i> Dashboard</button>
+                    <button class="admin-tab-button" onclick="switchAdminView('grading', this)"><i class="fas fa-check-double"></i> Grading</button>
+                    <button class="admin-tab-button" onclick="switchAdminView('missions', this)"><i class="fas fa-tasks"></i> Missions</button>
+                    <button class="admin-tab-button" onclick="switchAdminView('students', this)"><i class="fas fa-users-cog"></i> Students</button>
+                </div>
+                <div class="admin-main-content">
+                    <div id="admin-view-dashboard" class="admin-view active"></div>
+                    <div id="admin-view-grading" class="admin-view"></div>
+                    <div id="admin-view-missions" class="admin-view"></div>
+                    <div id="admin-view-students" class="admin-view"></div>
+                </div>`;
+            renderAdminDashboard();
+        } catch(err) {
+            adminContainer.innerHTML = `<p class="error-display">${err.message}</p>`;
+        }
     }
 
-    function showMissionDetail(missionId) {
-        currentMission = allMissions.find(m => m.id === missionId);
-        if (!currentMission) return;
-        const m = currentMission;
-        document.getElementById('modal-mission-topic').innerText = m.topic;
-        document.getElementById('modal-mission-body').innerHTML = `<p><strong>Objective:</strong> ${m.detail || '(None)'}</p><p><strong>Deadline:</strong> ${new Date(m.due_date).toLocaleDateString('th-TH')}</p><p><strong>Reward:</strong> ${m.max_points} PTS</p><hr><p><strong>Status:</strong> <span id="modal-mission-user-status"></span></p>`;
-        const sub = currentUserSubmissions.get(m.id);
-        const statusEl = document.getElementById('modal-mission-user-status');
-        const actionsEl = document.getElementById('modal-mission-actions');
-        let actionsHtml = `<button class="btn-secondary" onclick="closeModal('mission-detail-modal')">CLOSE</button>`;
-        if (sub && sub.score !== null) { statusEl.innerHTML = `<span style="color:var(--status-success);">GRADED (${sub.score}/${m.max_points}) ✔️</span>`; } 
-        else if (sub) { statusEl.innerHTML = `<span style="color:var(--status-pending);">SUBMITTED ⌛</span>`; actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal()">EDIT SUBMISSION</button>${actionsHtml}`; } 
-        else { statusEl.innerHTML = `<span>NOT SUBMITTED</span>`; actionsHtml = `<button class="btn-primary" onclick="openSubmissionModal()">SUBMIT</button>${actionsHtml}`; }
-        actionsEl.innerHTML = actionsHtml;
-        openModal('mission-detail-modal');
-    }
-
-    function openSubmissionModal() {
-        if (!currentMission) return;
-        document.getElementById('submission-modal-topic').innerText = currentMission.topic;
-        document.getElementById('submission-link').value = '';
-        document.getElementById('submission-file').value = '';
-        document.getElementById('submission-error').innerText = '';
-        closeModal('mission-detail-modal');
-        openModal('submission-modal');
-    }
-    
-    async function showStudentDetailModal(userId) {
-        const student = fullSummaryData.find(s => s.id === userId);
-        if (!student) return;
-        document.getElementById('detail-modal-pic').src = `${student.profile_url || DEFAULT_AVATAR}`;
-        document.getElementById('detail-modal-name').innerText = student.name;
-        document.getElementById('detail-modal-score').innerText = `Total Score: ${student.total_score || 0}`;
-        const body = document.getElementById('detail-modal-body');
-        body.innerHTML = '<div style="text-align:center;padding:20px;">Loading Stats...</div>';
-        openModal('student-detail-modal');
-        const { data, error } = await supabaseClient.from('submissions').select('missions(topic, max_points), score').eq('user_id', userId);
-        if (error) { body.innerHTML = `<p style="color:var(--status-danger)">Error: ${error.message}</p>`; return; }
-        
-        let tableHtml = '<table class="detail-table"><thead><tr><th>MISSION</th><th style="text-align:center;">STATUS</th><th style="text-align:right;">SCORE</th></tr></thead><tbody>';
-        allMissions.forEach(mission => {
-            const sub = data.find(s => s.missions && s.missions.topic === mission.topic);
-            let statusText = 'Not Submitted', scoreText = `0 / ${mission.max_points}`, statusClass = 'not-submitted';
-            if(sub) {
-                if (sub.score !== null) { statusClass = 'graded'; statusText = `✔️ Graded`; scoreText = `${sub.score} / ${mission.max_points}`; }
-                else { statusClass = 'pending'; statusText = '⌛ Pending'; scoreText = `- / ${mission.max_points}`; }
-            }
-            tableHtml += `<tr><td>${mission.topic}</td><td class="status ${statusClass}" align="center">${statusText}</td><td align="right">${scoreText}</td></tr>`;
-        });
-        body.innerHTML = tableHtml + '</tbody></table>';
-    }
-
-    function switchView(viewId, element) {
-        document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
+    function switchAdminView(viewId, element) {
+        document.querySelectorAll('.admin-tab-button').forEach(btn => btn.classList.remove('active'));
         element.classList.add('active');
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.getElementById(viewId)?.classList.add('active');
-        updateUI();
+        document.querySelectorAll('.admin-view').forEach(v => v.classList.remove('active'));
+        document.getElementById(`admin-view-${viewId}`)?.classList.add('active');
+        if(viewId === 'grading') renderGradingTable();
     }
     
+    function renderAdminDashboard() {
+        const container = document.getElementById('admin-view-dashboard');
+        const pendingCount = AppState.allSubmissionsForAdmin.filter(s => s.score === null).length;
+        container.innerHTML = `
+            <h4>Dashboard</h4>
+            <div class="dashboard-stats">
+                <div class="stat-card"><div class="value">${pendingCount}</div><div class="label">Pending Grade</div></div>
+                <div class="stat-card"><div class="value">${AppState.leaderboard.length}</div><div class="label">Students</div></div>
+                <div class="stat-card"><div class="value">${AppState.missions.length}</div><div class="label">Missions</div></div>
+            </div>
+            <h4>Recent Submissions</h4>
+            <div class="admin-table-container">
+                <table class="admin-table">
+                    <thead><tr><th>Student</th><th>Mission</th><th>Status</th></tr></thead>
+                    <tbody>${AppState.allSubmissionsForAdmin.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5).map(s => `<tr><td>${s.users.name}</td><td>${s.missions.topic}</td><td>${s.score === null ? 'Pending' : 'Graded'}</td></tr>`).join('')}</tbody>
+                </table>
+            </div>`;
+    }
+
+    function renderGradingTable() {
+        const container = document.getElementById('admin-view-grading');
+        const pendingSubmissions = AppState.allSubmissionsForAdmin.filter(s => s.score === null);
+        container.innerHTML = `
+            <h4>Grade Submissions (${pendingSubmissions.length} pending)</h4>
+            <div class="admin-table-container">
+                <table class="admin-table">
+                    <thead><tr><th>Student</th><th>Mission</th><th>Link/File</th><th>Score</th><th>Action</th></tr></thead>
+                    <tbody>${pendingSubmissions.map(s => `
+                        <tr>
+                            <td>${s.users.name}</td><td>${s.missions.topic}</td>
+                            <td>
+                                ${s.submission_link ? `<a href="${s.submission_link}" target="_blank" class="link">Link</a>` : ''}
+                                ${s.proof_url ? `<a href="${s.proof_url}" target="_blank" class="link">File</a>` : ''}
+                            </td>
+                            <td><input type="number" class="score-input" id="score-input-${s.id}" placeholder="/ ${s.missions.max_points}"></td>
+                            <td><button class="btn-primary" onclick="handleGradeSubmission(${s.id}, ${s.users.id})">Save</button></td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    }
+    
+    async function handleGradeSubmission(submissionId, userId) {
+        const scoreInput = document.getElementById(`score-input-${submissionId}`);
+        const score = parseInt(scoreInput.value, 10);
+        if (isNaN(score)) { showToast("Please enter a valid number.", true); return; }
+        
+        scoreInput.disabled = true;
+        try {
+            await supabaseClient.from('submissions').update({ score: score }).eq('id', submissionId);
+            const { data: userSubmissions } = await supabaseClient.from('submissions').select('score').eq('user_id', userId);
+            const newTotalScore = userSubmissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+            await supabaseClient.from('users').update({ total_score: newTotalScore }).eq('id', userId);
+
+            showToast("Score saved successfully!");
+            scoreInput.closest('tr')?.remove();
+            loadInitialData(); // Reload data in background
+        } catch(error) {
+            showToast(`Error saving score: ${error.message}`, true);
+            scoreInput.disabled = false;
+        }
+    }
+
+    // ======================================================
+    // UTILITIES
+    // ======================================================
+    function showError(error) {
+        console.error(error);
+        const errorMsg = (error && error.message) ? error.message : "An unknown error occurred.";
+        document.getElementById('app-container').innerHTML = `<div class="error-display"><h3>Oops! Something went wrong.</h3><p>${errorMsg}</p></div>`;
+    }
     function showToast(message, isError = false) {
         const container = document.getElementById('toast-container');
         if (!container) return;
@@ -412,131 +489,19 @@
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(() => toast.classList.add('show'), 100);
-        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => { if (container.contains(toast)) container.removeChild(toast); }, 300); }, 4000);
-    }
-
-    function showError(error) {
-        console.error(error);
-        const errorMsg = (error && error.message) ? error.message : "An unknown error occurred.";
-        document.getElementById('app-container').innerHTML = `<div style="padding:20px;text-align:center;color:#e84118;background:#fff;"><h3 style="font-family:var(--font-main)">Error</h3><p>${errorMsg}</p></div>`;
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => { if (container.contains(toast)) container.removeChild(toast); }, 300);
+        }, 3000);
     }
     
-    function handleUserAreaClick() { currentUser ? openModal("profile-modal") : openModal("login-modal"); }
-    function openModal(id) { document.getElementById(id)?.classList.add("visible"); }
-    function closeModal(id) { document.getElementById(id)?.classList.remove("visible"); }
-
-    // ======================================================
-    // ADMIN PANEL FUNCTIONS
-    // ======================================================
-    async function openAdminPanel() {
-        if (!currentUser || currentUser.role !== 'admin') { showToast("Access Denied", true); return; }
-        openModal('admin-modal');
-        const dashboardView = document.getElementById('admin-dashboard');
-        dashboardView.innerHTML = '<p>Loading admin data...</p>';
-        try {
-            const config = getGradeConfigFromUrl();
-            const { data, error } = await supabaseClient.from('submissions').select(`id,created_at,score,proof_url,submission_link,users(id,name),missions(id,topic,max_points,level)`).eq('missions.level', config.level);
-            if (error) throw error;
-            allSubmissionsForAdmin = data;
-            renderAdminDashboard(allSubmissionsForAdmin);
-        } catch (err) {
-            dashboardView.innerHTML = `<p style="color:var(--danger)">Failed to load admin data: ${err.message}</p>`;
-        }
-    }
-
-    function switchAdminView(viewId, element) {
-        document.querySelectorAll('.admin-tab-button').forEach(btn => btn.classList.remove('active'));
-        element.classList.add('active');
-        document.querySelectorAll('.admin-view').forEach(v => v.classList.remove('active'));
-        document.getElementById(viewId)?.classList.add('active');
-        if (viewId === 'admin-grade') { renderGradingTable(allSubmissionsForAdmin); }
-    }
-
-    function renderAdminDashboard(submissions) {
-        const dashboardView = document.getElementById('admin-dashboard');
-        const pendingCount = submissions.filter(s => s.score === null).length;
-        dashboardView.innerHTML = `
-            <div class="dashboard-stats">
-                <div class="stat-card"><div class="value">${pendingCount}</div><div class="label">Pending Grade</div></div>
-                <div class="stat-card"><div class="value">${fullSummaryData.length}</div><div class="label">Students</div></div>
-                <div class="stat-card"><div class="value">${allMissions.length}</div><div class="label">Missions</div></div>
-            </div>
-            <h4>Recent Submissions</h4>
-            <div class="admin-table-container">
-                <table class="admin-table">
-                    <thead><tr><th>Student</th><th>Mission</th><th>Submitted</th><th>Status</th></tr></thead>
-                    <tbody>
-                        ${submissions.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5).map(s => `
-                            <tr>
-                                <td>${s.users.name}</td>
-                                <td>${s.missions.topic}</td>
-                                <td>${new Date(s.created_at).toLocaleDateString('th-TH')}</td>
-                                <td>${s.score === null ? '<span style="color:var(--status-pending);">Pending</span>' : `<span style="color:var(--status-success);">Graded</span>`}</td>
-                            </tr>`).join('')}
-                    </tbody>
-                </table>
-            </div>`;
-    }
-
-    function renderGradingTable(submissions) {
-        const gradeView = document.getElementById('admin-grade');
-        gradeView.innerHTML = `
-             <div class="admin-table-container">
-                <table class="admin-table">
-                    <thead><tr><th>Student</th><th>Mission</th><th>Link/File</th><th>Score</th><th>Action</th></tr></thead>
-                    <tbody>
-                        ${submissions.filter(s => s.score === null).sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(s => `
-                            <tr>
-                                <td>${s.users.name}</td>
-                                <td>${s.missions.topic}</td>
-                                <td>
-                                    ${s.submission_link ? `<a href="${s.submission_link}" target="_blank" class="link">Link</a>` : ''}
-                                    ${s.proof_url ? `<a href="${s.proof_url}" target="_blank" class="link">File</a>` : ''}
-                                </td>
-                                <td><input type="number" class="score-input" id="score-input-${s.id}" placeholder=" / ${s.missions.max_points}"></td>
-                                <td><button class="btn-primary" onclick="handleGradeSubmission(${s.id})">Save</button></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>`;
+    function openModal(modalName) {
+        const modal = document.getElementById(`${modalName}-modal`);
+        if (modal) modal.classList.add('visible');
     }
     
-    async function handleGradeSubmission(submissionId) {
-        const scoreInput = document.getElementById(`score-input-${submissionId}`);
-        const score = parseInt(scoreInput.value, 10);
-        if (isNaN(score)) { showToast("Please enter a valid number.", true); return; }
-        
-        const submission = allSubmissionsForAdmin.find(s => s.id === submissionId);
-        if(!submission) { showToast("Submission not found.", true); return; }
-
-        scoreInput.disabled = true;
-        try {
-            // 1. Update the submission score
-            const { error: submissionError } = await supabaseClient.from('submissions').update({ score: score }).eq('id', submissionId);
-            if(submissionError) throw submissionError;
-
-            // 2. Recalculate the user's total score from scratch for accuracy
-            const { data: userSubmissions, error: fetchError } = await supabaseClient.from('submissions').select('score').eq('user_id', submission.users.id);
-            if(fetchError) throw fetchError;
-            
-            // The newly graded score is now in the database, so this fetch includes it
-            const newTotalScore = userSubmissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
-
-            // 3. Update the user's total score
-            const { error: userError } = await supabaseClient.from('users').update({ total_score: newTotalScore }).eq('id', submission.users.id);
-            if(userError) throw userError;
-
-            showToast("Score saved successfully!");
-            scoreInput.closest('tr')?.remove(); // Remove the row from the grading queue
-            
-            // Refresh main leaderboard data in the background to reflect the change
-            loadInitialData();
-            
-        } catch(error) {
-            showToast(`Error saving score: ${error.message}`, true);
-            scoreInput.disabled = false; // Re-enable on error
-        }
+    function closeModal() {
+        document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('visible'));
     }
 </script>
 </body>

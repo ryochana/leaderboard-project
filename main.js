@@ -127,6 +127,147 @@ function handleLogout() {
 // UI & DISPLAY LOGIC
 // ================================================================
 
+function showAdminModal() {
+    if (!currentUser || currentUser.role !== 'admin') {
+        alert('คุณไม่มีสิทธิ์เข้าถึง Admin Panel');
+        return;
+    }
+    adminModal.style.display = 'block';
+    appContainer.classList.add('blur-background');
+
+    // Initial setup for admin panel (e.g., populate dropdowns)
+    populateGradeSubmissionDropdowns();
+}
+
+function hideAdminModal() {
+    adminModal.style.display = 'none';
+    appContainer.classList.remove('blur-background');
+}
+
+async function handleAddMission(event) {
+    event.preventDefault();
+    const topic = document.getElementById('add-mission-topic').value;
+    const detail = document.getElementById('add-mission-detail').value;
+    const dueDate = document.getElementById('add-mission-due-date').value;
+    const maxPoints = parseInt(document.getElementById('add-mission-max-points').value, 10);
+
+    if (!topic || !dueDate || isNaN(maxPoints)) {
+        alert('กรุณากรอกข้อมูลภารกิจให้ครบถ้วน');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/create-mission`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentUser.student_id}` // ส่ง student_id ของ admin ไปให้ function ตรวจสอบ
+            },
+            body: JSON.stringify({
+                missionData: {
+                    topic,
+                    detail,
+                    assignedDate: new Date().toISOString(),
+                    dueDate: new Date(dueDate).toISOString(),
+                    maxPoints,
+                    grade: currentGrade,
+                }
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('เพิ่มภารกิจสำเร็จ!');
+            addMissionForm.reset();
+            fetchAndDisplayMissions(); // Refresh mission list
+        } else {
+            throw new Error(result.error || 'Failed to add mission');
+        }
+    } catch (error) {
+        console.error('Error adding mission:', error);
+        alert(`เกิดข้อผิดพลาดในการเพิ่มภารกิจ: ${error.message}`);
+    }
+}
+
+async function populateGradeSubmissionDropdowns() {
+    const studentDropdown = document.getElementById('grade-student-id');
+    const missionDropdown = document.getElementById('grade-mission-topic');
+    
+    studentDropdown.innerHTML = '<option value="">เลือกนักเรียน</option>';
+    missionDropdown.innerHTML = '<option value="">เลือกภารกิจ</option>';
+
+    const { data: students, error: studentError } = await supabase
+        .from('users')
+        .select('student_id, full_name')
+        .eq('grade', currentGrade)
+        .eq('role', 'student');
+    
+    if (studentError) { console.error('Error fetching students:', studentError); return; }
+    students.forEach(s => {
+        const option = document.createElement('option');
+        option.value = s.student_id;
+        option.textContent = `${s.full_name} (${s.student_id})`;
+        studentDropdown.appendChild(option);
+    });
+
+    const { data: missions, error: missionError } = await supabase
+        .from('missions')
+        .select('id, topic')
+        .eq('grade', currentGrade);
+    
+    if (missionError) { console.error('Error fetching missions:', missionError); return; }
+    missions.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m.id; // ใช้ mission.id
+        option.textContent = m.topic;
+        missionDropdown.appendChild(option);
+    });
+}
+
+async function handleGradeSubmission(event) {
+    event.preventDefault();
+    const studentId = document.getElementById('grade-student-id').value;
+    const missionId = document.getElementById('grade-mission-topic').value;
+    const score = parseInt(document.getElementById('grade-score').value, 10);
+
+    if (!studentId || !missionId || isNaN(score)) {
+        alert('กรุณาเลือกนักเรียน ภารกิจ และใส่คะแนน');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/grade-submission`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentUser.student_id}` // ส่ง student_id ของ admin
+            },
+            body: JSON.stringify({
+                studentId: parseInt(studentId, 10),
+                missionId: parseInt(missionId, 10),
+                score: score,
+                userToken: currentUser.student_id // ส่ง student_id ของ admin เพื่อตรวจสอบสิทธิ์ใน Edge Function
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('บันทึกคะแนนสำเร็จ!');
+            gradeSubmissionForm.reset();
+            // Refresh leaderboard and missions to show updated data
+            fetchAndDisplayLeaderboard();
+            fetchAndDisplayMissions();
+        } else {
+            throw new Error(result.error || 'Failed to grade submission');
+        }
+    } catch (error) {
+        console.error('Error grading submission:', error);
+        alert(`เกิดข้อผิดพลาดในการบันทึกคะแนน: ${error.message}`);
+    }
+}
+
 function openMissionModal(mission, submission) {
     if (!currentUser) {
         alert("กรุณาล็อกอินก่อนส่งงาน");
@@ -342,10 +483,19 @@ function updateHeaderUI() {
         userProfile.style.display = 'block';
         logoutButton.textContent = 'ออกจากระบบ';
         logoutButton.onclick = handleLogout;
+
+        // *** แสดงปุ่ม Admin Panel ถ้าเป็น Admin ***
+        if (currentUser.role === 'admin') {
+            adminPanelButton.style.display = 'block';
+        } else {
+            adminPanelButton.style.display = 'none';
+        }
+
     } else {
         userProfile.style.display = 'none';
         logoutButton.textContent = 'เข้าสู่ระบบ';
         logoutButton.onclick = showLoginScreen;
+        adminPanelButton.style.display = 'none'; // ซ่อนปุ่ม Admin Panel
     }
 }
 
@@ -518,7 +668,6 @@ function setupEventListeners() {
         }
     });
 
-    // *** ADD THIS PART ***
     modalCloseButton.addEventListener('click', hideStudentDetailModal);
     window.addEventListener('click', (event) => {
         if (event.target === studentDetailModal) {
@@ -545,6 +694,25 @@ function setupEventListeners() {
         }
     });
     submissionForm.addEventListener('submit', handleMissionSubmit);
+  if (adminPanelButton) { // Check if the element exists
+        adminPanelButton.addEventListener('click', showAdminModal);
+    }
+    if (adminModalCloseButton) { // Check if the element exists
+        adminModalCloseButton.addEventListener('click', hideAdminModal);
+    }
+    if (adminModal) { // Close admin modal when clicking outside
+        adminModal.addEventListener('click', (event) => {
+            if (event.target === adminModal) {
+                hideAdminModal();
+            }
+        });
+    }
+    if (addMissionForm) {
+        addMissionForm.addEventListener('submit', handleAddMission);
+    }
+    if (gradeSubmissionForm) {
+        gradeSubmissionForm.addEventListener('submit', handleGradeSubmission);
+    }
 }
 
 // ================================================================

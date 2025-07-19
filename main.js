@@ -143,54 +143,47 @@ function hideLoginScreen() {
  */
 async function fetchAndDisplayLeaderboard() {
     leaderboardContainer.innerHTML = '<div class="loader"></div>';
-    
-    // For now, we will use the same client-side calculation.
-    // In the next phase, we will switch to a faster RPC function.
-    const { data: users, error: userError } = await supabase
-        .from('users')
-        .select('student_id, full_name, profile_picture_url')
-        .eq('grade', currentGrade)
-        .eq('role', 'student');
-    if (userError) return leaderboardContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลดข้อมูลนักเรียนได้</p>`;
-    
-    const studentIds = users.map(u => u.student_id);
-    if (studentIds.length === 0) return leaderboardContainer.innerHTML = '<p>ยังไม่มีข้อมูลนักเรียนในชั้นเรียนนี้</p>';
 
-    const { data: submissions, error: subError } = await supabase
-        .from('submissions')
-        .select('student_id, score')
-        .in('student_id', studentIds);
-    if (subError) return leaderboardContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลดข้อมูลการส่งงานได้</p>`;
+    // *** จุดที่เปลี่ยนแปลง: เรียกใช้ RPC function แทนการ select ตรงๆ ***
+    const { data, error } = await supabase
+        .rpc('get_leaderboard_data', {
+            p_grade_id: currentGrade
+        });
 
-    const studentScores = {};
-    for (const sub of submissions) {
-        studentScores[sub.student_id] = (studentScores[sub.student_id] || 0) + (sub.score || 0);
+    if (error) {
+        console.error('Error fetching leaderboard:', error);
+        leaderboardContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลดข้อมูล Leaderboard ได้</p>`;
+        return;
     }
-
-    const leaderboardData = users
-        .map(user => ({ ...user, totalScore: studentScores[user.student_id] || 0 }))
-        .sort((a, b) => b.totalScore - a.totalScore);
-
-    renderLeaderboard(leaderboardData);
+    
+    // ข้อมูลที่ได้กลับมาจะถูกเรียงลำดับและคำนวณมาเรียบร้อยแล้ว
+    renderLeaderboard(data);
 }
 
 function renderLeaderboard(leaderboardData) {
     leaderboardContainer.innerHTML = '';
-    if (leaderboardData.length === 0) {
+    if (!leaderboardData || leaderboardData.length === 0) {
         leaderboardContainer.innerHTML = '<p>ยังไม่มีข้อมูล</p>';
         return;
     }
     leaderboardData.forEach((student, index) => {
         const item = document.createElement('div');
-        item.className = 'leaderboard-item';
+        item.className = 'leaderboard-item clickable'; // เพิ่ม class 'clickable'
+        item.dataset.studentId = student.student_id; // เก็บ student_id ไว้ใน element
+
         const profileImageUrl = student.profile_picture_url || `https://robohash.org/${student.student_id}.png?set=set4&size=50x50`;
+        
+        // *** จุดที่เปลี่ยนแปลง: เพิ่มส่วนของ Progress Bar ***
         item.innerHTML = `
             <div class="rank">${index + 1}</div>
             <img src="${profileImageUrl}" alt="Profile" class="profile-pic">
             <div class="student-info">
                 <div class="student-name">${student.full_name}</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: ${student.progress}%;"></div>
+                </div>
             </div>
-            <div class="score">${student.totalScore} คะแนน</div>
+            <div class="score">${student.total_score} คะแนน</div>
         `;
         leaderboardContainer.appendChild(item);
     });

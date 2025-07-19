@@ -1,7 +1,8 @@
 // supabase/functions/grade-submission/index.ts
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } => 'https://esm.sh/@supabase/supabase-js@2'
+// *** จุดที่แก้ไข: เปลี่ยน => เป็น from ***
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2' 
 
 serve(async (req) => {
   const corsHeaders = { /* ... CORS headers as before ... */ }
@@ -9,25 +10,41 @@ serve(async (req) => {
 
   const { studentId, missionId, score, userToken } = await req.json()
 
-  // *** START: Corrected Admin Auth Check for NULL grade ***
+  // --- START: Admin Authentication Logic ---
   const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   )
 
+  const adminStudentId = parseInt(userToken, 10);
+  if (isNaN(adminStudentId)) {
+    console.error('Error: Parsed adminStudentId is NaN in grade-submission. Invalid userToken.');
+    return new Response(JSON.stringify({ error: 'Invalid userToken provided.' }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      status: 401,
+    })
+  }
+
   const { data: user, error: userError } = await supabaseAdmin
     .from('users')
     .select('role')
-    .eq('student_id', parseInt(userToken, 10))
+    .eq('student_id', adminStudentId)
     .single()
   
+  console.log('--- grade-submission Function Log ---');
+  console.log('userToken received:', userToken);
+  console.log('Parsed adminStudentId (integer):', adminStudentId);
+  console.log('DB Query Result for Admin (user):', user);
+  console.log('DB Query Error for Admin (userError):', userError);
+
   if (userError || !user || user.role !== 'admin') {
+    console.error('Error: User not found, not admin, or DB error in grade-submission. Returning 403.');
     return new Response(JSON.stringify({ error: 'Permission denied. Admin access required or user not found.' }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 403,
     })
   }
-  // *** END: Corrected Admin Auth Check ***
+  // --- END: Admin Authentication Logic ---
 
   const { data, error } = await supabaseAdmin
     .from('submissions')
@@ -40,6 +57,7 @@ serve(async (req) => {
     })
   
   if (error) {
+    console.error('Error upserting submission:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 400,

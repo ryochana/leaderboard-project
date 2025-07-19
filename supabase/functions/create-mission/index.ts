@@ -1,4 +1,4 @@
-// supabase/functions/create-mission/index.ts (ฉบับสมบูรณ์)
+// supabase/functions/create-mission/index.ts
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -34,26 +34,51 @@ serve(async (req) => {
 
   // --- START: Admin Authentication Logic ---
   const authHeader = req.headers.get('Authorization') || ''
-  const adminStudentIdString = authHeader.split('Bearer ')[1] // ดึง student_id string จาก Authorization Header
+  const base64Token = authHeader.split('Bearer ')[1] // ดึง Base64 token จาก Authorization Header
 
   // Debugging logs (จะปรากฏใน Supabase Dashboard -> Edge Functions -> Logs)
   console.log('--- create-mission Function Log ---');
   console.log('Authorization Header received:', authHeader);
-  console.log('Parsed adminStudentId (string):', adminStudentIdString);
+  console.log('Base64 Token:', base64Token);
+
+  if (!base64Token) { // ถ้าไม่มี Token
+    console.error('Error: Base64 token missing. Returning 401.');
+    return new Response(JSON.stringify({ error: 'Authorization token missing.' }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }, // ใส่ CORS headers ใน Response Error ด้วย
+      status: 401, // Unauthorized
+    })
+  }
+
+  let decodedToken;
+  try {
+    decodedToken = JSON.parse(atob(base64Token)); // ถอดรหัส Base64 และแปลงเป็น JSON
+  } catch (decodeError) { // ถ้าถอดรหัสไม่ได้ หรือ JSON ไม่ถูกต้อง
+    console.error('Error decoding or parsing token:', decodeError);
+    return new Response(JSON.stringify({ error: 'Invalid token format.' }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      status: 401, // Unauthorized
+    })
+  }
+
+  const adminStudentId = parseInt(decodedToken.student_id, 10); // ดึง student_id
+  const adminRole = decodedToken.role; // ดึง role
+
+  console.log('Decoded Token:', decodedToken);
+  console.log('Parsed adminStudentId:', adminStudentId);
+  console.log('Parsed adminRole:', adminRole);
 
   // Optional debug break (ใช้สำหรับ Debug โดยเฉพาะ สามารถลบออกได้เมื่อใช้งานได้แล้ว)
   const shouldBreak = Deno.env.get('SHOULD_BREAK_FOR_DEBUG');
-  if (shouldBreak === 'true' && adminStudentIdString !== '999') { // ตรวจสอบว่า student_id เป็น 999 หรือไม่ (สำหรับ Admin)
-    throw new Error(`DEBUG_INFO: Expected student_id '999', got '${adminStudentIdString}'. Mission data grade: ${missionData?.grade}`); // โยน Error ที่เราควบคุมได้
+  if (shouldBreak === 'true' && adminStudentId !== 999) { // ตรวจสอบว่า student_id เป็น 999 หรือไม่ (สำหรับ Admin)
+    throw new Error(`DEBUG_INFO: Expected student_id 999, got ${adminStudentId}. Role: ${adminRole}. Mission data grade: ${missionData?.grade}`); // โยน Error ที่เราควบคุมได้
   }
 
-  // Validate and parse adminStudentId
-  const adminStudentId = parseInt(adminStudentIdString, 10); // แปลง student_id เป็นตัวเลข
-  if (isNaN(adminStudentId)) { // ถ้าแปลงไม่ได้ (เช่น ได้ NaN)
-    console.error('Error: Parsed adminStudentId is NaN. Invalid token.');
-    return new Response(JSON.stringify({ error: 'Invalid Authorization token. Please log in again.' }), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }, // ใส่ CORS headers ใน Response Error ด้วย
-      status: 401, // Unauthorized
+
+  if (isNaN(adminStudentId) || adminRole !== 'admin') { // ตรวจสอบ ID และ Role ต้องเป็นตัวเลขและ Admin
+    console.error('Error: Invalid Admin ID or Role. Returning 403.');
+    return new Response(JSON.stringify({ error: 'Permission denied. Invalid Admin credentials.' }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      status: 403, // Forbidden
     })
   }
 
@@ -63,23 +88,6 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   )
 
-  // ตรวจสอบสิทธิ์ว่าเป็น Admin โดยการ Query ตาราง users
-  const { data: user, error: userError } = await supabaseAdmin
-    .from('users')
-    .select('role')
-    .eq('student_id', adminStudentId) // ใช้ student_id ที่เป็นตัวเลข
-    .single() // คาดหวังผลลัพธ์แค่ 1 แถว
-  
-  console.log('DB Query Result for Admin (user):', user);
-  console.log('DB Query Error for Admin (userError):', userError);
-
-  if (userError || !user || user.role !== 'admin') { // ถ้ามี Error, ไม่เจอ User, หรือ Role ไม่ใช่ Admin
-    console.error('Error: User not found, not admin, or DB error. Returning 403.');
-    return new Response(JSON.stringify({ error: 'Permission denied. Admin access required or user not found.' }), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 403, // Forbidden
-    })
-  }
   // --- END: Admin Authentication Logic ---
 
   // Insert the new mission into the database

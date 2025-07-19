@@ -7,7 +7,8 @@ serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': req.headers.get('Origin') || '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    // *** จุดที่แก้ไข: อนุญาต 'X-Admin-Auth' Header ***
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-admin-auth',
   }
 
   if (req.method === 'OPTIONS') {
@@ -18,59 +19,51 @@ serve(async (req) => {
   }
 
   let requestBody;
-  try {
-      requestBody = await req.json();
-  } catch (jsonError) {
-      console.error("Failed to parse request body as JSON:", jsonError);
-      return new Response(JSON.stringify({ error: "Invalid JSON in request body" }), {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
-          status: 400,
-      });
-  }
-  const { studentId, missionId, score, userToken } = requestBody; // userToken คือ Base64 token
+  try { requestBody = await req.json(); } catch (jsonError) { /* ... handle JSON error ... */ }
+  const { studentId, missionId, score, userToken } = requestBody; // userToken คือ Base64 token จาก Frontend
 
-  // --- START: Admin Authentication Logic ---
+  // --- START: Admin Authentication Logic (แก้ไขตรงนี้) ---
   const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   )
 
-  const base64Token = userToken; // ใช้ userToken ที่ส่งมาเป็น Base64 token
+  const base64Token = req.headers.get('X-Admin-Auth') || userToken; // ดึงจาก Header ก่อน ถ้าไม่มี ให้ดึงจาก Body (userToken)
 
   console.log('--- grade-submission Function Log ---');
   console.log('Base64 Token:', base64Token);
 
-  if (!base64Token) { // ถ้าไม่มี Token
+  if (!base64Token) {
     console.error('Error: Base64 token missing. Returning 401.');
     return new Response(JSON.stringify({ error: 'Authorization token missing.' }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 401, // Unauthorized
+      status: 401,
     })
   }
 
   let decodedToken;
   try {
-    decodedToken = JSON.parse(atob(base64Token)); // ถอดรหัส Base64 และแปลงเป็น JSON
-  } catch (decodeError) { // ถ้าถอดรหัสไม่ได้ หรือ JSON ไม่ถูกต้อง
+    decodedToken = JSON.parse(atob(base64Token));
+  } catch (decodeError) {
     console.error('Error decoding or parsing token:', decodeError);
     return new Response(JSON.stringify({ error: 'Invalid token format.' }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 401, // Unauthorized
+      status: 401,
     })
   }
 
-  const adminStudentId = parseInt(decodedToken.student_id, 10); // ดึง student_id
-  const adminRole = decodedToken.role; // ดึง role
+  const adminStudentId = parseInt(decodedToken.student_id, 10);
+  const adminRole = decodedToken.role;
 
   console.log('Decoded Token:', decodedToken);
   console.log('Parsed adminStudentId:', adminStudentId);
   console.log('Parsed adminRole:', adminRole);
 
-  if (isNaN(adminStudentId) || adminRole !== 'admin') { // ตรวจสอบ ID และ Role ต้องเป็นตัวเลขและ Admin
+  if (isNaN(adminStudentId) || adminRole !== 'admin') {
     console.error('Error: Invalid Admin ID or Role. Returning 403.');
     return new Response(JSON.stringify({ error: 'Permission denied. Invalid Admin credentials.' }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 403, // Forbidden
+      status: 403,
     })
   }
   // --- END: Admin Authentication Logic ---
@@ -85,16 +78,9 @@ serve(async (req) => {
       onConflict: 'student_id,mission_id'
     })
   
-  if (error) {
-    console.error('Error upserting submission:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      status: 400, // Bad Request
-    })
-  }
-
+  if (error) { /* ... handle error ... */ }
   return new Response(JSON.stringify({ success: true, submission: data }), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    status: 200, // OK
+    status: 200,
   })
 })

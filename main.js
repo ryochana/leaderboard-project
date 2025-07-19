@@ -114,7 +114,6 @@ function handleLogout() {
 // UI & DISPLAY LOGIC
 // ================================================================
 
- param {string} studentId The ID of the student to show details for.
  
 async function showStudentDetailModal(studentId) {
     studentDetailModal.style.display = 'block';

@@ -1,14 +1,33 @@
-// supabase/functions/grade-submission/index.ts
+// supabase/functions/grade-submission/index.ts (ฉบับสมบูรณ์)
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-// *** จุดที่แก้ไข: เปลี่ยน => เป็น from ***
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2' 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 serve(async (req) => {
-  const corsHeaders = { /* ... CORS headers as before ... */ }
-  if (req.method === 'OPTIONS') { /* ... OPTIONS handler as before ... */ }
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': req.headers.get('Origin') || '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 
-  const { studentId, missionId, score, userToken } = await req.json()
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    })
+  }
+
+  let requestBody;
+  try {
+      requestBody = await req.json();
+  } catch (jsonError) {
+      console.error("Failed to parse request body as JSON:", jsonError);
+      return new Response(JSON.stringify({ error: "Invalid JSON in request body" }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          status: 400,
+      });
+  }
+  const { studentId, missionId, score, userToken } = requestBody;
 
   // --- START: Admin Authentication Logic ---
   const supabaseAdmin = createClient(
@@ -19,7 +38,7 @@ serve(async (req) => {
   const adminStudentId = parseInt(userToken, 10);
   if (isNaN(adminStudentId)) {
     console.error('Error: Parsed adminStudentId is NaN in grade-submission. Invalid userToken.');
-    return new Response(JSON.stringify({ error: 'Invalid userToken provided.' }), {
+    return new Response(JSON.stringify({ error: 'Invalid userToken provided. Please log in again.' }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
       status: 401,
     })

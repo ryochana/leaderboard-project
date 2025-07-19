@@ -19,6 +19,10 @@ const missionsContainer = document.getElementById('missions-container');
 const userProfile = document.getElementById('user-profile');
 const logoutButton = document.getElementById('logout-button');
 const appContainer = document.getElementById('app-container');
+const studentDetailModal = document.getElementById('student-detail-modal');
+const modalCloseButton = document.querySelector('.close-button');
+const modalHeader = document.getElementById('modal-header');
+const modalBody = document.getElementById('modal-body');
 
 // ================================================================
 // STATE MANAGEMENT
@@ -109,6 +113,102 @@ function handleLogout() {
 // ================================================================
 // UI & DISPLAY LOGIC
 // ================================================================
+
+ * @param {string} studentId The ID of the student to show details for.
+ */
+async function showStudentDetailModal(studentId) {
+    studentDetailModal.style.display = 'block';
+    modalHeader.innerHTML = '<div class="loader"></div>';
+    modalBody.innerHTML = '';
+
+    // 1. Fetch all missions for the current grade
+    const { data: allMissions, error: missionsError } = await supabase
+        .from('missions')
+        .select('*')
+        .eq('grade', currentGrade)
+        .order('due_date', { ascending: false });
+    
+    if (missionsError) {
+        modalHeader.innerHTML = '<p class="error-message">ไม่สามารถโหลดข้อมูลภารกิจได้</p>';
+        return;
+    }
+
+    // 2. Fetch all submissions for this specific student
+    const { data: studentSubmissions, error: subsError } = await supabase
+        .from('submissions')
+        .select('mission_id, score')
+        .eq('student_id', studentId);
+    
+    if (subsError) {
+        modalHeader.innerHTML = '<p class="error-message">ไม่สามารถโหลดข้อมูลการส่งงานได้</p>';
+        return;
+    }
+    
+    // 3. Find the student's main info from the leaderboard data we already have (or fetch again)
+    const { data: studentInfo, error: userError } = await supabase
+        .from('users')
+        .select('full_name, profile_picture_url')
+        .eq('student_id', studentId)
+        .single();
+    
+    if (userError) {
+        modalHeader.innerHTML = '<p class="error-message">ไม่พบข้อมูลนักเรียน</p>';
+        return;
+    }
+
+    // Create a map for easy lookup of submissions
+    const submissionMap = new Map(studentSubmissions.map(s => [s.mission_id, s]));
+    let totalScore = 0;
+    studentSubmissions.forEach(s => totalScore += s.score || 0);
+
+    // 4. Render the modal header
+    const profileImageUrl = studentInfo.profile_picture_url || `https://robohash.org/${studentId}.png?set=set4&size=80x80`;
+    modalHeader.innerHTML = `
+        <img src="${profileImageUrl}" alt="Profile">
+        <div class="student-summary">
+            <h3>${studentInfo.full_name}</h3>
+            <p>คะแนนรวม: ${totalScore} | ส่งงานแล้ว: ${studentSubmissions.length} / ${allMissions.length} ชิ้น</p>
+        </div>
+    `;
+    
+    // 5. Render the modal body (task list)
+    allMissions.forEach(mission => {
+        const submission = submissionMap.get(mission.id);
+        let status, statusClass, scoreText;
+
+        if (submission) {
+            if (submission.score !== null && submission.score !== undefined) {
+                status = 'ตรวจแล้ว';
+                statusClass = 'status-graded';
+                scoreText = `<b>${submission.score}</b> / ${mission.max_points}`;
+            } else {
+                status = 'รอตรวจ';
+                statusClass = 'status-pending';
+                scoreText = `- / ${mission.max_points}`;
+            }
+        } else {
+            status = 'ยังไม่ส่ง';
+            statusClass = 'status-not-submitted';
+            scoreText = `- / ${mission.max_points}`;
+        }
+
+        const taskItem = document.createElement('div');
+        taskItem.className = 'task-list-item';
+        taskItem.innerHTML = `
+            <span class="task-name">${mission.topic}</span>
+            <span class="task-status ${statusClass}">${status}</span>
+            <span>${scoreText}</span>
+        `;
+        modalBody.appendChild(taskItem);
+    });
+}
+
+/**
+ * Hides the student detail modal.
+ */
+function hideStudentDetailModal() {
+    studentDetailModal.style.display = 'none';
+}
 
 function updateHeaderUI() {
     if (currentUser) {

@@ -1,4 +1,4 @@
-// main.js (V5.2 - App Shell Logic & Bug Fixes)
+// main.js (V6.0 - Fully Integrated & Bug Fixed)
 // Last Updated: 2025-07-20
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
@@ -6,27 +6,27 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// DOM Elements (All declared at the top for clarity and accessibility)
+// DOM Elements
 const appContainer = document.getElementById('app-container');
 const topHeader = document.getElementById('top-header');
 const classTitleMain = document.getElementById('class-title-main');
 const schoolName = document.getElementById('school-name');
-const headerUserControls = document.querySelector('.header-user-controls'); // Query for this element
+const headerUserControls = document.querySelector('.header-user-controls');
 const userProfile = document.getElementById('user-profile');
 const logoutButton = document.getElementById('logout-button');
-const adminPanelButton = document.getElementById('admin-panel-button'); // This button is not in current HTML, but kept logic
+const adminPanelButton = document.getElementById('admin-panel-button'); 
 
 const bottomTabBar = document.getElementById('bottom-tab-bar');
-const tabButtons = document.querySelectorAll('.tab-button'); // Query all tab buttons
+const tabButtons = document.querySelectorAll('.tab-button');
 
-const mainContent = document.getElementById('main-content'); // Main content area for sections
-const contentSections = document.querySelectorAll('.content-section'); // Query all content sections
+const mainContent = document.getElementById('main-content');
+const contentSections = document.querySelectorAll('.content-section');
 const feedContainer = document.getElementById('feed-container');
 const missionsContainer = document.getElementById('missions-container');
 const leaderboardContainer = document.getElementById('leaderboard-container');
 const profileContainer = document.getElementById('profile-container');
 
-// Modals (and their internal elements used directly by logic)
+// Modals (and their internal elements for direct access)
 const loginScreen = document.getElementById('login-screen');
 const loginForm = loginScreen ? loginScreen.querySelector('#login-form') : null;
 const loginError = loginScreen ? loginScreen.querySelector('#login-error') : null;
@@ -122,13 +122,13 @@ function updateHeaderUI() {
         if(userProfile) userProfile.onclick = showCustomizationModal; // Customization modal
         if(logoutButton) logoutButton.textContent = 'ออกจากระบบ';
         if(logoutButton) logoutButton.onclick = handleLogout;
-        // adminPanelButton is not in the new HTML structure for Header
+        if (adminPanelButton) adminPanelButton.style.display = currentUser.role === 'admin' ? 'block' : 'none';
     } else {
         if(userProfile) userProfile.innerHTML = '';
         if(userProfile) userProfile.style.display = 'none';
         if(logoutButton) logoutButton.textContent = 'เข้าสู่ระบบ';
         if(logoutButton) logoutButton.onclick = showLoginModal;
-        // adminPanelButton is not in the new HTML structure for Header
+        if (adminPanelButton) adminPanelButton.style.display = 'none';
     }
 }
 
@@ -180,7 +180,7 @@ async function fetchAndDisplayFeed() {
         const feedContent = document.createElement('div');
         feedContent.className = 'card';
         feedContent.innerHTML = '<h3>⚠️ ภารกิจที่ใกล้ครบกำหนดส่ง</h3>';
-        upcomingMmissions.forEach(mission => {
+        upcomingMissions.forEach(mission => {
             const dueDate = new Date(mission.due_date);
             feedContent.innerHTML += `<p><strong>${mission.title}</strong> - กำหนดส่งวันที่ ${dueDate.toLocaleDateString('th-TH')}</p>`;
         });
@@ -190,7 +190,7 @@ async function fetchAndDisplayFeed() {
 
 async function fetchAndDisplayLeaderboard() {
     if(!leaderboardContainer) return;
-    leaderboardContainer.innerHTML = '<div class="loader"></div>';
+    leaderboardContainer.innerHTML = '<h2>หอเกียรติยศ (Leaderboard)</h2><div class="loader"></div>';
     const { data, error } = await supabase.rpc('get_leaderboard_data', { p_grade_id: currentGrade });
     if (error) {
         leaderboardContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลด Leaderboard ได้</p>`;
@@ -202,22 +202,56 @@ async function fetchAndDisplayLeaderboard() {
 function renderLeaderboard(leaderboardData) {
     if(!leaderboardContainer) return;
     leaderboardContainer.innerHTML = '<h2>หอเกียรติยศ (Leaderboard)</h2>';
+    const leaderboardCard = document.createElement('div');
+    leaderboardCard.className = 'card';
     if (!leaderboardData || leaderboardData.length === 0) {
-        leaderboardContainer.innerHTML += '<p>ยังไม่มีข้อมูล</p>';
-        return;
+        leaderboardCard.innerHTML = '<p>ยังไม่มีข้อมูล</p>';
+    } else {
+        leaderboardData.forEach((student, index) => {
+            const item = document.createElement('div');
+            item.className = 'leaderboard-item clickable';
+            item.dataset.userId = student.id;
+            const profileImageUrl = student.avatar_url || `https://robohash.org/${student.student_id}.png?set=set4&size=50x50`;
+            const studentProgress = student.progress || 0;
+            let frameStyle = student.equipped_frame_color && student.equipped_frame_color.startsWith('linear-gradient')
+                ? `border-image: ${student.equipped_frame_color} 1; background-image: ${student.equipped_frame_color};`
+                : `border-color: ${student.equipped_frame_color || '#cccccc'};`;
+            
+            let rankIcon = '';
+            let profileSizeClass = '';
+            if (index === 0) {
+                rankIcon = '👑'; // Gold crown
+                profileSizeClass = 'rank-1';
+                frameStyle = `border-image: linear-gradient(45deg, #FFD700, #FFA500) 1; background-image: linear-gradient(45deg, #FFD700, #FFA500);`;
+            } else if (index === 1) {
+                rankIcon = '🥈'; // Silver medal
+                profileSizeClass = 'rank-2';
+                frameStyle = `border-image: linear-gradient(45deg, #C0C0C0, #A9A9A9) 1; background-image: linear-gradient(45deg, #C0C0C0, #A9A9A9);`;
+            } else if (index === 2) {
+                rankIcon = '🥉'; // Bronze medal
+                profileSizeClass = 'rank-3';
+                frameStyle = `border-image: linear-gradient(45deg, #CD7F32, #B87333) 1; background-image: linear-gradient(45deg, #CD7F32, #B87333);`;
+            }
+
+            item.innerHTML = `
+                <div class="rank">${index + 1}${rankIcon}</div>
+                <div class="profile-pic-wrapper ${profileSizeClass} ${student.equipped_profile_effect || ''}" style="${frameStyle}">
+                    <img src="${profileImageUrl}" alt="Profile" class="profile-pic">
+                </div>
+                <div class="student-info">
+                    <div class="student-name-wrapper">
+                        <div class="student-name">${student.display_name}</div>
+                        ${student.equipped_badge_url ? `<img src="${student.equipped_badge_url}" alt="Badge" class="equipped-badge">` : ''}
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" style="width: ${studentProgress}%;"></div>
+                    </div>
+                </div>
+                <div class="score">${student.points || 0} EXP</div>`;
+            leaderboardCard.appendChild(item);
+        });
     }
-    leaderboardData.forEach((student, index) => {
-        const item = document.createElement('div');
-        item.className = 'leaderboard-item clickable';
-        item.dataset.userId = student.id;
-        const profileImageUrl = student.avatar_url || `https://robohash.org/${student.student_id}.png?set=set4&size=50x50`;
-        const studentProgress = student.progress || 0;
-        const frameStyle = student.equipped_frame_color && student.equipped_frame_color.startsWith('linear-gradient')
-            ? `border-image: ${student.equipped_frame_color} 1; background-image: ${student.equipped_frame_color};`
-            : `border-color: ${student.equipped_frame_color || '#cccccc'};`;
-        item.innerHTML = `<div class="rank">${index + 1}</div><div class="profile-pic-wrapper ${student.equipped_profile_effect || ''}" style="${frameStyle}"><img src="${profileImageUrl}" alt="Profile" class="profile-pic"></div><div class="student-info"><div class="student-name-wrapper"><div class="student-name">${student.display_name}</div>${student.equipped_badge_url ? `<img src="${student.equipped_badge_url}" alt="Badge" class="equipped-badge">` : ''}</div><div class="progress-bar-container"><div class="progress-bar" style="width: ${studentProgress}%;"></div></div></div><div class="score">${student.points || 0} EXP</div>`;
-        leaderboardContainer.appendChild(item);
-    });
+    leaderboardContainer.appendChild(leaderboardCard);
 }
 
 async function fetchAndDisplayMissions() {
@@ -241,25 +275,37 @@ async function fetchAndDisplayMissions() {
 function renderMissions(missions, submissionMap) {
     if(!missionsContainer) return;
     missionsContainer.innerHTML = '<h2>บันทึกภารกิจ (Quest Log)</h2>';
-    const grid = document.createElement('div');
-    grid.className = 'missions-grid';
+    const missionsGrid = document.createElement('div');
+    missionsGrid.className = 'missions-grid';
     if (!missions || missions.length === 0) {
-        grid.innerHTML = '<p>ยังไม่มีภารกิจ</p>';
+        missionsGrid.innerHTML = '<p>ยังไม่มีภารกิจ</p>';
     } else {
         missions.forEach(mission => {
             let statusClass = 'status-not-submitted';
+            let statusText = 'ยังไม่ส่ง';
             const submission = currentUser ? submissionMap.get(mission.id) : null;
             if (submission) {
                 statusClass = submission.status === 'graded' ? 'status-graded' : 'status-pending';
+                statusText = submission.status === 'graded' ? 'ตรวจแล้ว' : 'รอตรวจ';
             }
             const node = document.createElement('div');
             node.className = `mission-node ${statusClass}`;
-            node.innerHTML = `<div class="mission-node-topic">${mission.title}</div><div class="mission-node-points">${mission.max_points || 0} pts</div>`;
             node.onclick = () => openMissionModal(mission, submission);
-            grid.appendChild(node);
+            
+            node.innerHTML = `
+                <div class="mission-header">
+                    <div class="mission-topic">${mission.title}</div>
+                    <span class="mission-status-indicator ${statusClass}">${statusText}</span>
+                </div>
+                <div class="mission-details">
+                    <p class="mission-desc">${mission.description || 'ไม่มีคำอธิบายเพิ่มเติม'}</p>
+                    <div class="mission-points">${mission.max_points || 0} pts</div>
+                </div>
+            `;
+            missionsGrid.appendChild(node);
         });
     }
-    missionsContainer.appendChild(grid);
+    missionsContainer.appendChild(missionsGrid);
 }
 
 function renderProfilePage() {
@@ -356,7 +402,9 @@ async function handleMissionSubmit(event) {
             formData.append('image', file);
             const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
             const result = await response.json();
-            if (!result.success) throw new Error(result.error.message || 'ImgBB upload failed');
+            if (!result.success) {
+                throw new Error(result.error.message || 'ImgBB upload failed');
+            }
             proofUrl = result.data.url;
             fileStatus.textContent = 'อัปโหลดไฟล์สำเร็จ!';
         }
@@ -381,11 +429,13 @@ async function handleMissionSubmit(event) {
 
 async function showStudentDetailModal(userId) {
     openModal(studentDetailModal);
-    if(studentDetailModalHeader) studentDetailModalHeader.innerHTML = '<div class="loader"></div>';
-    if(studentDetailModalBody) studentDetailModalBody.innerHTML = '';
+    const modalHeader = studentDetailModal.querySelector('#modal-header');
+    const modalBody = studentDetailModal.querySelector('#modal-body');
+    if(modalHeader) modalHeader.innerHTML = '<div class="loader"></div>';
+    if(modalBody) modalBody.innerHTML = '';
     const { data: studentInfo, error: userError } = await supabase.from('users').select('*').eq('id', userId).single();
     if (userError) {
-        if(studentDetailModalHeader) studentDetailModalHeader.innerHTML = `<p class="error-message">ไม่พบข้อมูลนักเรียน</p>`;
+        if(modalHeader) modalHeader.innerHTML = `<p class="error-message">ไม่พบข้อมูลนักเรียน</p>`;
         return;
     }
     const { data: allMissions } = await supabase.from('missions').select('id, title, max_points').eq('grade', currentGrade).order('created_at', { ascending: false });
@@ -393,8 +443,8 @@ async function showStudentDetailModal(userId) {
     const submissionMap = new Map(studentSubmissions ? studentSubmissions.map(s => [s.mission_id, s]) : []);
     const profileImageUrl = studentInfo.avatar_url || `https://robohash.org/${studentInfo.student_id}.png?set=set4&size=80x80`;
     if(studentDetailModal) studentDetailModal.querySelector('.modal-content').style.background = studentInfo.equipped_card_bg || '#fefefe';
-    if(studentDetailModalHeader) studentDetailModalHeader.innerHTML = `<img src="${profileImageUrl}" alt="Profile"><div class="student-summary"><h3>${studentInfo.display_name}</h3><p>คะแนนรวม: ${studentInfo.points || 0} EXP</p></div>`;
-    if(studentDetailModalBody) studentDetailModalBody.innerHTML = '';
+    if(modalHeader) modalHeader.innerHTML = `<img src="${profileImageUrl}" alt="Profile"><div class="student-summary"><h3>${studentInfo.display_name}</h3><p>คะแนนรวม: ${studentInfo.points || 0} EXP</p></div>`;
+    if(modalBody) modalBody.innerHTML = '';
     (allMissions || []).forEach(mission => {
         const submission = submissionMap.get(mission.id);
         let status, scoreText, statusClass, proofLink = '';
@@ -411,7 +461,7 @@ async function showStudentDetailModal(userId) {
         const taskItem = document.createElement('div');
         taskItem.className = 'task-list-item';
         taskItem.innerHTML = `<span class="task-name">${mission.title}</span><span class="task-status ${statusClass}">${status}</span><span>${scoreText} ${proofLink}</span>`;
-        if(studentDetailModalBody) studentDetailModalBody.appendChild(taskItem);
+        if(modalBody) modalBody.appendChild(taskItem);
     });
 }
 function hideStudentDetailModal() { closeModal(studentDetailModal); }
@@ -443,12 +493,20 @@ async function populateGradeSubmissionDropdowns() {
     const missionSelect = document.getElementById('grade-mission-topic');
     if(studentSelect) studentSelect.innerHTML = '<option value="">กำลังโหลด...</option>';
     if(missionSelect) missionSelect.innerHTML = '<option value="">กำลังโหลด...</option>';
-    const { data: students } = await supabase.from('users').select('id, display_name').eq('role', 'student').eq('grade', currentGrade);
-    if(studentSelect) studentSelect.innerHTML = '<option value="">เลือกนักเรียน</option>';
-    if (students) students.forEach(s => { if(studentSelect) studentSelect.innerHTML += `<option value="${s.id}">${s.display_name}</option>`; });
-    const { data: missions } = await supabase.from('missions').select('id, title').eq('grade', currentGrade);
-    if(missionSelect) missionSelect.innerHTML = '<option value="">เลือกภารกิจ</option>';
-    if (missions) missions.forEach(m => { if(missionSelect) missionSelect.innerHTML += `<option value="${m.id}">${m.title}</option>`; });
+    const { data: students, error: studentError } = await supabase.from('users').select('id, display_name').eq('role', 'student').eq('grade', currentGrade);
+    if (studentError) {
+        if(studentSelect) studentSelect.innerHTML = '<option value="">ไม่สามารถโหลดนักเรียนได้</option>';
+    } else {
+        if(studentSelect) studentSelect.innerHTML = '<option value="">เลือกนักเรียน</option>';
+        if (students) students.forEach(s => { if(studentSelect) studentSelect.innerHTML += `<option value="${s.id}">${s.display_name}</option>`; });
+    }
+    const { data: missions, error: missionError } = await supabase.from('missions').select('id, title').eq('grade', currentGrade);
+    if (missionError) {
+        if(missionSelect) missionSelect.innerHTML = '<option value="">ไม่สามารถโหลดภารกิจได้</option>';
+    } else {
+        if(missionSelect) missionSelect.innerHTML = '<option value="">เลือกภารกิจ</option>';
+        if (missions) missions.forEach(m => { if(missionSelect) missionSelect.innerHTML += `<option value="${m.id}">${m.title}</option>`; });
+    }
 }
 async function handleGradeSubmission(event) {
     event.preventDefault();
@@ -474,9 +532,8 @@ async function showCustomizationModal() {
     if (!currentUser) { alert("กรุณาล็อกอินก่อน"); showLoginModal(); return; }
     openModal(customizationModal);
     const previewContainer = customizationModal.querySelector('.customization-preview');
-    if(!previewContainer) return; // safety check
-    let settingsBtn = previewContainer.querySelector('#settings-btn');
-    if (!settingsBtn) {
+    let settingsBtn = previewContainer ? previewContainer.querySelector('#settings-btn') : null;
+    if (previewContainer && !settingsBtn) {
         settingsBtn = document.createElement('button');
         settingsBtn.id = 'settings-btn';
         settingsBtn.textContent = 'ตั้งค่า (รูปโปรไฟล์ / รหัสผ่าน)';
@@ -515,6 +572,13 @@ async function showCustomizationModal() {
 
 function updatePreview() {
     if (!currentUser) return;
+    const previewProfileImage = customizationModal.querySelector('#preview-profile-image');
+    const previewUsername = customizationModal.querySelector('#preview-username');
+    const previewPoints = customizationModal.querySelector('#preview-points');
+    const previewProfileEffect = customizationModal.querySelector('#preview-profile-effect');
+    const previewCardBackground = customizationModal.querySelector('#preview-card-background');
+    const previewBadge = customizationModal.querySelector('#preview-badge');
+
     if(previewProfileImage) previewProfileImage.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=50x50`;
     if(previewUsername) previewUsername.textContent = currentUser.display_name;
     if(previewPoints) previewPoints.textContent = `${currentUser.points || 0} EXP`;
@@ -544,12 +608,12 @@ async function handleItemClick(item, locked, equipped) {
         const { data, error } = await supabase.rpc('equip_cosmetic_item_simple', { p_user_id: currentUser.id, p_item_id: item.id });
         if (error) throw error;
         const { data: updatedUser } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
-        if (!updatedUser) throw new Error("ไม่พบข้อมูลผู้ใช้หลังอัปเดต"); // Error handling for .single()
+        if (!updatedUser) throw new Error("ไม่พบข้อมูลผู้ใช้หลังอัปเดต");
         currentUser = updatedUser;
         localStorage.setItem('app_user_session', JSON.stringify(currentUser));
         alert(data);
-        showCustomizationModal(); // Re-render the shop
-        fetchAndDisplayLeaderboard(); // Update the main leaderboard
+        showCustomizationModal();
+        fetchAndDisplayLeaderboard();
     } catch (error) {
         alert(`เกิดข้อผิดพลาด: ${error.message}`);
     }
@@ -557,8 +621,8 @@ async function handleItemClick(item, locked, equipped) {
 
 function showProfileModalActual() { // Actual Profile Picture & Password Change settings
     if (!currentUser) return;
-    closeModal(customizationModal);
-    openModal(profileModal);
+    closeModal(customizationModal); // Close customization modal
+    openModal(profileModal); // Open profile modal
     
     if(profilePicDisplay) profilePicDisplay.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=100x100`;
     if(profileFileInput) profileFileInput.value = '';
@@ -579,8 +643,6 @@ function showProfileModalActual() { // Actual Profile Picture & Password Change 
         profileEditArea.appendChild(changePassBtn);
     }
 }
-
-function hideProfileModalActual() { closeModal(profileModal); } // Renamed to avoid conflict
 
 function showChangePasswordModal() {
     openModal(changePasswordModal);
@@ -658,18 +720,18 @@ async function handleChangePassword(event) {
 function setupEventListeners() {
     // Top-level DOM elements
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
-    if (leaderboardContainer) {
-        leaderboardContainer.addEventListener('click', (e) => {
-            const item = e.target.closest('.leaderboard-item');
-            if (item && item.dataset.userId) showStudentDetailModal(item.dataset.userId);
-        });
-    }
+    
+    // Admin button is now a general floating button, not part of header per se.
+    // Its click handler should be simple.
     if (adminPanelButton) adminPanelButton.addEventListener('click', showAdminModal);
 
-    // General modal close listeners for all modals
+    // General modal close listeners for ALL modals
     document.querySelectorAll('.modal').forEach(modal => {
         const closeBtn = modal.querySelector('.close-button');
-        if (closeBtn) closeBtn.addEventListener('click', () => closeModal(modal));
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => closeModal(modal));
+        }
+        // Clicking outside the modal content should close it
         modal.addEventListener('click', (event) => {
             const modalContent = modal.querySelector('.modal-content');
             if (modalContent && !modalContent.contains(event.target)) {
@@ -687,7 +749,7 @@ function setupEventListeners() {
             if (targetId === 'feed-container') fetchAndDisplayFeed();
             else if (targetId === 'missions-container') fetchAndDisplayMissions();
             else if (targetId === 'leaderboard-container') fetchAndDisplayLeaderboard();
-            else if (targetId === 'profile-container') renderProfilePage(); // Render profile page when tab is clicked
+            else if (targetId === 'profile-container') renderProfilePage();
         });
     });
 
@@ -725,20 +787,23 @@ function setupEventListeners() {
         changePasswordForm.addEventListener('submit', handleChangePassword);
     }
 
-    // Customization Modal specific buttons
+    // Customization Modal specific buttons (Dynamically added, so check existence)
     if (customizationModal) {
         const settingsBtn = customizationModal.querySelector('#settings-btn');
         if(settingsBtn) settingsBtn.onclick = () => { closeModal(customizationModal); showProfileModalActual(); };
     }
 
-    // Profile page specific buttons (after it's rendered)
-    // These are dynamically added, so their listeners are in renderProfilePage
+    // Profile page specific buttons (Dynamically added, so their listeners are in renderProfilePage)
+    // - customize-button -> showCustomizationModal
+    // - change-password-button-in-profile -> showChangePasswordModal
+    // - profile-picture-button-in-profile -> showProfileModalActual
 }
 
 async function init() {
     currentGrade = getGradeFromHostname();
     if (classTitleMain) classTitleMain.textContent = `ENGLISH QUEST M.${currentGrade}`;
-    
+    if (schoolName) schoolName.textContent = `NONPAKCHEE SCHOOL 2568`; // Ensure school name is set
+
     // Initial display setup (main content visible, modals hidden)
     if (mainContent) mainContent.style.display = 'block';
     if (loginScreen) loginScreen.style.display = 'none';
@@ -748,19 +813,19 @@ async function init() {
         currentUser = JSON.parse(storedSession);
     }
     
-    setupEventListeners();
-    updateHeaderUI();
+    setupEventListeners(); // Set up all event listeners once
+    updateHeaderUI(); // Update header based on initial user status
     
     // Set initial active tab and fetch its content
-    switchTab('leaderboard-container'); // Start on Leaderboard as requested
-    fetchAndDisplayLeaderboard(); // Fetch content for Leaderboard initially
-    
-    // Pre-fetch other tab contents in background
-    fetchAndDisplayFeed();
-    fetchAndDisplayMissions();
-    renderProfilePage(); // Pre-render profile page as well
+    switchTab('feed-container'); // Start on Feed tab
+    fetchAndDisplayFeed(); // Fetch content for the default tab
 
-    // If no user is logged in, show login modal after initial load
+    // Pre-fetch/render other tab contents in background
+    fetchAndDisplayMissions(); 
+    fetchAndDisplayLeaderboard();
+    renderProfilePage(); 
+
+    // If no user is logged in, show login modal after initial content is loaded
     if (!currentUser) {
         // Delay showing login modal slightly to ensure page renders
         setTimeout(showLoginModal, 500); 

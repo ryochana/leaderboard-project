@@ -8,13 +8,10 @@
     <!-- Import Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<!-- ในไฟล์ index.html -->
-<!-- แก้ไขส่วนนี้ -->
-
 <body>
     <div id="app-container">
-        <!-- Login Screen (เอา class="active" ออก) -->
-        <div id="login-screen" class="screen">
+        <!-- Login Screen - จะถูกควบคุมด้วย JS ว่าจะแสดงตอนไหน -->
+        <div id="login-screen"> 
             <div class="login-card">
                 <h1 id="class-title"></h1>
                 <p>กรุณาเข้าสู่ระบบ</p>
@@ -27,7 +24,7 @@
             </div>
         </div>
 
-        <!-- Main Content (เอา class="screen" ออก แล้วใส่ id="main-content" แทน) -->
+        <!-- Main Content - จะถูกควบคุมด้วย JS ว่าจะแสดงตอนไหน -->
         <div id="main-content">
             <header>
                 <div id="user-profile"></div>
@@ -47,8 +44,7 @@
         </div>
     </div>
 
-<!-- ADD THIS HTML CODE BEFORE THE </body> TAG -->
-
+<!-- Profile Modal -->
 <div id="profile-modal" class="modal">
     <div class="modal-content">
         <span class="close-button">×</span>
@@ -62,6 +58,7 @@
     </div>
 </div>
 
+<!-- Student Detail Modal -->
 <div id="student-detail-modal" class="modal">
     <div class="modal-content">
         <span class="close-button">×</span>
@@ -73,10 +70,8 @@
         </div>
     </div>
 </div>
-    <script type="module" src="main.js"></script>
-
-<!-- ADD THIS HTML CODE BEFORE THE </body> TAG -->
-
+    
+<!-- Mission Modal -->
 <div id="mission-modal" class="modal">
     <div class="modal-content">
         <span class="close-button">×</span>
@@ -106,6 +101,7 @@
 
 <button id="admin-panel-button" style="display:none; position:fixed; bottom:20px; right:20px; background-color:#ffc107; color:black; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold;">Admin Panel</button>
 
+<!-- Admin Modal -->
 <div id="admin-modal" class="modal">
     <div class="modal-content">
         <span class="close-button">×</span>
@@ -155,4 +151,7 @@
     </div>
 </div>
 
+<script type="module" src="main.js"></script> <!-- ใช้ main.js ตามที่คุณระบุ -->
+
 </body>
+</html>

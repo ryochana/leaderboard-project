@@ -1,524 +1,29 @@
-/* Basic Reset & Font */
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: #f4f7f6;
-    color: #333;
-    margin: 0;
-    padding: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
-}
-
-#app-container {
-    width: 100%;
-    max-width: 800px;
-}
-
-/* Screen Management */
-.screen { display: none; }
-.screen.active { display: block; }
-
-/* Login Screen */
-.login-card {
-    background: white;
-    padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    text-align: center;
-    margin-top: 50px;
-}
-#login-form input {
-    display: block;
-    width: 90%;
-    max-width: 300px;
-    margin: 15px auto;
-    padding: 12px;
-    font-size: 16px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-}
-#login-form button {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 12px 30px;
-    border-radius: 5px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-#login-form button:hover { background-color: #0056b3; }
-.error-message { color: #d93025; font-weight: bold; }
-
-/* Main Screen */
-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: white;
-    padding: 15px 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    margin-bottom: 20px;
-}
-#user-profile { font-weight: bold; }
-#logout-button {
-    background-color: #6c757d;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-main h2 {
-    border-bottom: 2px solid #007bff;
-    padding-bottom: 5px;
-    margin-top: 30px;
-    color: #0056b3;
-}
-
-/* Leaderboard Styling (Separated for clarity) */
-#leaderboard-container {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-}
-
-.leaderboard-item {
-    display: flex;
-    align-items: center;
-    padding: 15px 10px;
-    border-bottom: 1px solid #eee;
-}
-.leaderboard-item:last-child {
-    border-bottom: none;
-}
-
-
-/* Missions Section - NEW Duolingo Style */
-#missions-container {
-    background: none; /* No background for the container itself */
-    box-shadow: none;
-    padding: 20px 0;
-    text-align: center; /* Center the nodes */
-}
-
-.mission-node-wrapper {
-    position: relative;
-    margin-bottom: 20px; /* Space between nodes */
-    display: inline-block; /* Allows centering */
-}
-
-/* The connecting line */
-.mission-node-wrapper:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    bottom: -25px; /* Position below the node */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    height: 25px; /* Length of the line */
-    background-color: #dbe0e4;
-}
-
-.mission-node {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    border: 6px solid;
-    position: relative;
-}
-
-.mission-node:hover {
-    transform: scale(1.05);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-}
-
-.mission-node-topic {
-    font-weight: bold;
-    font-size: 1em;
-    color: white;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-}
-
-.mission-node-points {
-    font-size: 0.8em;
-    color: white;
-    background-color: rgba(0,0,0,0.2);
-    padding: 2px 6px;
-    border-radius: 8px;
-    margin-top: 5px;
-}
-
-/* --- STATUS COLORS --- */
-
-/* Graded (Green) */
-.status-graded { background-color: #28a745; border-color: #208a38; }
-
-/* Pending (Yellow) */
-.status-pending { background-color: #ffc107; border-color: #d39e00; }
-
-/* Not Submitted (Default/Blue) */
-.status-not-submitted { background-color: #007bff; border-color: #0062cc; }
-
-/* Overdue (Gray) */
-.status-overdue { background-color: #6c757d; border-color: #545b62; opacity: 0.7; }
-.status-overdue .mission-node-topic { text-decoration: line-through; }
-
-/* Urgent (Red) */
-.status-urgent { background-color: #dc3545; border-color: #b02a37; animation: pulse 1.5s infinite; }
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
-}
-
-.rank { font-size: 1.2em; font-weight: bold; color: #6c757d; width: 40px; text-align: center; }
-.profile-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 15px; background-color: #e9ecef; }
-.student-info { flex-grow: 1; }
-.student-name { font-weight: 600; }
-.score { font-size: 1.1em; font-weight: bold; color: #28a745; }
-
-/* Loader */
-.loader {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    animation: spin 1s linear infinite;
-    margin: 20px auto;
-}
-
-/* ---- ADD THIS TO YOUR style.css FILE ---- */
-
-/* Login Modal Styling */
-#login-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: none; /* Initially hidden */
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-#login-screen.active {
-    display: flex; /* Show when active */
-}
-
-.login-card {
-    margin-top: 0; /* Reset margin from previous style */
-}
-
-/* Blur effect for the background when modal is open */
-.blur-background > #main-content { 
-    filter: blur(5px);
-    transition: filter 0.3s ease-in-out;
-}
-
-/* Admin Badge Style */
-.admin-badge {
-    background-color: #dc3545;
-    color: white;
-    font-size: 0.7em;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-left: 8px;
-    vertical-align: middle;
-}
-
-/* Improved Profile Pic in Leaderboard */
-.profile-pic {
-    width: 50px;
-    height: 50px;
-}
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* ---- ADD THIS TO YOUR style.css FILE ---- */
-
-/* Progress Bar Styling */
-.progress-bar-container {
-    background-color: #e9ecef;
-    border-radius: 5px;
-    height: 8px;
-    width: 100%;
-    margin-top: 5px;
-    overflow: hidden;
-}
-
-.progress-bar {
-    background-color: #28a745;
-    height: 100%;
-    border-radius: 5px;
-    transition: width 0.5s ease-in-out;
-}
-
-/* Make leaderboard items look clickable */
-.leaderboard-item.clickable {
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.leaderboard-item.clickable:hover {
-    background-color: #f8f9fa;
-}
-
-/* ---- ADD THIS TO YOUR style.css FILE ---- */
-
-/* Modal Styling */
+/* General Modal Styles */
 .modal {
-    display: none; /* Hidden by default */
+    display: none; /* สำคัญมาก: ซ่อน Modal ทั้งหมดตั้งแต่แรก */
     position: fixed;
-    z-index: 1001; /* Higher than login modal */
+    z-index: 1000; /* อยู่ด้านบนสุด */
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.6);
-    animation: fadeIn 0.3s;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    background-color: rgba(0,0,0,0.5); /* พื้นหลังทึบแสงเล็กน้อย */
+    align-items: center; /* จัดกึ่งกลางแนวตั้ง */
+    justify-content: center; /* จัดกึ่งกลางแนวนอน */
 }
 
 .modal-content {
     background-color: #fefefe;
-    margin: 10% auto;
-    padding: 20px 30px;
-    border: 1px solid #888;
-    width: 90%;
-    max-width: 600px;
-    border-radius: 10px;
-    position: relative;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-    animation: slideIn 0.3s;
-}
-
-@keyframes slideIn {
-    from { transform: translateY(-50px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-.close-button {
-    color: #aaa;
-    position: absolute;
-    top: 10px;
-    right: 20px;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-}
-.close-button:hover,
-.close-button:focus {
-    color: black;
-}
-
-/* Modal Header (Student Profile) */
-#modal-header {
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
-    margin-bottom: 15px;
-}
-#modal-header img {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    margin-right: 20px;
-}
-#modal-header .student-summary h3 {
-    margin: 0;
-    font-size: 1.5em;
-}
-#modal-header .student-summary p {
-    margin: 5px 0 0;
-    color: #666;
-}
-
-/* Modal Body (Task List) */
-.task-list-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid #f0f0f0;
-}
-.task-list-item:last-child {
-    border-bottom: none;
-}
-.task-name {
-    color: #333;
-}
-.task-status {
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 0.8em;
-    font-weight: 500;
-    text-align: center;
-    min-width: 80px;
-}
-.status-graded { background-color: #d4edda; color: #155724; }
-.status-pending { background-color: #fff3cd; color: #856404; }
-.status-not-submitted { background-color: #f8d7da; color: #721c24; }
-
-/* ---- ADD THIS TO YOUR style.css FILE ---- */
-
-/* Mission Modal Specifics */
-#mission-modal-header h3 {
-    margin: 0 0 5px 0;
-    font-size: 1.6em;
-}
-#mission-modal-header p {
-    margin: 0;
-    color: #666;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
-    margin-bottom: 15px;
-}
-#submission-status {
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    font-weight: 500;
-    text-align: center;
-}
-/* Form Styling */
-.form-group {
-    margin-bottom: 20px;
-}
-.form-group label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 5px;
-}
-.form-group input[type="url"],
-.form-group input[type="file"] {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box; /* Important */
-}
-#submit-mission-button {
-    width: 100%;
-    padding: 12px;
-    font-size: 16px;
-    font-weight: bold;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-#submit-mission-button:hover {
-    background-color: #218838;
-}
-#submit-mission-button:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
-}
-#file-upload-status {
-    display: block;
-    margin-top: 5px;
-    font-size: 0.9em;
-    color: #007bff;
-}
-
-/* Admin Panel Button */
-#admin-panel-button {
-    z-index: 999; /* Below modals, above background */
-}
-
-/* Admin Modal Specifics */
-#admin-modal .modal-content {
-    max-width: 500px;
-}
-#admin-modal h3 {
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 5px;
-    margin-bottom: 20px;
-    color: #007bff;
-}
-#admin-modal form button {
-    background-color: #007bff;
-}
-#admin-modal form button:hover {
-    background-color: #0056b3;
-}
-#admin-modal select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box;
-    background-color: white;
-    appearance: none; /* Remove default arrow */
-    -webkit-appearance: none;
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292%22%20height%3D%22292%22%3E%3Cpath%20fill%3D%22%23007bff%22%20d%3D%22M287%2069L146%20208%205%2069z%22%2F%3E%3C%2Fsvg%3E'); /* Custom arrow */
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 10px;
-}
-#admin-modal textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box;
-    min-height: 80px;
-    resize: vertical;
-}
-
-/* General Modal Styles (Ensure these are present or adapt if you have existing ones) */
-.modal {
-    display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 1000; /* Sit on top */
-    left: 0;
-    top: 0;
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgba(0,0,0,0.5); /* Black w/ opacity */
-    display: flex; /* Use flexbox for centering */
-    align-items: center; /* Center vertically */
-    justify-content: center; /* Center horizontally */
-}
-
-.modal-content {
-    background-color: #fefefe;
-    margin: auto; /* Removed auto margin as flexbox handles centering */
     padding: 30px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     width: 90%;
-    max-width: 500px; /* Max width for modals */
+    max-width: 500px; /* กว้างสูงสุด */
     position: relative;
     animation-name: animatetop;
     animation-duration: 0.4s;
+    pointer-events: all; /* ทำให้สามารถคลิกในเนื้อหา Modal ได้ */
 }
 
 /* Close button */
@@ -546,10 +51,475 @@ main h2 {
     to {top: 0; opacity: 1}
 }
 
-/* Blur background when modal is active */
-.blur-background {
+/* --- การจัดการหน้า Login และ Main Content --- */
+#login-screen {
+    display: none; /* สำคัญ: ซ่อน Login Screen ตั้งแต่แรก, JS จะจัดการ */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 99; /* อยู่ใต้ Modal อื่นๆ แต่เหนือ Main Content */
+    background-color: #f0f2f5;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+#main-content {
+    display: none; /* สำคัญ: ซ่อน Main Content ตั้งแต่แรก, JS จะจัดการ */
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* การเบลอพื้นหลังเมื่อมี Modal เปิดทับ */
+#app-container.blur-background {
     filter: blur(5px);
-    pointer-events: none; /* Prevent interaction with blurred content */
+    pointer-events: none; /* ป้องกันการโต้ตอบกับเนื้อหาที่เบลอ */
+}
+
+/* --- Style ที่เหลือ (จากโค้ดเดิม) --- */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background-color: #333;
+    color: #eee;
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+}
+
+#app-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    transition: filter 0.3s ease-in-out; /* เพื่อให้การเบลอเป็นไปอย่างนุ่มนวล */
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #555;
+    margin-bottom: 20px;
+    position: relative; /* สำหรับ z-index ของ admin button */
+}
+
+#user-profile {
+    display: flex; /* Ensure it's a flex container */
+    align-items: center;
+    gap: 10px; /* Space between img and text */
+    cursor: pointer; /* Indicate clickable */
+    padding: 5px 10px;
+    border-radius: 20px;
+    transition: background-color 0.2s ease-in-out;
+    color: white; /* Make text visible */
+}
+
+#user-profile:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+#user-profile .profile-pic {
+    width: 40px; /* Adjust size as needed */
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.5); /* Optional border */
+}
+
+.admin-badge {
+    background-color: var(--warning-color);
+    color: black;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.8em;
+    margin-left: 5px;
+}
+
+h1, h2, h3 {
+    color: #eee;
+}
+
+.login-card {
+    background-color: #444;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    width: 100%;
+    max-width: 400px;
+    margin: auto;
+}
+
+.login-card h1 {
+    margin-top: 0;
+    color: var(--primary-color);
+}
+
+.login-card input[type="text"],
+.login-card input[type="password"] {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #555;
+    border-radius: 5px;
+    background-color: #666;
+    color: #eee;
+}
+
+.login-card button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.login-card button:hover {
+    background-color: #0056b3;
+}
+
+.error-message {
+    color: var(--danger-color);
+    margin-top: 10px;
+    font-size: 0.9em;
+}
+
+/* Leaderboard */
+#leaderboard-container {
+    background-color: #444;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+}
+
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #555;
+}
+
+.leaderboard-item:last-child {
+    border-bottom: none;
+}
+
+.leaderboard-item .rank {
+    font-size: 1.2em;
+    font-weight: bold;
+    width: 40px;
+    text-align: center;
+    color: var(--primary-color);
+}
+
+.leaderboard-item .profile-pic {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 0 15px;
+    border: 2px solid #555;
+}
+
+.leaderboard-item .student-info {
+    flex-grow: 1;
+}
+
+.leaderboard-item .student-name {
+    font-weight: bold;
+    color: #fff;
+}
+
+.leaderboard-item .progress-bar-container {
+    width: 80%;
+    height: 5px;
+    background-color: #666;
+    border-radius: 2.5px;
+    margin-top: 5px;
+    overflow: hidden;
+}
+
+.leaderboard-item .progress-bar {
+    height: 100%;
+    background-color: var(--success-color);
+    border-radius: 2.5px;
+    transition: width 0.5s ease-in-out;
+}
+
+.leaderboard-item .score {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-left: 20px;
+    color: var(--warning-color);
+}
+
+.clickable {
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.clickable:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Missions */
+#missions-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    background-color: #444;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.mission-node-wrapper {
+    flex: 0 0 auto; /* No flex grow/shrink, base size is auto */
+    width: calc(33.333% - 10px); /* 3 items per row */
+    box-sizing: border-box; /* Include padding/border in width */
+}
+
+@media (max-width: 768px) {
+    .mission-node-wrapper {
+        width: calc(50% - 7.5px); /* 2 items per row */
+    }
+}
+
+@media (max-width: 480px) {
+    .mission-node-wrapper {
+        width: 100%; /* 1 item per row */
+    }
+}
+
+
+.mission-node {
+    background-color: #555;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100px; /* Fixed height for consistency */
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.mission-node:hover {
+    transform: translateY(-3px);
+    background-color: #666;
+}
+
+.mission-node-topic {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 5px;
+}
+
+.mission-node-points {
+    font-size: 0.9em;
+    color: #bbb;
+}
+
+/* Mission Status Colors */
+.status-not-submitted { background-color: #6c757d; /* grey */ }
+.status-pending { background-color: #ffc107; /* orange */ color: #333;}
+.status-graded { background-color: #28a745; /* green */ }
+.status-overdue { background-color: #dc3545; /* red */ }
+.status-urgent { background-color: #fd7e14; /* dark orange */ }
+
+
+/* Mission Modal Body */
+#mission-modal-body .form-group {
+    margin-bottom: 15px;
+}
+
+#mission-modal-body label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #333; /* Darker text for labels */
+}
+
+#mission-modal-body input[type="url"],
+#mission-modal-body input[type="file"] {
+    width: calc(100% - 20px);
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    color: #333;
+}
+
+#mission-modal-body button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    margin-top: 10px;
+}
+
+#mission-modal-body button:hover {
+    background-color: #0056b3;
+}
+
+#mission-modal-body #submission-status {
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+    color: white; /* Default text color */
+}
+
+#mission-modal-body #submission-status.status-graded { background-color: var(--success-color); }
+#mission-modal-body #submission-status.status-pending { background-color: var(--warning-color); color: #333;}
+#mission-modal-body #file-upload-status {
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Student Detail Modal */
+#student-detail-modal #modal-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+}
+
+#student-detail-modal #modal-header img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--primary-color);
+}
+
+#student-detail-modal #modal-header .student-summary h3 {
+    margin: 0 0 5px 0;
+    color: #333;
+}
+
+#student-detail-modal #modal-header .student-summary p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+#student-detail-modal #modal-body .task-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed #eee;
+    color: #333;
+}
+
+#student-detail-modal #modal-body .task-list-item:last-child {
+    border-bottom: none;
+}
+
+#student-detail-modal #modal-body .task-name {
+    flex-grow: 1;
+    font-weight: bold;
+}
+
+#student-detail-modal #modal-body .task-status {
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 0.8em;
+    color: white;
+    margin-left: 10px;
+}
+
+#student-detail-modal #modal-body .task-status.status-not-submitted { background-color: #6c757d; }
+#student-detail-modal #modal-body .task-status.status-pending { background-color: #ffc107; color: #333;}
+#student-detail-modal #modal-body .task-status.status-graded { background-color: #28a745; }
+
+
+/* Admin Panel */
+#admin-panel-button {
+    background-color: #f0ad4e;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    margin-left: 10px;
+    display: none; /* Hidden by default, shown by JS */
+    z-index: 100; /* Ensure button is above main content */
+}
+
+#admin-panel-button:hover {
+    background-color: #ec971f;
+}
+
+#admin-modal h3 {
+    color: #333;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 5px;
+}
+
+#admin-modal .form-group {
+    margin-bottom: 15px;
+}
+
+#admin-modal label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #333;
+}
+
+#admin-modal input[type="text"],
+#admin-modal input[type="date"],
+#admin-modal input[type="number"],
+#admin-modal textarea,
+#admin-modal select {
+    width: calc(100% - 20px);
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    color: #333;
+    box-sizing: border-box;
+}
+
+#admin-modal textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+#admin-modal button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    margin-top: 10px;
+}
+
+#admin-modal button:hover {
+    background-color: #0056b3;
 }
 
 /* Profile Modal Specific Styles */
@@ -580,72 +550,17 @@ main h2 {
     width: 100%;
     max-width: 300px;
     box-sizing: border-box;
+    background-color: #f9f9f9; /* Match other inputs */
+    color: #333; /* Match other inputs */
 }
 
-.status-message {
+#profile-upload-status {
     font-size: 0.9em;
     color: #666;
     margin-top: -10px;
 }
 
-/* Additional styles for user-profile in header to make it look clickable */
-#user-profile {
-    display: flex; /* Ensure it's a flex container */
-    align-items: center;
-    gap: 10px; /* Space between img and text */
-    cursor: pointer; /* Indicate clickable */
-    padding: 5px 10px;
-    border-radius: 20px;
-    transition: background-color 0.2s ease-in-out;
-}
-
-#user-profile:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-#user-profile .profile-pic {
-    width: 40px; /* Adjust size as needed */
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid rgba(255, 255, 255, 0.5); /* Optional border */
-}
-
-/* Ensure admin-panel-button styles are good */
-#admin-panel-button {
-    background-color: #f0ad4e;
-    color: white;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 0.9em;
-    margin-left: 10px;
-    display: none; /* Hidden by default, shown by JS */
-}
-
-#admin-panel-button:hover {
-    background-color: #ec971f;
-}
-
-/* Adjustments for grading form */
-#grade-submission-form label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-#grade-submission-form select,
-#grade-submission-form input[type="number"] {
-    width: calc(100% - 20px);
-    padding: 10px;
-    margin-bottom: 15px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-sizing: border-box; /* Include padding in element's total width and height */
-}
-
-/* Styles for loading spinner (if not already defined) */
+/* Styles for loading spinner */
 .loader {
     border: 4px solid #f3f3f3; /* Light grey */
     border-top: 4px solid var(--primary-color); /* Blue */
@@ -659,10 +574,4 @@ main h2 {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
-
-.error-message {
-    color: #dc3545;
-    text-align: center;
-    margin-top: 20px;
 }

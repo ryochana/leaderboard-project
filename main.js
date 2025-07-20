@@ -137,8 +137,23 @@ function renderLeaderboard(leaderboardData) {
         const item = document.createElement('div');
         item.className = 'leaderboard-item clickable';
         item.dataset.userId = student.id;
+        
         const profileImageUrl = student.avatar_url || `https://robohash.org/${student.id}.png?set=set4&size=50x50`;
-        item.innerHTML = `<div class="rank">${index + 1}</div><img src="${profileImageUrl}" alt="Profile" class="profile-pic"><div class="student-info"><div class="student-name">${student.username}</div></div><div class="score">${student.points || 0} คะแนน</div>`;
+        const studentProgress = student.progress || 0; // ป้องกันค่า null
+
+        // **โค้ด HTML ใหม่ที่มี Progress Bar**
+        item.innerHTML = `
+            <div class="rank">${index + 1}</div>
+            <img src="${profileImageUrl}" alt="Profile" class="profile-pic">
+            <div class="student-info">
+                <div class="student-name">${student.username}</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: ${studentProgress}%;"></div>
+                </div>
+            </div>
+            <div class="score">${student.points || 0} คะแนน</div>
+        `;
+        
         leaderboardContainer.appendChild(item);
     });
 }

@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaderboard Classroom Hub</title>
+    <title>English Quest</title>
     
-    <!-- CSS and Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&family=Poppins:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     
-    <!-- Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -19,51 +17,58 @@
     <!-- Main App Container -->
     <div id="app-container">
         
-        <!-- Header (New Structure) -->
-        <header>
-            <div class="header-left">
-                <div id="user-profile">
-                    <!-- User profile info will be loaded here by JS -->
-                </div>
+        <!-- Top Header (Fixed) -->
+        <header id="top-header">
+            <div class="header-title">
+                <h1 id="class-title-main">ENGLISH QUEST M.X</h1>
+                <p id="school-name">NONPAKCHEE SCHOOL 2568</p>
             </div>
-            <nav class="header-center">
-                <button id="tab-feed" class="tab-button active" data-content="feed-container">
-                    <span class="tab-icon">🏠</span>
-                    <span class="tab-text">ฟีด</span>
-                </button>
-                <button id="tab-quests" class="tab-button" data-content="missions-container">
-                    <span class="tab-icon">📜</span>
-                    <span class="tab-text">ภารกิจ</span>
-                </button>
-                <button id="tab-leaderboard" class="tab-button" data-content="leaderboard-container">
-                    <span class="tab-icon">🏆</span>
-                    <span class="tab-text">อันดับ</span>
-                </button>
-            </nav>
-            <div class="header-right">
+            <div class="header-user-controls">
+                <div id="user-profile">
+                    <!-- User info will be loaded here by JS -->
+                </div>
                 <button id="logout-button">เข้าสู่ระบบ</button>
-                <button id="admin-panel-button">Admin</button>
             </div>
         </header>
 
-        <!-- Main Content Area (Swappable Content) -->
+        <!-- Main Content Area (Scrollable) -->
         <main id="main-content">
             <div id="feed-container" class="content-section active">
-                <h2 id="class-title"></h2>
                 <!-- Feed content will be loaded here by JS -->
             </div>
-            <div id="missions-container" class="content-section card">
+            <div id="missions-container" class="content-section">
                 <!-- Missions content will be loaded here by JS -->
             </div>
-            <div id="leaderboard-container" class="content-section card">
+            <div id="leaderboard-container" class="content-section">
                 <!-- Leaderboard content will be loaded here by JS -->
+            </div>
+            <div id="profile-container" class="content-section">
+                 <!-- Profile/Customization content will be loaded here by JS -->
             </div>
         </main>
 
+        <!-- Bottom Tab Bar (Fixed) -->
+        <nav id="bottom-tab-bar">
+            <button class="tab-button active" data-content="feed-container">
+                <span class="tab-icon">🏠</span>
+                <span class="tab-text">ฟีด</span>
+            </button>
+            <button class="tab-button" data-content="missions-container">
+                <span class="tab-icon">📜</span>
+                <span class="tab-text">ภารกิจ</span>
+            </button>
+            <button class="tab-button" data-content="leaderboard-container">
+                <span class="tab-icon">🏆</span>
+                <span class="tab-text">อันดับ</span>
+            </button>
+            <button class="tab-button" data-content="profile-container">
+                <span class="tab-icon">👤</span>
+                <span class="tab-text">โปรไฟล์</span>
+            </button>
+        </nav>
     </div>
 
     <!-- ========= MODALS ========= -->
-    <!-- (Modal HTML structure remains the same as before) -->
 
     <div id="login-screen" class="modal">
         <div class="modal-content login-card">
@@ -158,21 +163,6 @@
         </div>
     </div>
     
-    <div id="profile-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">×</span>
-            <h2>ตั้งค่าโปรไฟล์</h2>
-            <div class="profile-edit-area">
-                <img id="profile-pic-display" src="" alt="Current Profile Picture" class="profile-pic-lg">
-                <input type="file" id="profile-file-input" accept="image/png, image/jpeg, image/gif">
-                <p id="profile-upload-status" class="status-message"></p>
-                <button id="save-profile-button">บันทึกรูปโปรไฟล์</button>
-            </div>
-            <hr style="margin: 20px 0;">
-            <button id="go-to-change-password-btn" style="width:100%;">ต้องการเปลี่ยนรหัสผ่าน?</button>
-        </div>
-    </div>
-    
     <div id="change-password-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -193,52 +183,6 @@
                 <p id="password-error" class="error-message"></p>
                 <button type="submit" id="submit-password-change">ยืนยันการเปลี่ยนแปลง</button>
             </form>
-        </div>
-    </div>
-    
-    <div id="customization-modal" class="modal">
-        <div class="modal-content large">
-            <span class="close-button">×</span>
-            <h2>ตกแต่งโปรไฟล์</h2>
-            <div class="customization-container">
-                <div class="customization-preview">
-                    <div id="preview-card-background" class="leaderboard-item preview-item">
-                        <div class="rank">1</div>
-                        <div id="preview-profile-effect" class="profile-pic-wrapper">
-                            <img id="preview-profile-image" src="" alt="Profile" class="profile-pic">
-                        </div>
-                        <div class="student-info">
-                            <div class="student-name-wrapper">
-                                <div id="preview-username" class="student-name">ชื่อของคุณ</div>
-                                <img id="preview-badge" src="" alt="Badge" class="equipped-badge preview-badge">
-                            </div>
-                            <div class="progress-bar-container">
-                                <div class="progress-bar" style="width: 75%;"></div>
-                            </div>
-                        </div>
-                        <div id="preview-points" class="score">XXX คะแนน</div>
-                    </div>
-                    <button id="settings-btn">ตั้งค่า (รูปโปรไฟล์ / รหัสผ่าน)</button>
-                </div>
-                <div class="customization-shop">
-                    <div class="shop-category">
-                        <h3>กรอบโปรไฟล์</h3>
-                        <div id="shop-frame_color" class="shop-grid"></div>
-                    </div>
-                    <div class="shop-category">
-                        <h3>ป้ายแสดง</h3>
-                        <div id="shop-badge" class="shop-grid"></div>
-                    </div>
-                    <div class="shop-category">
-                        <h3>เอฟเฟกต์พิเศษ</h3>
-                        <div id="shop-profile_effect" class="shop-grid"></div>
-                    </div>
-                    <div class="shop-category">
-                        <h3>พื้นหลังการ์ด</h3>
-                        <div id="shop-card_background" class="shop-grid"></div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
     

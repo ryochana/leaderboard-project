@@ -1,14 +1,9 @@
-// main.js (V2.1 - Modern Import)
-// ปรับปรุง:
-// - เปลี่ยนมาใช้ ES Module import สำหรับ Supabase เพื่อความเสถียร
-// - แก้ไขปัญหา "No API key found" ที่เกิดจากการโหลดไม่สมบูรณ์
-
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+// main.js (V3.1 - Simple Username/Password Auth)
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const loginScreen = document.getElementById('login-screen');
 const mainContent = document.getElementById('main-content');
@@ -52,23 +47,49 @@ function getGradeFromHostname() {
 async function handleLogin(event) {
     event.preventDefault();
     loginError.textContent = '';
-    const email = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-        loginError.textContent = 'Email หรือรหัสผ่านไม่ถูกต้อง';
-    } else {
-        closeModal(loginScreen);
+    const usernameInput = document.getElementById('username').value;
+    const passwordInput = document.getElementById('password').value;
+
+    const { data: users, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', usernameInput);
+    
+    if (error || !users || users.length === 0) {
+        loginError.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+        return;
     }
+
+    const user = users[0];
+
+    if (user.password !== passwordInput) {
+        loginError.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+        return;
+    }
+
+    if (user.role === 'student' && user.grade !== currentGrade) {
+        loginError.textContent = `คุณเป็นนักเรียน ม.${user.grade} กรุณาไปที่เว็บของชั้นเรียนให้ถูกต้อง`;
+        return;
+    }
+
+    currentUser = user;
+    localStorage.setItem('app_user_session', JSON.stringify(currentUser));
+    
+    closeModal(loginScreen);
+    updateHeaderUI();
+    fetchAndDisplayMissions();
 }
 
-async function handleLogout() {
-    await supabase.auth.signOut();
+function handleLogout() {
+    localStorage.removeItem('app_user_session');
+    currentUser = null;
+    updateHeaderUI();
+    fetchAndDisplayMissions();
 }
 
 function updateHeaderUI() {
     if (currentUser) {
-        const profileImageUrl = currentUser.avatar_url || `https://robohash.org/${currentUser.id}.png?set=set4&size=50x50`;
+        const profileImageUrl = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=50x50`;
         userProfile.innerHTML = `<img src="${profileImageUrl}" alt="Profile" class="profile-pic"><span>สวัสดี, ${currentUser.username}</span>${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}`;
         userProfile.style.display = 'flex';
         userProfile.classList.add('clickable');
@@ -127,12 +148,11 @@ function renderLeaderboard(leaderboardData) {
         const item = document.createElement('div');
         item.className = 'leaderboard-item clickable';
         item.dataset.userId = student.id;
-        const profileImageUrl = student.avatar_url || `https://robohash.org/${student.id}.png?set=set4&size=50x50`;
+        const profileImageUrl = student.avatar_url || `https://robohash.org/${student.student_id}.png?set=set4&size=50x50`;
         const studentProgress = student.progress || 0;
         const frameStyle = student.equipped_frame_color && student.equipped_frame_color.startsWith('linear-gradient')
             ? `border-image: ${student.equipped_frame_color} 1; background-image: ${student.equipped_frame_color};`
             : `border-color: ${student.equipped_frame_color || '#555'};`;
-        
         item.innerHTML = `
             <div class="rank">${index + 1}</div>
             <div class="profile-pic-wrapper ${student.equipped_profile_effect || ''}" style="${frameStyle}">
@@ -280,7 +300,7 @@ async function showStudentDetailModal(userId) {
     const { data: allMissions } = await supabase.from('missions').select('id, title, max_points').eq('grade', currentGrade).order('created_at', { ascending: false });
     const { data: studentSubmissions } = await supabase.from('submissions').select('mission_id, status, grade, proof_url').eq('student_id', userId);
     const submissionMap = new Map(studentSubmissions ? studentSubmissions.map(s => [s.mission_id, s]) : []);
-    const profileImageUrl = studentInfo.avatar_url || `https://robohash.org/${userId}.png?set=set4&size=80x80`;
+    const profileImageUrl = studentInfo.avatar_url || `https://robohash.org/${studentInfo.student_id}.png?set=set4&size=80x80`;
     studentDetailModal.querySelector('.modal-content').style.background = studentInfo.equipped_card_bg || '#fefefe';
     modalHeader.innerHTML = `<img src="${profileImageUrl}" alt="Profile"><div class="student-summary"><h3>${studentInfo.username}</h3><p>คะแนนรวม: ${studentInfo.points || 0}</p></div>`;
     modalBody.innerHTML = '';
@@ -318,7 +338,7 @@ function showProfileModal() {
     const profileFileInput = profileModal.querySelector('#profile-file-input');
     const profileUploadStatus = profileModal.querySelector('#profile-upload-status');
     const saveProfileButton = profileModal.querySelector('#save-profile-button');
-    profilePicDisplay.src = currentUser.avatar_url || `https://robohash.org/${currentUser.id}.png?set=set4&size=100x100`;
+    profilePicDisplay.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=100x100`;
     profileFileInput.value = '';
     profileUploadStatus.textContent = '';
     saveProfileButton.disabled = false;
@@ -468,7 +488,7 @@ async function showCustomizationModal() {
 
 function updatePreview() {
     if (!currentUser) return;
-    previewProfileImage.src = currentUser.avatar_url || `https://robohash.org/${currentUser.id}.png?set=set4&size=50x50`;
+    previewProfileImage.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=50x50`;
     previewUsername.textContent = currentUser.username;
     previewPoints.textContent = `${currentUser.points || 0} คะแนน`;
     const frameStyle = currentUser.equipped_frame_color && currentUser.equipped_frame_color.startsWith('linear-gradient')
@@ -562,27 +582,13 @@ async function init() {
     classTitle.textContent = `ห้องเรียน ม.${currentGrade}`;
     document.getElementById('main-content').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
-    setupEventListeners();
-    const { data: { session } } = await supabase.auth.getSession();
-    await handleSession(session);
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-        await handleSession(session);
-    });
-}
-
-async function handleSession(session) {
-    if (session) {
-        const { data: userProfile } = await supabase.from('users').select('*').eq('id', session.user.id).single();
-        if (userProfile && (userProfile.role === 'admin' || userProfile.grade === currentGrade)) {
-            currentUser = userProfile;
-        } else {
-            currentUser = null;
-            await supabase.auth.signOut();
-            if (userProfile) alert(`บัญชีนี้สำหรับ ม.${userProfile.grade} กรุณาไปที่เว็บของชั้นเรียนให้ถูกต้อง.`);
-        }
-    } else {
-        currentUser = null;
+    
+    const storedSession = localStorage.getItem('app_user_session');
+    if (storedSession) {
+        currentUser = JSON.parse(storedSession);
     }
+
+    setupEventListeners();
     updateHeaderUI();
     fetchAndDisplayLeaderboard();
     fetchAndDisplayMissions();

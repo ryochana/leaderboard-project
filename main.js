@@ -41,6 +41,8 @@ const adminModal = document.getElementById('admin-modal');
 const adminModalCloseButton = adminModal ? adminModal.querySelector('.close-button') : null;
 const addMissionForm = document.getElementById('add-mission-form');
 const gradeSubmissionForm = document.getElementById('grade-submission-form');
+const adminMissionList = document.getElementById('admin-mission-list');
+const adminStudentList = document.getElementById('admin-student-list');
 
 
 // ================================================================
@@ -128,6 +130,7 @@ function showAdminModal() {
     appContainer.classList.add('blur-background');
 
     populateGradeSubmissionDropdowns(); // Function is now declared below
+    populateAdminMissionList();
 }
 
 function hideAdminModal() {
@@ -230,6 +233,173 @@ async function handleGradeSubmission(event) {
     }
 }
 
+async function handleAdminEditMission(missionId, newTopic, newDetail, newDueDate, newMaxPoints, newGrade) {
+    if (!currentUser || currentUser.role !== 'admin' || !currentUser.student_id) {
+        alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
+        return;
+    }
+
+    try {
+        const { data, error } = await supabase.rpc('edit_mission', {
+            p_mission_id: missionId,
+            p_topic: newTopic,
+            p_detail: newDetail,
+            p_due_date: new Date(newDueDate).toISOString(),
+            p_max_points: newMaxPoints,
+            p_grade: newGrade, // สามารถแก้ไข grade ของภารกิจได้
+            p_admin_student_id: currentUser.student_id
+        });
+
+        if (error) {
+            console.error('RPC Error:', error);
+            throw new Error(error.message);
+        }
+
+        if (data.success) {
+            alert('แก้ไขภารกิจสำเร็จ!');
+            fetchAndDisplayMissions(); // Refresh mission list
+            if (adminModal.style.display === 'block') {
+                populateAdminMissionList(); // Refresh admin mission list if modal is open
+            }
+        } else {
+            console.error('API Error Response:', data.error);
+            throw new Error(data.error);
+        }
+    } catch (error) {
+        console.error('Error editing mission:', error);
+        alert(`เกิดข้อผิดพลาดในการแก้ไขภารกิจ: ${error.message}`);
+    }
+}
+
+/**
+ * Handles deleting a mission via RPC.
+ */
+async function handleAdminDeleteMission(missionId) {
+    if (!currentUser || currentUser.role !== 'admin' || !currentUser.student_id) {
+        alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
+        return;
+    }
+
+    if (!confirm('คุณต้องการลบภารกิจนี้ใช่หรือไม่? การส่งงานทั้งหมดที่เกี่ยวข้องจะถูกลบด้วย!')) {
+        return;
+    }
+
+    try {
+        const { data, error } = await supabase.rpc('delete_mission', {
+            p_mission_id: missionId,
+            p_admin_student_id: currentUser.student_id
+        });
+
+        if (error) {
+            console.error('RPC Error:', error);
+            throw new Error(error.message);
+        }
+
+        if (data.success) {
+            alert('ลบภารกิจสำเร็จ!');
+            fetchAndDisplayMissions(); // Refresh mission list
+            if (adminModal.style.display === 'block') {
+                populateAdminMissionList(); // Refresh admin mission list if modal is open
+            }
+        } else {
+            console.error('API Error Response:', data.error);
+            throw new Error(data.error);
+        }
+    } catch (error) {
+        console.error('Error deleting mission:', error);
+        alert(`เกิดข้อผิดพลาดในการลบภารกิจ: ${error.message}`);
+    }
+}
+
+/**
+ * Populates mission list for admin editing/deleting.
+ */
+async function populateAdminMissionList() {
+    if (!adminMissionList) return;
+    adminMissionList.innerHTML = '<p>กำลังโหลดภารกิจ...</p>';
+
+    const { data: allMissions, error } = await supabase
+        .from('missions')
+        .select('*')
+        .order('grade', { ascending: true })
+        .order('due_date', { ascending: true });
+
+    if (error) {
+        adminMissionList.innerHTML = `<p class="error-message">ไม่สามารถโหลดภารกิจได้</p>`;
+        console.error('Error fetching admin missions:', error);
+        return;
+    }
+
+    if (allMissions.length === 0) {
+        adminMissionList.innerHTML = '<p>ยังไม่มีภารกิจในระบบ</p>';
+        return;
+    }
+
+    adminMissionList.innerHTML = '';
+    allMissions.forEach(mission => {
+        const item = document.createElement('div');
+        item.className = 'admin-list-item';
+        const dueDate = new Date(mission.due_date).toISOString().split('T')[0]; // Format to YYYY-MM-DD for date input
+
+        item.innerHTML = `
+            <span><b>ม.${mission.grade}</b> - ${mission.topic} (${mission.max_points} คะแนน)</span>
+            <div class="admin-actions">
+                <button class="admin-edit-mission-btn" 
+                        data-mission-id="${mission.id}" 
+                        data-topic="${mission.topic}" 
+                        data-detail="${mission.detail || ''}" 
+                        data-due-date="${dueDate}" 
+                        data-max-points="${mission.max_points}"
+                        data-grade="${mission.grade}">แก้ไข</button>
+                <button class="admin-delete-mission-btn" data-mission-id="${mission.id}">ลบ</button>
+            </div>
+        `;
+        adminMissionList.appendChild(item);
+    });
+
+    // Add event listeners for edit/delete buttons
+    adminMissionList.querySelectorAll('.admin-edit-mission-btn').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const { missionId, topic, detail, dueDate, maxPoints, grade } = event.target.dataset;
+            // Populate "Add Mission" form for editing
+            document.getElementById('add-mission-topic').value = topic;
+            document.getElementById('add-mission-detail').value = detail;
+            document.getElementById('add-mission-due-date').value = dueDate;
+            document.getElementById('add-mission-max-points').value = maxPoints;
+            // How to handle grade for editing? Maybe add a dropdown for grade in edit mode
+            // For now, assume it's just topic, detail, date, points
+            
+            // Change button text and add listener for update
+            const originalAddButton = addMissionForm.querySelector('button[type="submit"]');
+            originalAddButton.textContent = 'บันทึกการแก้ไขภารกิจ';
+            originalAddButton.onclick = async (e) => {
+                e.preventDefault();
+                const newTopic = document.getElementById('add-mission-topic').value;
+                const newDetail = document.getElementById('add-mission-detail').value;
+                const newDueDate = document.getElementById('add-mission-due-date').value;
+                const newMaxPoints = parseInt(document.getElementById('add-mission-max-points').value, 10);
+                const newGrade = parseInt(grade, 10); // Keep original grade for now, or add an input
+
+                if (!newTopic || !newDueDate || isNaN(newMaxPoints)) {
+                    alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                    return;
+                }
+                await handleAdminEditMission(parseInt(missionId, 10), newTopic, newDetail, newDueDate, newMaxPoints, newGrade);
+                // Reset form and button
+                addMissionForm.reset();
+                originalAddButton.textContent = 'เพิ่มภารกิจ';
+                originalAddButton.onclick = handleAddMission; // Re-assign original handler
+            };
+        });
+    });
+
+    adminMissionList.querySelectorAll('.admin-delete-mission-btn').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const missionId = parseInt(event.target.dataset.missionId, 10);
+            handleAdminDeleteMission(missionId);
+        });
+    });
+}
 
 // ================================================================
 // UI & DISPLAY LOGIC (Core Data Fetching & Rendering)

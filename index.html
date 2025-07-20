@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaderboard</title>
+    <title>Leaderboard Classroom Hub</title>
     
     <!-- CSS and Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,28 +18,53 @@
 
     <!-- Main App Container -->
     <div id="app-container">
-        <div id="main-content">
-            <header>
-                <div id="user-profile"></div>
+        
+        <!-- Header (New Structure) -->
+        <header>
+            <div class="header-left">
+                <div id="user-profile">
+                    <!-- User profile info will be loaded here by JS -->
+                </div>
+            </div>
+            <nav class="header-center">
+                <button id="tab-feed" class="tab-button active" data-content="feed-container">
+                    <span class="tab-icon">🏠</span>
+                    <span class="tab-text">ฟีด</span>
+                </button>
+                <button id="tab-quests" class="tab-button" data-content="missions-container">
+                    <span class="tab-icon">📜</span>
+                    <span class="tab-text">ภารกิจ</span>
+                </button>
+                <button id="tab-leaderboard" class="tab-button" data-content="leaderboard-container">
+                    <span class="tab-icon">🏆</span>
+                    <span class="tab-text">อันดับ</span>
+                </button>
+            </nav>
+            <div class="header-right">
                 <button id="logout-button">เข้าสู่ระบบ</button>
-            </header>
-            <main>
+                <button id="admin-panel-button">Admin</button>
+            </div>
+        </header>
+
+        <!-- Main Content Area (Swappable Content) -->
+        <main id="main-content">
+            <div id="feed-container" class="content-section active">
                 <h2 id="class-title"></h2>
-                <h2>หอเกียรติยศ (Leaderboard)</h2>
-                <div id="leaderboard-container" class="card"></div>
-                <h2>บันทึกภารกิจ (Quest Log)</h2>
-                <div id="missions-container" class="card"></div>
-            </main>
-        </div>
+                <!-- Feed content will be loaded here by JS -->
+            </div>
+            <div id="missions-container" class="content-section card">
+                <!-- Missions content will be loaded here by JS -->
+            </div>
+            <div id="leaderboard-container" class="content-section card">
+                <!-- Leaderboard content will be loaded here by JS -->
+            </div>
+        </main>
+
     </div>
 
-    <!-- Admin Panel Floating Button -->
-    <button id="admin-panel-button">Admin Panel</button>
-
     <!-- ========= MODALS ========= -->
-    <!-- All modals are placed here, outside the main app container -->
+    <!-- (Modal HTML structure remains the same as before) -->
 
-    <!-- Login Modal -->
     <div id="login-screen" class="modal">
         <div class="modal-content login-card">
             <span class="close-button">×</span>
@@ -58,8 +83,7 @@
             <p id="login-error" class="error-message"></p>
         </div>
     </div>
-
-    <!-- Student Detail Modal -->
+    
     <div id="student-detail-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -67,8 +91,7 @@
             <div id="modal-body"></div>
         </div>
     </div>
-
-    <!-- Mission Submission Modal -->
+    
     <div id="mission-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -91,8 +114,7 @@
             </div>
         </div>
     </div>
-
-    <!-- Admin Panel Modal -->
+    
     <div id="admin-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -136,7 +158,6 @@
         </div>
     </div>
     
-    <!-- Profile Settings Modal (รวมเปลี่ยนรูปและรหัสผ่าน) -->
     <div id="profile-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -152,7 +173,6 @@
         </div>
     </div>
     
-    <!-- Change Password Modal -->
     <div id="change-password-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -175,8 +195,7 @@
             </form>
         </div>
     </div>
-
-    <!-- Profile Customization Modal -->
+    
     <div id="customization-modal" class="modal">
         <div class="modal-content large">
             <span class="close-button">×</span>

@@ -241,28 +241,67 @@ async function handleMissionSubmit(event) {
     const submitBtn = event.target.querySelector('#submit-mission-button');
     submitBtn.disabled = true;
     submitBtn.textContent = 'กำลังส่ง...';
+    
     const fileStatus = document.getElementById('file-upload-status');
     fileStatus.textContent = '';
+    
     const submissionLink = document.getElementById('submission-link').value;
     const fileInput = document.getElementById('submission-file');
     const file = fileInput.files[0];
-    let proofUrl = submissionLink || '';
+    
+    let proofUrl = submissionLink || ''; // ใช้ลิงก์ที่กรอกเป็นค่าเริ่มต้น
+
     try {
+        // ---- START ImgBB Upload Logic (ถ้ามีไฟล์แนบ) ----
         if (file) {
-            fileStatus.textContent = `กำลังอัปโหลด: ${file.name}`;
-            const fileExtension = file.name.split('.').pop();
-            const filePath = `submissions/${currentUser.id}/${currentlyOpenMission.id}-${Date.now()}.${fileExtension}`;
-            const { error: uploadError } = await supabase.storage.from('submissions').upload(filePath, file, { upsert: true });
-            if (uploadError) throw uploadError;
-            const { data } = supabase.storage.from('submissions').getPublicUrl(filePath);
-            proofUrl = data.publicUrl;
+            fileStatus.textContent = `กำลังอัปโหลดไฟล์ไปที่ ImgBB: ${file.name}`;
+            
+            const IMGBB_API_KEY = 'e5fca6e1e9823fa93eff7017fe015d54'; // ใช้ Key เดียวกันได้
+            const formData = new FormData();
+            formData.append('key', IMGBB_API_KEY);
+            formData.append('image', file); // ImgBB รองรับไฟล์ได้หลากหลายประเภท ไม่ใช่แค่รูปภาพ
+            
+            const response = await fetch('https://api.imgbb.com/1/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error.message || 'ImgBB upload failed');
+            }
+            
+            proofUrl = result.data.url; // อัปเดต proofUrl เป็นลิงก์จาก ImgBB
             fileStatus.textContent = 'อัปโหลดไฟล์สำเร็จ!';
         }
-        const { error: dbError } = await supabase.from('submissions').upsert({ student_id: currentUser.id, mission_id: currentlyOpenMission.id, submitted_at: new Date().toISOString(), status: 'pending', proof_url: proofUrl }, { onConflict: 'student_id, mission_id' });
+        // ---- END ImgBB Upload Logic ----
+
+        // ถ้าไม่มีทั้งลิงก์และไฟล์ที่อัปโหลด ให้แจ้งเตือน
+        if (!proofUrl) {
+             alert('กรุณาแนบลิงก์ส่งงาน หรือ อัปโหลดไฟล์อย่างใดอย่างหนึ่ง');
+             submitBtn.disabled = false;
+             submitBtn.textContent = 'ส่งงาน';
+             return;
+        }
+
+        // บันทึกข้อมูลลง Supabase (ตอนนี้ proofUrl คือลิงก์ที่กรอก หรือลิงก์จาก ImgBB)
+        const { error: dbError } = await supabase
+            .from('submissions')
+            .upsert({ 
+                student_id: currentUser.id, 
+                mission_id: currentlyOpenMission.id, 
+                submitted_at: new Date().toISOString(), 
+                status: 'pending', 
+                proof_url: proofUrl 
+            }, { onConflict: 'student_id, mission_id' });
+
         if (dbError) throw dbError;
+
         alert('ส่งงานสำเร็จ!');
         hideMissionModal();
         fetchAndDisplayMissions();
+
     } catch (error) {
         console.error('Submission Error:', error);
         alert(`เกิดข้อผิดพลาดในการส่งงาน: ${error.message}`);

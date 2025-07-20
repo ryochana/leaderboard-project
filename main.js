@@ -2,7 +2,7 @@
 // CONFIGURATION
 // ================================================================
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE'; // *** ใส่ anon key ของคุณที่นี่ ***
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImexCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE'; // *** ใส่ anon key ของคุณที่นี่ ***
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -42,14 +42,13 @@ const adminModalCloseButton = adminModal ? adminModal.querySelector('.close-butt
 const addMissionForm = document.getElementById('add-mission-form');
 const gradeSubmissionForm = document.getElementById('grade-submission-form');
 
-// *** NEW: Profile Modal Elements ***
+// Profile Modal Elements
 const profileModal = document.getElementById('profile-modal');
 const profileModalCloseButton = profileModal ? profileModal.querySelector('.close-button') : null;
 const profilePicDisplay = document.getElementById('profile-pic-display');
 const profileFileInput = document.getElementById('profile-file-input');
 const saveProfileButton = document.getElementById('save-profile-button');
 const profileUploadStatus = document.getElementById('profile-upload-status');
-// *** END NEW ***
 
 
 // ================================================================
@@ -110,9 +109,9 @@ async function handleLogin(event) {
     currentUser = user;
     localStorage.setItem('app_user_session', JSON.stringify(currentUser));
     
+    // *** แก้ไข: ซ่อนหน้า Login และแสดง Main Content ***
     hideLoginScreen();
     updateHeaderUI();
-    // Refresh missions and leaderboard after login as current user's submission status might change
     fetchAndDisplayMissions();
     fetchAndDisplayLeaderboard();
 }
@@ -124,14 +123,15 @@ function handleLogout() {
     localStorage.removeItem('app_user_session');
     currentUser = null;
     updateHeaderUI();
-    // Refresh missions and leaderboard after logout as some statuses are based on user login
+    // *** แก้ไข: แสดงหน้า Login และซ่อน Main Content ***
+    showLoginScreen();
     fetchAndDisplayMissions();
     fetchAndDisplayLeaderboard();
 }
 
 
 // ================================================================
-// ADMIN PANEL FUNCTIONS (ย้ายขึ้นมาไว้ข้างบนเพื่อให้ populateGradeSubmissionDropdowns ถูกเรียกได้)
+// ADMIN PANEL FUNCTIONS
 // ================================================================
 
 function showAdminModal() {
@@ -139,24 +139,20 @@ function showAdminModal() {
         alert('คุณไม่มีสิทธิ์เข้าถึง Admin Panel');
         return;
     }
-    adminModal.style.display = 'block';
-    appContainer.classList.add('blur-background');
-
-    // *** FIX: เรียกใช้ function เพื่อโหลดข้อมูลเข้า dropdowns ตอนเปิด modal ***
+    // *** ใช้ฟังก์ชัน openModal กลาง ***
+    openModal(adminModal);
     populateGradeSubmissionDropdowns(); 
 }
 
 function hideAdminModal() {
-    adminModal.style.display = 'none';
-    appContainer.classList.remove('blur-background');
+    // *** ใช้ฟังก์ชัน closeModal กลาง ***
+    closeModal(adminModal);
 }
 
-// *** NEW: Function to populate student and mission dropdowns for grading ***
 async function populateGradeSubmissionDropdowns() {
     const studentSelect = document.getElementById('grade-student-id');
     const missionSelect = document.getElementById('grade-mission-topic');
 
-    // Clear previous options
     studentSelect.innerHTML = '<option value="">เลือกนักเรียน</option>';
     missionSelect.innerHTML = '<option value="">เลือกภารกิจ</option>';
 
@@ -192,13 +188,11 @@ async function populateGradeSubmissionDropdowns() {
         missions.forEach(mission => {
             const option = document.createElement('option');
             option.value = mission.id;
-            // Display mission topic and due date for better context
             option.textContent = `${mission.topic} (กำหนดส่ง: ${new Date(mission.due_date).toLocaleDateString()})`;
             missionSelect.appendChild(option);
         });
     }
 }
-// *** END NEW ***
 
 async function handleAddMission(event) {
     event.preventDefault();
@@ -206,8 +200,6 @@ async function handleAddMission(event) {
     const detail = document.getElementById('add-mission-detail').value;
     const dueDate = document.getElementById('add-mission-due-date').value;
     const maxPoints = parseInt(document.getElementById('add-mission-max-points').value, 10);
-
-    console.log('Form data:', { topic, detail, dueDate, maxPoints }); 
 
     if (!topic || !dueDate || isNaN(maxPoints)) {
         alert('กรุณากรอกข้อมูลภารกิจให้ครบถ้วน');
@@ -220,15 +212,14 @@ async function handleAddMission(event) {
     }
 
     try {
-        // *** จุดที่แก้ไข: เรียกใช้ supabase.rpc() แทน fetch() ***
         const { data, error } = await supabase.rpc('add_mission', {
             p_topic: topic,
             p_detail: detail,
-            p_assigned_date: new Date().toISOString(), // assigned_date เป็นวันที่ปัจจุบัน
+            p_assigned_date: new Date().toISOString(),
             p_due_date: new Date(dueDate).toISOString(),
             p_max_points: maxPoints,
             p_grade: currentGrade,
-            p_admin_student_id: currentUser.student_id // ส่ง student_id ของ admin ไปด้วย
+            p_admin_student_id: currentUser.student_id
         });
 
         if (error) {
@@ -236,11 +227,11 @@ async function handleAddMission(event) {
             throw new Error(error.message);
         }
 
-        if (data && data.success) { // ตรวจสอบจาก success flag ใน response JSON
+        if (data && data.success) {
             alert('เพิ่มภารกิจสำเร็จ!');
             addMissionForm.reset();
             fetchAndDisplayMissions();
-            populateGradeSubmissionDropdowns(); // Refresh mission list in grading dropdown
+            populateGradeSubmissionDropdowns();
         } else {
             console.error('API Error Response:', data ? data.error : 'Unknown error');
             throw new Error(data ? data.error : 'Failed to add mission.');
@@ -268,12 +259,11 @@ async function handleGradeSubmission(event) {
     }
 
     try {
-        // *** จุดที่แก้ไข: เรียกใช้ supabase.rpc() แทน fetch() ***
         const { data, error } = await supabase.rpc('grade_submission', {
             p_student_id: parseInt(studentId, 10),
             p_mission_id: parseInt(missionId, 10),
             p_score: score,
-            p_admin_student_id: currentUser.student_id // ส่ง student_id ของ admin ไปด้วย
+            p_admin_student_id: currentUser.student_id
         });
 
         if (error) {
@@ -281,7 +271,7 @@ async function handleGradeSubmission(event) {
             throw new Error(error.message);
         }
 
-        if (data && data.success) { // ตรวจสอบจาก success flag ใน response JSON
+        if (data && data.success) {
             alert('บันทึกคะแนนสำเร็จ!');
             gradeSubmissionForm.reset();
             fetchAndDisplayLeaderboard();
@@ -313,8 +303,8 @@ function updateHeaderUI() {
             <span>สวัสดี, ${currentUser.full_name}</span>
             ${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}
         `;
-        userProfile.style.display = 'flex'; // Use flex to align items
-        userProfile.classList.add('clickable'); // Make profile clickable for image change
+        userProfile.style.display = 'flex';
+        userProfile.classList.add('clickable');
         userProfile.onclick = showProfileModal; // Assign click handler
 
         logoutButton.textContent = 'ออกจากระบบ';
@@ -341,21 +331,46 @@ function updateHeaderUI() {
 }
 
 /**
- * Shows the login modal.
+ * Shows the login screen and hides main content.
  */
 function showLoginScreen() {
     loginError.textContent = '';
     loginForm.reset();
-    loginScreen.classList.add('active');
-    appContainer.classList.add('blur-background');
+    loginScreen.style.display = 'flex'; // แสดง login screen
+    mainContent.style.display = 'none';  // ซ่อน main content
+    // ไม่ต้องเพิ่ม blur-background ที่นี่ เพราะเป็นหน้าหลัก
 }
 
 /**
- * Hides the login modal.
+ * Hides the login screen and shows main content.
  */
 function hideLoginScreen() {
-    loginScreen.classList.remove('active');
-    appContainer.classList.remove('blur-background');
+    loginScreen.style.display = 'none'; // ซ่อน login screen
+    mainContent.style.display = 'flex'; // แสดง main content
+    // ไม่ต้องลบ blur-background ที่นี่
+}
+
+/**
+ * Opens a modal and blurs the background.
+ * @param {HTMLElement} modalElement The modal DOM element to show.
+ */
+function openModal(modalElement) {
+    modalElement.style.display = 'flex'; // Make it visible
+    appContainer.classList.add('blur-background'); // Apply blur
+}
+
+/**
+ * Hides a modal and removes background blur if no other modals are open.
+ * @param {HTMLElement} modalElement The modal DOM element to hide.
+ */
+function closeModal(modalElement) {
+    modalElement.style.display = 'none'; // Hide it
+    // Check if any other modal is still open before removing blur
+    // ใช้ querySelectorAll เพื่อหา modal ที่ยังมี display: flex หรือ display: block อยู่
+    const openModals = document.querySelectorAll('.modal[style*="display: flex"], .modal[style*="display: block"]');
+    if (openModals.length === 0) {
+        appContainer.classList.remove('blur-background'); // Remove blur only if no modals are open
+    }
 }
 
 /**
@@ -385,7 +400,6 @@ function renderLeaderboard(leaderboardData) {
         return;
     }
     leaderboardData.forEach((student, index) => {
-        // Use student's profile_picture_url if available, otherwise use robohash
         const profileImageUrl = student.profile_picture_url || `https://robohash.org/${student.student_id}.png?set=set4&size=50x50`;
         
         const item = document.createElement('div');
@@ -506,8 +520,8 @@ function openMissionModal(mission, submission) {
     }
     
     currentlyOpenMission = mission;
-    missionModal.style.display = 'block';
-    appContainer.classList.add('blur-background');
+    // *** ใช้ฟังก์ชัน openModal กลาง ***
+    openModal(missionModal);
 
     missionModalHeader.innerHTML = `
         <h3>${mission.topic}</h3>
@@ -541,8 +555,8 @@ function openMissionModal(mission, submission) {
  * Hides the mission modal.
  */
 function hideMissionModal() {
-    missionModal.style.display = 'none';
-    appContainer.classList.remove('blur-background');
+    // *** ใช้ฟังก์ชัน closeModal กลาง ***
+    closeModal(missionModal);
     currentlyOpenMission = null;
 }
 
@@ -564,7 +578,7 @@ async function handleMissionSubmit(event) {
         if (file) {
             fileUploadStatus.textContent = `กำลังอัปโหลด: ${file.name}`;
             const fileExtension = file.name.split('.').pop();
-            const filePath = `${currentUser.grade}/${currentUser.student_id}/${currentlyOpenMission.id}-${Date.now()}.${fileExtension}`; // Add timestamp for unique file names
+            const filePath = `${currentUser.grade}/${currentUser.student_id}/${currentlyOpenMission.id}-${Date.now()}.${fileExtension}`; 
             
             const { error: uploadError } = await supabase.storage
                 .from('submissions')
@@ -610,8 +624,8 @@ async function handleMissionSubmit(event) {
  * @param {string} studentId The ID of the student to show details for.
  */
 async function showStudentDetailModal(studentId) {
-    studentDetailModal.style.display = 'block';
-    appContainer.classList.add('blur-background');
+    // *** ใช้ฟังก์ชัน openModal กลาง ***
+    openModal(studentDetailModal);
     modalHeader.innerHTML = '<div class="loader"></div>';
     modalBody.innerHTML = '';
 
@@ -699,16 +713,16 @@ async function showStudentDetailModal(studentId) {
  * Hides the student detail modal.
  */
 function hideStudentDetailModal() {
-    studentDetailModal.style.display = 'none';
-    appContainer.classList.remove('blur-background');
+    // *** ใช้ฟังก์ชัน closeModal กลาง ***
+    closeModal(studentDetailModal);
 }
 
-// *** NEW: Profile Modal Functions ***
+// Profile Modal Functions
 function showProfileModal() {
-    if (!currentUser) return; // Only show if logged in
+    if (!currentUser) return;
 
-    profileModal.style.display = 'block';
-    appContainer.classList.add('blur-background');
+    // *** ใช้ฟังก์ชัน openModal กลาง ***
+    openModal(profileModal);
 
     profilePicDisplay.src = currentUser.profile_picture_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=100x100`;
     profileFileInput.value = ''; // Clear file input
@@ -718,8 +732,8 @@ function showProfileModal() {
 }
 
 function hideProfileModal() {
-    profileModal.style.display = 'none';
-    appContainer.classList.remove('blur-background');
+    // *** ใช้ฟังก์ชัน closeModal กลาง ***
+    closeModal(profileModal);
 }
 
 async function handleProfilePicSubmit(event) {
@@ -740,14 +754,13 @@ async function handleProfilePicSubmit(event) {
     try {
         profileUploadStatus.textContent = `กำลังอัปโหลด: ${file.name}`;
         const fileExtension = file.name.split('.').pop();
-        // Use student_id as part of the filename for easy lookup and overwrite
         const filePath = `avatars/${currentUser.student_id}.${fileExtension}`; 
         
         const { error: uploadError } = await supabase.storage
-            .from('avatars') // Use the 'avatars' bucket
+            .from('avatars')
             .upload(filePath, file, { 
-                upsert: true, // Overwrite if file exists
-                cacheControl: '3600' // Cache for 1 hour
+                upsert: true,
+                cacheControl: '3600'
             });
 
         if (uploadError) throw uploadError;
@@ -759,7 +772,6 @@ async function handleProfilePicSubmit(event) {
         const newProfileUrl = data.publicUrl;
         profileUploadStatus.textContent = 'อัปโหลดรูปสำเร็จ!';
 
-        // Update the user's profile_picture_url in the 'users' table
         const { error: dbError } = await supabase
             .from('users')
             .update({ profile_picture_url: newProfileUrl })
@@ -767,13 +779,11 @@ async function handleProfilePicSubmit(event) {
 
         if (dbError) throw dbError;
 
-        // Update local currentUser and localStorage
         currentUser.profile_picture_url = newProfileUrl;
         localStorage.setItem('app_user_session', JSON.stringify(currentUser));
         
-        // Update UI
         updateHeaderUI();
-        fetchAndDisplayLeaderboard(); // Leaderboard also uses profile pics
+        fetchAndDisplayLeaderboard();
         alert('เปลี่ยนรูปโปรไฟล์สำเร็จ!');
         hideProfileModal();
 
@@ -784,7 +794,6 @@ async function handleProfilePicSubmit(event) {
         saveProfileButton.textContent = 'ลองอีกครั้ง';
     }
 }
-// *** END NEW ***
 
 
 // ================================================================
@@ -793,10 +802,10 @@ async function handleProfilePicSubmit(event) {
 function setupEventListeners() {
     // Login form
     loginForm.addEventListener('submit', handleLogin);
-    // Close login modal when clicking outside
+    // Close login modal when clicking outside (login-screen.style.display = 'none' will hide it)
     loginScreen.addEventListener('click', (event) => {
         if (event.target === loginScreen) {
-            hideLoginScreen();
+            //showLoginScreen(); // If you want to allow clicking outside to re-open login, though it should always be visible if not logged in
         }
     });
 
@@ -849,7 +858,7 @@ function setupEventListeners() {
         gradeSubmissionForm.addEventListener('submit', handleGradeSubmission);
     }
 
-    // *** NEW: Profile Modal Event Listeners ***
+    // Profile Modal Event Listeners
     if (profileModalCloseButton) {
         profileModalCloseButton.addEventListener('click', hideProfileModal);
     }
@@ -863,7 +872,6 @@ function setupEventListeners() {
     if (saveProfileButton) {
         saveProfileButton.addEventListener('click', handleProfilePicSubmit);
     }
-    // Optional: Auto-preview image when selected
     if (profileFileInput) {
         profileFileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
@@ -876,7 +884,6 @@ function setupEventListeners() {
             }
         });
     }
-    // *** END NEW ***
 }
 
 
@@ -891,24 +898,28 @@ async function init() {
     currentGrade = getGradeFromHostname();
     classTitle.textContent = `ห้องเรียน ม.${currentGrade}`;
 
+    setupEventListeners(); // Setup listeners first
+
     // Check for a logged-in user from previous session
     const storedSession = localStorage.getItem('app_user_session');
     if (storedSession) {
         const userData = JSON.parse(storedSession);
-        // Only restore session if it's an admin or a student of the current grade
         if (userData.role === 'admin' || userData.grade === currentGrade) {
             currentUser = userData;
+            hideLoginScreen(); // User logged in, show main content
         } else {
-            // If student from wrong grade, clear session
+            // If student from wrong grade, clear session and show login
             localStorage.removeItem('app_user_session');
             alert(`บัญชีนี้สำหรับ ม.${userData.grade} กรุณาเข้าสู่ระบบในห้องเรียนที่ถูกต้อง.`);
+            showLoginScreen();
         }
+    } else {
+        // No session, show login screen
+        showLoginScreen(); 
     }
     
     updateHeaderUI();
-    setupEventListeners();
-
-    // Load public data immediately
+    // Load public data regardless of login status
     fetchAndDisplayLeaderboard();
     fetchAndDisplayMissions();
 }

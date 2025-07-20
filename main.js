@@ -1,4 +1,5 @@
-// main.js (V3.4 - Final Simple Auth with Separate Settings)
+// main.js (V4.0 - Robust Event Listeners)
+// Last Updated: 2025-07-20
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
@@ -16,21 +17,10 @@ const userProfile = document.getElementById('user-profile');
 const logoutButton = document.getElementById('logout-button');
 const appContainer = document.getElementById('app-container');
 const studentDetailModal = document.getElementById('student-detail-modal');
-const modalCloseButton = document.querySelector('#student-detail-modal .close-button');
-const modalHeader = document.getElementById('modal-header');
-const modalBody = document.getElementById('modal-body');
 const missionModal = document.getElementById('mission-modal');
 const adminPanelButton = document.getElementById('admin-panel-button');
 const adminModal = document.getElementById('admin-modal');
-const adminModalCloseButton = adminModal ? adminModal.querySelector('.close-button') : null;
-const addMissionForm = document.getElementById('add-mission-form');
-const gradeSubmissionForm = document.getElementById('grade-submission-form');
 const profileModal = document.getElementById('profile-modal');
-const profileModalCloseButton = profileModal ? profileModal.querySelector('.close-button') : null;
-const profilePicDisplay = document.getElementById('profile-pic-display');
-const profileFileInput = document.getElementById('profile-file-input');
-const saveProfileButton = document.getElementById('save-profile-button');
-const profileUploadStatus = document.getElementById('profile-upload-status');
 const customizationModal = document.getElementById('customization-modal');
 const previewCardBackground = document.getElementById('preview-card-background');
 const previewProfileEffect = document.getElementById('preview-profile-effect');
@@ -292,6 +282,8 @@ async function handleMissionSubmit(event) {
 
 async function showStudentDetailModal(userId) {
     openModal(studentDetailModal);
+    const modalHeader = studentDetailModal.querySelector('#modal-header');
+    const modalBody = studentDetailModal.querySelector('#modal-body');
     modalHeader.innerHTML = '<div class="loader"></div>';
     modalBody.innerHTML = '';
     const { data: studentInfo, error: userError } = await supabase.from('users').select('*').eq('id', userId).single();
@@ -398,7 +390,6 @@ async function showCustomizationModal() {
         return;
     }
     openModal(customizationModal);
-    
     const previewContainer = customizationModal.querySelector('.customization-preview');
     let settingsBtn = previewContainer.querySelector('#settings-btn');
     if (!settingsBtn) {
@@ -409,12 +400,9 @@ async function showCustomizationModal() {
         previewContainer.appendChild(settingsBtn);
     }
     updatePreview();
-
     const { data: allItems } = await supabase.from('cosmetic_items').select('*').order('unlock_points', { ascending: true });
     const { data: userInventory } = await supabase.from('user_inventory').select('item_id, equipped').eq('user_id', currentUser.id);
-
     if (!allItems || !userInventory) return;
-
     const inventoryMap = new Map(userInventory.map(item => [item.item_id, { equipped: item.equipped }]));
     const groupedItems = allItems.reduce((acc, item) => {
         if (!acc[item.type]) acc[item.type] = [];
@@ -489,7 +477,6 @@ function showProfileModal() {
     profileUploadStatus.textContent = '';
     saveProfileButton.disabled = false;
     saveProfileButton.textContent = 'บันทึกรูปโปรไฟล์';
-    
     const profileEditArea = profileModal.querySelector('.profile-edit-area');
     let changePassBtn = profileEditArea.querySelector('#go-to-change-password-btn');
     if (!changePassBtn) {
@@ -578,50 +565,36 @@ async function handleChangePassword(event) {
 
 function setupEventListeners() {
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
-    if (modalCloseButton) modalCloseButton.addEventListener('click', hideStudentDetailModal);
-    if (studentDetailModal) studentDetailModal.addEventListener('click', (event) => { if (event.target === studentDetailModal) hideStudentDetailModal(); });
     if (leaderboardContainer) leaderboardContainer.addEventListener('click', (e) => {
         const item = e.target.closest('.leaderboard-item');
         if (item && item.dataset.userId) showStudentDetailModal(item.dataset.userId);
     });
-    if (missionModal) {
-        const closeBtn = missionModal.querySelector('.close-button');
-        if (closeBtn) closeBtn.addEventListener('click', hideMissionModal);
-        missionModal.addEventListener('click', (event) => { if (event.target === missionModal) hideMissionModal(); });
-        const submissionFormEl = missionModal.querySelector('#submission-form');
-        if (submissionFormEl) submissionFormEl.addEventListener('submit', handleMissionSubmit);
-    }
+    
+    // Setup for all modals in a robust way
+    document.querySelectorAll('.modal').forEach(modal => {
+        const closeBtn = modal.querySelector('.close-button');
+        if (closeBtn) closeBtn.addEventListener('click', () => closeModal(modal));
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeModal(modal);
+        });
+    });
+
+    // Specific form/button listeners
+    const submissionFormEl = missionModal ? missionModal.querySelector('#submission-form') : null;
+    if (submissionFormEl) submissionFormEl.addEventListener('submit', handleMissionSubmit);
+
     if (adminPanelButton) adminPanelButton.addEventListener('click', showAdminModal);
     if (adminModal) {
-        const closeBtn = adminModal.querySelector('.close-button');
-        if(closeBtn) closeBtn.addEventListener('click', hideAdminModal);
-        adminModal.addEventListener('click', (event) => { if (event.target === adminModal) hideAdminModal(); });
         const addMissionFormEl = adminModal.querySelector('#add-mission-form');
         if (addMissionFormEl) addMissionFormEl.addEventListener('submit', handleAddMission);
         const gradeSubmissionFormEl = adminModal.querySelector('#grade-submission-form');
         if (gradeSubmissionFormEl) gradeSubmissionFormEl.addEventListener('submit', handleGradeSubmission);
     }
     if (profileModal) {
-        const closeBtn = profileModal.querySelector('.close-button');
-        if (closeBtn) closeBtn.addEventListener('click', hideProfileModal);
-        profileModal.addEventListener('click', (event) => { if (event.target === profileModal) hideProfileModal(); });
+        const saveProfileButton = profileModal.querySelector('#save-profile-button');
         if (saveProfileButton) saveProfileButton.addEventListener('click', handleProfilePicSubmit);
     }
-    if (customizationModal) {
-        const closeBtn = customizationModal.querySelector('.close-button');
-        if(closeBtn) closeBtn.addEventListener('click', () => closeModal(customizationModal));
-        customizationModal.addEventListener('click', (event) => { if (event.target === customizationModal) closeModal(customizationModal); });
-    }
-    if (loginScreen) {
-        const closeBtn = loginScreen.querySelector('.close-button');
-        if(closeBtn) closeBtn.addEventListener('click', () => closeModal(loginScreen));
-    }
     if (changePasswordForm) changePasswordForm.addEventListener('submit', handleChangePassword);
-    if(changePasswordModal){
-        const closeBtn = changePasswordModal.querySelector('.close-button');
-        if(closeBtn) closeBtn.addEventListener('click', () => closeModal(changePasswordModal));
-        changePasswordModal.addEventListener('click', (event) => { if(event.target === changePasswordModal) closeModal(changePasswordModal); });
-    }
 }
 
 async function init() {
@@ -629,10 +602,12 @@ async function init() {
     classTitle.textContent = `ห้องเรียน ม.${currentGrade}`;
     document.getElementById('main-content').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
+    
     const storedSession = localStorage.getItem('app_user_session');
     if (storedSession) {
         currentUser = JSON.parse(storedSession);
     }
+
     setupEventListeners();
     updateHeaderUI();
     fetchAndDisplayLeaderboard();

@@ -1,8 +1,11 @@
+// main.js (V3.3 - ImgBB Upload Integration)
+
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ... (DOM Elements and State variables are the same)
 const loginScreen = document.getElementById('login-screen');
 const mainContent = document.getElementById('main-content');
 const loginForm = document.getElementById('login-form');
@@ -44,6 +47,8 @@ let currentUser = null;
 let currentGrade = 0;
 let currentlyOpenMission = null;
 
+
+// ... (All functions are the same until handleProfilePicSubmit)
 function getGradeFromHostname() {
     const hostname = window.location.hostname;
     if (hostname.includes('m1')) return 1;
@@ -52,7 +57,6 @@ function getGradeFromHostname() {
     console.warn("Could not determine grade from hostname, defaulting to 2.");
     return 2;
 }
-
 async function handleLogin(event) {
     event.preventDefault();
     loginError.textContent = '';
@@ -75,14 +79,12 @@ async function handleLogin(event) {
     updateHeaderUI();
     fetchAndDisplayMissions();
 }
-
 function handleLogout() {
     localStorage.removeItem('app_user_session');
     currentUser = null;
     updateHeaderUI();
     fetchAndDisplayMissions();
 }
-
 function updateHeaderUI() {
     if (currentUser) {
         const profileImageUrl = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=50x50`;
@@ -102,19 +104,16 @@ function updateHeaderUI() {
         if (adminPanelButton) adminPanelButton.style.display = 'none';
     }
 }
-
 function showLoginModal() {
     loginError.textContent = '';
     document.getElementById('login-form').reset();
     openModal(loginScreen);
 }
-
 function openModal(modalElement) {
     if (!modalElement) return;
     modalElement.style.display = 'flex';
     appContainer.classList.add('blur-background');
 }
-
 function closeModal(modalElement) {
     if (!modalElement) return;
     modalElement.style.display = 'none';
@@ -123,7 +122,6 @@ function closeModal(modalElement) {
         appContainer.classList.remove('blur-background');
     }
 }
-
 async function fetchAndDisplayLeaderboard() {
     leaderboardContainer.innerHTML = '<div class="loader"></div>';
     const { data, error } = await supabase.rpc('get_leaderboard_data', { p_grade_id: currentGrade });
@@ -133,7 +131,6 @@ async function fetchAndDisplayLeaderboard() {
     }
     renderLeaderboard(data);
 }
-
 function renderLeaderboard(leaderboardData) {
     leaderboardContainer.innerHTML = '';
     if (!leaderboardData || leaderboardData.length === 0) {
@@ -167,7 +164,6 @@ function renderLeaderboard(leaderboardData) {
         leaderboardContainer.appendChild(item);
     });
 }
-
 async function fetchAndDisplayMissions() {
     missionsContainer.innerHTML = '<div class="loader"></div>';
     const { data: allMissions, error: missionsError } = await supabase.from('missions').select('*').eq('grade', currentGrade).order('created_at', { ascending: true });
@@ -184,7 +180,6 @@ async function fetchAndDisplayMissions() {
     }
     renderMissions(allMissions, submissionMap);
 }
-
 function renderMissions(missions, submissionMap) {
     missionsContainer.innerHTML = '';
     if (!missions || missions.length === 0) {
@@ -207,7 +202,6 @@ function renderMissions(missions, submissionMap) {
         missionsContainer.appendChild(wrapper);
     });
 }
-
 function openMissionModal(mission, submission) {
     if (!currentUser) {
         alert("กรุณาล็อกอินก่อนส่งงาน");
@@ -242,7 +236,6 @@ function openMissionModal(mission, submission) {
     }
 }
 function hideMissionModal() { closeModal(missionModal); }
-
 async function handleMissionSubmit(event) {
     event.preventDefault();
     const submitBtn = event.target.querySelector('#submit-mission-button');
@@ -277,7 +270,6 @@ async function handleMissionSubmit(event) {
         submitBtn.textContent = 'ลองอีกครั้ง';
     }
 }
-
 async function showStudentDetailModal(userId) {
     openModal(studentDetailModal);
     modalHeader.innerHTML = '<div class="loader"></div>';
@@ -316,7 +308,6 @@ async function showStudentDetailModal(userId) {
     });
 }
 function hideStudentDetailModal() { closeModal(studentDetailModal); }
-
 function showAdminModal() { if (!currentUser || currentUser.role !== 'admin') return; openModal(adminModal); populateGradeSubmissionDropdowns(); }
 function hideAdminModal() { closeModal(adminModal); }
 async function handleAddMission(event) {
@@ -377,7 +368,6 @@ async function handleGradeSubmission(event) {
         fetchAndDisplayMissions();
     }
 }
-
 async function showCustomizationModal() {
     if (!currentUser) {
         alert("กรุณาล็อกอินก่อน");
@@ -385,7 +375,6 @@ async function showCustomizationModal() {
         return;
     }
     openModal(customizationModal);
-    
     const previewContainer = customizationModal.querySelector('.customization-preview');
     let settingsBtn = previewContainer.querySelector('#settings-btn');
     if (!settingsBtn) {
@@ -400,12 +389,9 @@ async function showCustomizationModal() {
         previewContainer.appendChild(settingsBtn);
     }
     updatePreview();
-
     const { data: allItems } = await supabase.from('cosmetic_items').select('*').order('unlock_points', { ascending: true });
     const { data: userInventory } = await supabase.from('user_inventory').select('item_id, equipped').eq('user_id', currentUser.id);
-
     if (!allItems || !userInventory) return;
-
     const inventoryMap = new Map(userInventory.map(item => [item.item_id, { equipped: item.equipped }]));
     const groupedItems = allItems.reduce((acc, item) => {
         if (!acc[item.type]) acc[item.type] = [];
@@ -458,16 +444,13 @@ async function handleItemClick(item, locked, equipped) {
     }
     if (equipped) return;
     try {
-        const { error: equipError } = await supabase.rpc('equip_cosmetic_item_simple', { p_item_id: item.id, p_user_id: currentUser.id });
-        if (equipError) throw equipError;
-        
+        const { data, error } = await supabase.rpc('equip_cosmetic_item_simple', { p_user_id: currentUser.id, p_item_id: item.id });
+        if (error) throw error;
         const { data: updatedUser, error: userError } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
         if (userError) throw userError;
-        
         currentUser = updatedUser;
         localStorage.setItem('app_user_session', JSON.stringify(currentUser));
-        
-        alert('สวมใส่ไอเทมสำเร็จ!');
+        alert(data);
         showCustomizationModal();
         fetchAndDisplayLeaderboard();
     } catch (error) {
@@ -483,14 +466,10 @@ function showProfileModal() {
     profileUploadStatus.textContent = '';
     saveProfileButton.disabled = false;
     saveProfileButton.textContent = 'บันทึกรูปโปรไฟล์';
-    
-    // แยกส่วนของ Change Password
-    openModal(changePasswordModal);
-    passwordError.textContent = '';
-    changePasswordForm.reset();
 }
 function hideProfileModal() { closeModal(profileModal); }
 
+// ********** ฟังก์ชันที่แก้ไข **********
 async function handleProfilePicSubmit(event) {
     event.preventDefault();
     const saveBtn = document.getElementById('save-profile-button');
@@ -505,21 +484,47 @@ async function handleProfilePicSubmit(event) {
         saveBtn.textContent = 'บันทึกรูปโปรไฟล์';
         return;
     }
+    
+    // ---- START ImgBB Upload Logic ----
+    const IMGBB_API_KEY = 'e5fca6e1e9823fa93eff7017fe015d54'; // Your ImgBB API Key
+    const formData = new FormData();
+    formData.append('key', IMGBB_API_KEY);
+    formData.append('image', file);
+    
     try {
-        statusEl.textContent = `กำลังอัปโหลด: ${file.name}`;
-        const fileExtension = file.name.split('.').pop();
-        const filePath = `avatars/${currentUser.id}.${fileExtension}`;
-        const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-        if (uploadError) throw uploadError;
-        const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-        const newProfileUrl = data.publicUrl;
-        const { data: updatedUser, error: dbError } = await supabase.from('users').update({ avatar_url: newProfileUrl }).eq('id', currentUser.id).select().single();
+        statusEl.textContent = `กำลังอัปโหลดไปที่ ImgBB...`;
+        
+        const response = await fetch('https://api.imgbb.com/1/upload', {
+            method: 'POST',
+            body: formData,
+        });
+        
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error.message || 'ImgBB upload failed');
+        }
+
+        const newProfileUrl = result.data.url;
+        statusEl.textContent = 'อัปโหลดสำเร็จ! กำลังบันทึกลิงก์...';
+
+        // ---- END ImgBB Upload Logic ----
+
+        const { data: updatedUser, error: dbError } = await supabase
+            .from('users')
+            .update({ avatar_url: newProfileUrl })
+            .eq('id', currentUser.id)
+            .select()
+            .single();
+
         if (dbError) throw dbError;
+        
         currentUser = updatedUser;
         localStorage.setItem('app_user_session', JSON.stringify(currentUser));
         updateHeaderUI();
         alert('เปลี่ยนรูปโปรไฟล์สำเร็จ!');
-        closeModal(profileModal);
+        hideProfileModal();
+
     } catch (error) {
         console.error("Error uploading profile pic:", error);
         alert(`เกิดข้อผิดพลาด: ${error.message}`);
@@ -534,7 +539,6 @@ async function handleChangePassword(event) {
     const currentPassword = document.getElementById('current-password').value;
     const newPassword = document.getElementById('new-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
-
     if (newPassword !== confirmPassword) {
         passwordError.textContent = 'รหัสผ่านใหม่ไม่ตรงกัน'; return;
     }

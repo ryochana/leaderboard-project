@@ -1,4 +1,4 @@
-// main.js (V5.1 - App Shell Logic - Full Code)
+// main.js (V5.2 - App Shell Logic & Bug Fixes)
 // Last Updated: 2025-07-20
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
@@ -6,17 +6,21 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// DOM Elements
+// DOM Elements (All declared at the top for clarity and accessibility)
 const appContainer = document.getElementById('app-container');
+const topHeader = document.getElementById('top-header');
 const classTitleMain = document.getElementById('class-title-main');
 const schoolName = document.getElementById('school-name');
+const headerUserControls = document.querySelector('.header-user-controls'); // Query for this element
 const userProfile = document.getElementById('user-profile');
 const logoutButton = document.getElementById('logout-button');
-const adminPanelButton = document.getElementById('admin-panel-button');
+const adminPanelButton = document.getElementById('admin-panel-button'); // This button is not in current HTML, but kept logic
 
-// Tab and Content Sections
-const tabButtons = document.querySelectorAll('.tab-button');
-const contentSections = document.querySelectorAll('.content-section');
+const bottomTabBar = document.getElementById('bottom-tab-bar');
+const tabButtons = document.querySelectorAll('.tab-button'); // Query all tab buttons
+
+const mainContent = document.getElementById('main-content'); // Main content area for sections
+const contentSections = document.querySelectorAll('.content-section'); // Query all content sections
 const feedContainer = document.getElementById('feed-container');
 const missionsContainer = document.getElementById('missions-container');
 const leaderboardContainer = document.getElementById('leaderboard-container');
@@ -59,7 +63,6 @@ const previewPoints = customizationModal ? customizationModal.querySelector('#pr
 const changePasswordModal = document.getElementById('change-password-modal');
 const changePasswordForm = changePasswordModal ? changePasswordModal.querySelector('#change-password-form') : null;
 const passwordError = changePasswordModal ? changePasswordModal.querySelector('#password-error') : null;
-
 
 // State
 let currentUser = null;
@@ -108,11 +111,7 @@ function updateAfterLoginOrLogout() {
     fetchAndDisplayFeed();
     fetchAndDisplayMissions();
     fetchAndDisplayLeaderboard();
-    if (currentUser) {
-        renderProfilePage(); // Re-render profile page if user is logged in
-    } else {
-        if (profileContainer) profileContainer.innerHTML = '<div class="card"><p>กรุณาเข้าสู่ระบบเพื่อดูโปรไฟล์และปรับแต่งของรางวัล</p></div>';
-    }
+    renderProfilePage(); // Always render profile page to update state
 }
 
 function updateHeaderUI() {
@@ -123,13 +122,13 @@ function updateHeaderUI() {
         if(userProfile) userProfile.onclick = showCustomizationModal; // Customization modal
         if(logoutButton) logoutButton.textContent = 'ออกจากระบบ';
         if(logoutButton) logoutButton.onclick = handleLogout;
-        if (adminPanelButton) adminPanelButton.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+        // adminPanelButton is not in the new HTML structure for Header
     } else {
         if(userProfile) userProfile.innerHTML = '';
         if(userProfile) userProfile.style.display = 'none';
         if(logoutButton) logoutButton.textContent = 'เข้าสู่ระบบ';
         if(logoutButton) logoutButton.onclick = showLoginModal;
-        if (adminPanelButton) adminPanelButton.style.display = 'none';
+        // adminPanelButton is not in the new HTML structure for Header
     }
 }
 
@@ -181,7 +180,7 @@ async function fetchAndDisplayFeed() {
         const feedContent = document.createElement('div');
         feedContent.className = 'card';
         feedContent.innerHTML = '<h3>⚠️ ภารกิจที่ใกล้ครบกำหนดส่ง</h3>';
-        upcomingMissions.forEach(mission => {
+        upcomingMmissions.forEach(mission => {
             const dueDate = new Date(mission.due_date);
             feedContent.innerHTML += `<p><strong>${mission.title}</strong> - กำหนดส่งวันที่ ${dueDate.toLocaleDateString('th-TH')}</p>`;
         });
@@ -288,20 +287,23 @@ function renderProfilePage() {
                 <span>🎨 ตกแต่งโปรไฟล์</span>
                 <span>></span>
             </div>
-            <div id="change-password-button" class="menu-item">
+            <div id="change-password-button-in-profile" class="menu-item">
                 <span>🔑 เปลี่ยนรหัสผ่าน</span>
                 <span>></span>
             </div>
-            <div id="profile-picture-button" class="menu-item">
+            <div id="profile-picture-button-in-profile" class="menu-item">
                 <span>🖼️ เปลี่ยนรูปโปรไฟล์</span>
                 <span>></span>
             </div>
         </div>
     `;
-    // Add event listeners for the new buttons
-    document.getElementById('customize-button').addEventListener('click', showCustomizationModal);
-    document.getElementById('change-password-button').addEventListener('click', showChangePasswordModal);
-    document.getElementById('profile-picture-button').addEventListener('click', showProfileModalActual); // New separate function
+    // Add event listeners for the new buttons within the profile page
+    const customizeBtn = document.getElementById('customize-button');
+    if(customizeBtn) customizeBtn.addEventListener('click', showCustomizationModal);
+    const changePassBtn = document.getElementById('change-password-button-in-profile');
+    if(changePassBtn) changePassBtn.addEventListener('click', showChangePasswordModal);
+    const profilePicBtn = document.getElementById('profile-picture-button-in-profile');
+    if(profilePicBtn) profilePicBtn.addEventListener('click', showProfileModalActual);
 }
 
 function openMissionModal(mission, submission) {
@@ -354,9 +356,7 @@ async function handleMissionSubmit(event) {
             formData.append('image', file);
             const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
             const result = await response.json();
-            if (!result.success) {
-                throw new Error(result.error.message || 'ImgBB upload failed');
-            }
+            if (!result.success) throw new Error(result.error.message || 'ImgBB upload failed');
             proofUrl = result.data.url;
             fileStatus.textContent = 'อัปโหลดไฟล์สำเร็จ!';
         }
@@ -443,20 +443,12 @@ async function populateGradeSubmissionDropdowns() {
     const missionSelect = document.getElementById('grade-mission-topic');
     if(studentSelect) studentSelect.innerHTML = '<option value="">กำลังโหลด...</option>';
     if(missionSelect) missionSelect.innerHTML = '<option value="">กำลังโหลด...</option>';
-    const { data: students, error: studentError } = await supabase.from('users').select('id, display_name').eq('role', 'student').eq('grade', currentGrade);
-    if (studentError) {
-        if(studentSelect) studentSelect.innerHTML = '<option value="">ไม่สามารถโหลดนักเรียนได้</option>';
-    } else {
-        if(studentSelect) studentSelect.innerHTML = '<option value="">เลือกนักเรียน</option>';
-        if (students) students.forEach(s => { studentSelect.innerHTML += `<option value="${s.id}">${s.display_name}</option>`; });
-    }
-    const { data: missions, error: missionError } = await supabase.from('missions').select('id, title').eq('grade', currentGrade);
-    if (missionError) {
-        if(missionSelect) missionSelect.innerHTML = '<option value="">ไม่สามารถโหลดภารกิจได้</option>';
-    } else {
-        if(missionSelect) missionSelect.innerHTML = '<option value="">เลือกภารกิจ</option>';
-        if (missions) missions.forEach(m => { missionSelect.innerHTML += `<option value="${m.id}">${m.title}</option>`; });
-    }
+    const { data: students } = await supabase.from('users').select('id, display_name').eq('role', 'student').eq('grade', currentGrade);
+    if(studentSelect) studentSelect.innerHTML = '<option value="">เลือกนักเรียน</option>';
+    if (students) students.forEach(s => { if(studentSelect) studentSelect.innerHTML += `<option value="${s.id}">${s.display_name}</option>`; });
+    const { data: missions } = await supabase.from('missions').select('id, title').eq('grade', currentGrade);
+    if(missionSelect) missionSelect.innerHTML = '<option value="">เลือกภารกิจ</option>';
+    if (missions) missions.forEach(m => { if(missionSelect) missionSelect.innerHTML += `<option value="${m.id}">${m.title}</option>`; });
 }
 async function handleGradeSubmission(event) {
     event.preventDefault();
@@ -482,12 +474,13 @@ async function showCustomizationModal() {
     if (!currentUser) { alert("กรุณาล็อกอินก่อน"); showLoginModal(); return; }
     openModal(customizationModal);
     const previewContainer = customizationModal.querySelector('.customization-preview');
+    if(!previewContainer) return; // safety check
     let settingsBtn = previewContainer.querySelector('#settings-btn');
     if (!settingsBtn) {
         settingsBtn = document.createElement('button');
         settingsBtn.id = 'settings-btn';
         settingsBtn.textContent = 'ตั้งค่า (รูปโปรไฟล์ / รหัสผ่าน)';
-        settingsBtn.onclick = showProfileModalActual; // Changed to actual profile modal
+        settingsBtn.onclick = () => { closeModal(customizationModal); showProfileModalActual(); };
         previewContainer.appendChild(settingsBtn);
     }
     updatePreview();
@@ -522,13 +515,6 @@ async function showCustomizationModal() {
 
 function updatePreview() {
     if (!currentUser) return;
-    const previewProfileImage = customizationModal.querySelector('#preview-profile-image');
-    const previewUsername = customizationModal.querySelector('#preview-username');
-    const previewPoints = customizationModal.querySelector('#preview-points');
-    const previewProfileEffect = customizationModal.querySelector('#preview-profile-effect');
-    const previewCardBackground = customizationModal.querySelector('#preview-card-background');
-    const previewBadge = customizationModal.querySelector('#preview-badge');
-
     if(previewProfileImage) previewProfileImage.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=50x50`;
     if(previewUsername) previewUsername.textContent = currentUser.display_name;
     if(previewPoints) previewPoints.textContent = `${currentUser.points || 0} EXP`;
@@ -557,8 +543,8 @@ async function handleItemClick(item, locked, equipped) {
     try {
         const { data, error } = await supabase.rpc('equip_cosmetic_item_simple', { p_user_id: currentUser.id, p_item_id: item.id });
         if (error) throw error;
-        const { data: updatedUser, error: userError } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
-        if (userError) throw userError;
+        const { data: updatedUser } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
+        if (!updatedUser) throw new Error("ไม่พบข้อมูลผู้ใช้หลังอัปเดต"); // Error handling for .single()
         currentUser = updatedUser;
         localStorage.setItem('app_user_session', JSON.stringify(currentUser));
         alert(data);
@@ -570,13 +556,9 @@ async function handleItemClick(item, locked, equipped) {
 }
 
 function showProfileModalActual() { // Actual Profile Picture & Password Change settings
-    if (!currentUser) return; // Should not happen as this is called from within customization modal which checks login
+    if (!currentUser) return;
+    closeModal(customizationModal);
     openModal(profileModal);
-
-    const profilePicDisplay = profileModal.querySelector('#profile-pic-display');
-    const profileFileInput = profileModal.querySelector('#profile-file-input');
-    const profileUploadStatus = profileModal.querySelector('#profile-upload-status');
-    const saveProfileButton = profileModal.querySelector('#save-profile-button');
     
     if(profilePicDisplay) profilePicDisplay.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=100x100`;
     if(profileFileInput) profileFileInput.value = '';
@@ -590,19 +572,21 @@ function showProfileModalActual() { // Actual Profile Picture & Password Change 
         changePassBtn = document.createElement('button');
         changePassBtn.id = 'go-to-change-password-btn';
         changePassBtn.textContent = 'ต้องการเปลี่ยนรหัสผ่าน?';
-        changePassBtn.style.marginTop = '15px';
-        changePassBtn.style.backgroundColor = '#6c757d';
         changePassBtn.onclick = () => {
             closeModal(profileModal);
-            openModal(changePasswordModal);
-            if(passwordError) passwordError.textContent = '';
-            if(changePasswordForm) changePasswordForm.reset();
+            showChangePasswordModal(); // Call actual show change password modal
         };
         profileEditArea.appendChild(changePassBtn);
     }
 }
 
 function hideProfileModalActual() { closeModal(profileModal); } // Renamed to avoid conflict
+
+function showChangePasswordModal() {
+    openModal(changePasswordModal);
+    if(passwordError) passwordError.textContent = '';
+    if(changePasswordForm) changePasswordForm.reset();
+}
 
 async function handleProfilePicSubmit(event) {
     event.preventDefault();
@@ -626,7 +610,9 @@ async function handleProfilePicSubmit(event) {
         statusEl.textContent = `กำลังอัปโหลดไปที่ ImgBB...`;
         const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData, });
         const result = await response.json();
-        if (!result.success) throw new Error(result.error.message || 'ImgBB upload failed');
+        if (!result.success) {
+            throw new Error(result.error.message || 'ImgBB upload failed');
+        }
         const newProfileUrl = result.data.url;
         statusEl.textContent = 'อัปโหลดสำเร็จ! กำลังบันทึก...';
         const { data: updatedUser, error: dbError } = await supabase.from('users').update({ avatar_url: newProfileUrl }).eq('id', currentUser.id).select().single();
@@ -635,7 +621,7 @@ async function handleProfilePicSubmit(event) {
         localStorage.setItem('app_user_session', JSON.stringify(currentUser));
         updateHeaderUI();
         alert('เปลี่ยนรูปโปรไฟล์สำเร็จ!');
-        closeModal(profileModal); // Renamed to actual profile modal
+        closeModal(profileModal);
     } catch (error) {
         console.error("Error uploading profile pic:", error);
         alert(`เกิดข้อผิดพลาด: ${error.message}`);
@@ -671,17 +657,20 @@ async function handleChangePassword(event) {
 
 function setupEventListeners() {
     // Top-level DOM elements
-    const loginFormEl = document.querySelector('#login-form');
-    if (loginFormEl) loginFormEl.addEventListener('submit', handleLogin);
-    
-    const adminPanelBtnEl = document.getElementById('admin-panel-button');
-    if (adminPanelBtnEl) adminPanelBtnEl.addEventListener('click', showAdminModal);
+    if (loginForm) loginForm.addEventListener('submit', handleLogin);
+    if (leaderboardContainer) {
+        leaderboardContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('.leaderboard-item');
+            if (item && item.dataset.userId) showStudentDetailModal(item.dataset.userId);
+        });
+    }
+    if (adminPanelButton) adminPanelButton.addEventListener('click', showAdminModal);
 
     // General modal close listeners for all modals
     document.querySelectorAll('.modal').forEach(modal => {
         const closeBtn = modal.querySelector('.close-button');
         if (closeBtn) closeBtn.addEventListener('click', () => closeModal(modal));
-        modal.addEventListener('click', (event) => { // Click outside modal content to close
+        modal.addEventListener('click', (event) => {
             const modalContent = modal.querySelector('.modal-content');
             if (modalContent && !modalContent.contains(event.target)) {
                 closeModal(modal);
@@ -698,29 +687,25 @@ function setupEventListeners() {
             if (targetId === 'feed-container') fetchAndDisplayFeed();
             else if (targetId === 'missions-container') fetchAndDisplayMissions();
             else if (targetId === 'leaderboard-container') fetchAndDisplayLeaderboard();
-            else if (targetId === 'profile-container') renderProfilePage();
+            else if (targetId === 'profile-container') renderProfilePage(); // Render profile page when tab is clicked
         });
     });
 
     // Specific listeners for forms and buttons inside modals
     // Mission Modal
-    if (missionModal) {
-        const submissionFormEl = missionModal.querySelector('#submission-form');
-        if (submissionFormEl) submissionFormEl.addEventListener('submit', handleMissionSubmit);
+    if (missionModal && submissionForm) {
+        submissionForm.addEventListener('submit', handleMissionSubmit);
     }
     
     // Admin Modal
     if (adminModal) {
-        const addMissionFormEl = adminModal.querySelector('#add-mission-form');
-        if (addMissionFormEl) addMissionFormEl.addEventListener('submit', handleAddMission);
-        const gradeSubmissionFormEl = adminModal.querySelector('#grade-submission-form');
-        if (gradeSubmissionFormEl) gradeSubmissionFormEl.addEventListener('submit', handleGradeSubmission);
+        if (addMissionForm) addMissionForm.addEventListener('submit', handleAddMission);
+        if (gradeSubmissionForm) gradeSubmissionForm.addEventListener('submit', handleGradeSubmission);
     }
 
     // Profile Modal (for changing profile pic)
-    if (profileModal) {
-        const saveProfileButtonEl = profileModal.querySelector('#save-profile-button');
-        if (saveProfileButtonEl) saveProfileButtonEl.addEventListener('click', handleProfilePicSubmit);
+    if (profileModal && saveProfileButton) {
+        saveProfileButton.addEventListener('click', handleProfilePicSubmit);
         const profileFileInputEl = profileModal.querySelector('#profile-file-input');
         if(profileFileInputEl) profileFileInputEl.addEventListener('change', (event) => {
             const file = event.target.files[0];
@@ -736,42 +721,50 @@ function setupEventListeners() {
     }
 
     // Change Password Modal
-    if (changePasswordModal) {
-        const changePasswordFormEl = changePasswordModal.querySelector('#change-password-form');
-        if (changePasswordFormEl) changePasswordFormEl.addEventListener('submit', handleChangePassword);
+    if (changePasswordModal && changePasswordForm) {
+        changePasswordForm.addEventListener('submit', handleChangePassword);
     }
 
-    // Student Detail Modal (leaderboard clicks)
-    if (leaderboardContainer) {
-        leaderboardContainer.addEventListener('click', (e) => {
-            const item = e.target.closest('.leaderboard-item');
-            if (item && item.dataset.userId) showStudentDetailModal(item.dataset.userId);
-        });
+    // Customization Modal specific buttons
+    if (customizationModal) {
+        const settingsBtn = customizationModal.querySelector('#settings-btn');
+        if(settingsBtn) settingsBtn.onclick = () => { closeModal(customizationModal); showProfileModalActual(); };
     }
+
+    // Profile page specific buttons (after it's rendered)
+    // These are dynamically added, so their listeners are in renderProfilePage
 }
 
 async function init() {
     currentGrade = getGradeFromHostname();
     if (classTitleMain) classTitleMain.textContent = `ENGLISH QUEST M.${currentGrade}`;
     
+    // Initial display setup (main content visible, modals hidden)
+    if (mainContent) mainContent.style.display = 'block';
+    if (loginScreen) loginScreen.style.display = 'none';
+
     const storedSession = localStorage.getItem('app_user_session');
     if (storedSession) {
         currentUser = JSON.parse(storedSession);
     }
     
-    // Initial display setup (no modals visible)
-    if (mainContent) mainContent.style.display = 'block';
-    if (loginScreen) loginScreen.style.display = 'none';
-
     setupEventListeners();
     updateHeaderUI();
     
-    // Initial content load for the active tab (Feed)
-    switchTab('feed-container'); 
+    // Set initial active tab and fetch its content
+    switchTab('leaderboard-container'); // Start on Leaderboard as requested
+    fetchAndDisplayLeaderboard(); // Fetch content for Leaderboard initially
+    
+    // Pre-fetch other tab contents in background
     fetchAndDisplayFeed();
-    fetchAndDisplayMissions(); // Fetch all data on init, regardless of active tab
-    fetchAndDisplayLeaderboard();
-    renderProfilePage(); // Render initial profile page
+    fetchAndDisplayMissions();
+    renderProfilePage(); // Pre-render profile page as well
+
+    // If no user is logged in, show login modal after initial load
+    if (!currentUser) {
+        // Delay showing login modal slightly to ensure page renders
+        setTimeout(showLoginModal, 500); 
+    }
 }
 
 init();

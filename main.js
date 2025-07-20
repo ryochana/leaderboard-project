@@ -1,10 +1,11 @@
-// main.js (V4.1 - Robust Event Listeners & Stable Init)
+// main.js (V4.2 - Final Simple Auth with Full Settings)
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// DOM Elements
 const loginScreen = document.getElementById('login-screen');
 const mainContent = document.getElementById('main-content');
 const loginForm = document.getElementById('login-form');
@@ -392,6 +393,7 @@ async function showCustomizationModal() {
         return;
     }
     openModal(customizationModal);
+    
     const previewContainer = customizationModal.querySelector('.customization-preview');
     let settingsBtn = previewContainer.querySelector('#settings-btn');
     if (!settingsBtn) {
@@ -473,12 +475,20 @@ async function handleItemClick(item, locked, equipped) {
 
 function showProfileModal() {
     if (!currentUser) return;
+    closeModal(customizationModal);
     openModal(profileModal);
+    
+    const profilePicDisplay = profileModal.querySelector('#profile-pic-display');
+    const profileFileInput = profileModal.querySelector('#profile-file-input');
+    const profileUploadStatus = profileModal.querySelector('#profile-upload-status');
+    const saveProfileButton = profileModal.querySelector('#save-profile-button');
+    
     profilePicDisplay.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=100x100`;
     profileFileInput.value = '';
     profileUploadStatus.textContent = '';
     saveProfileButton.disabled = false;
     saveProfileButton.textContent = 'บันทึกรูปโปรไฟล์';
+    
     const profileEditArea = profileModal.querySelector('.profile-edit-area');
     let changePassBtn = profileEditArea.querySelector('#go-to-change-password-btn');
     if (!changePassBtn) {
@@ -597,11 +607,11 @@ function setupEventListeners() {
     if (changePasswordForm) changePasswordForm.addEventListener('submit', handleChangePassword);
 }
 
-async function init() {
+function init() {
     currentGrade = getGradeFromHostname();
     
     if (classTitle) classTitle.textContent = `ห้องเรียน ม.${currentGrade}`;
-    if (mainContent) mainContent.style.display = 'none';
+    if (mainContent) mainContent.style.display = 'flex';
     if (loginScreen) loginScreen.style.display = 'none';
 
     const storedSession = localStorage.getItem('app_user_session');
@@ -609,9 +619,6 @@ async function init() {
         currentUser = JSON.parse(storedSession);
     }
     
-    // แสดง main content เสมอ
-    if (mainContent) mainContent.style.display = 'flex';
-
     setupEventListeners();
     updateHeaderUI();
     fetchAndDisplayLeaderboard();

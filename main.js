@@ -54,12 +54,7 @@ async function handleLogin(event) {
     loginError.textContent = '';
     const email = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-
-    const { error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-    });
-
+    const { error } = await supabase.auth.signInWithPassword({ email: email, password: password });
     if (error) {
         loginError.textContent = 'Email หรือรหัสผ่านไม่ถูกต้อง';
     } else {
@@ -74,20 +69,13 @@ async function handleLogout() {
 function updateHeaderUI() {
     if (currentUser) {
         const profileImageUrl = currentUser.avatar_url || `https://robohash.org/${currentUser.id}.png?set=set4&size=50x50`;
-
-        userProfile.innerHTML = `
-            <img src="${profileImageUrl}" alt="Profile" class="profile-pic">
-            <span>สวัสดี, ${currentUser.username}</span>
-            ${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}
-        `;
+        userProfile.innerHTML = `<img src="${profileImageUrl}" alt="Profile" class="profile-pic"><span>สวัสดี, ${currentUser.username}</span>${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}`;
         userProfile.style.display = 'flex';
         userProfile.classList.add('clickable');
         userProfile.onclick = showProfileModal;
-
         logoutButton.textContent = 'ออกจากระบบ';
         logoutButton.onclick = handleLogout;
         logoutButton.style.display = 'inline-block';
-
         if (adminPanelButton && currentUser.role === 'admin') {
             adminPanelButton.style.display = 'block';
         } else if (adminPanelButton) {
@@ -96,11 +84,9 @@ function updateHeaderUI() {
     } else {
         userProfile.innerHTML = '';
         userProfile.style.display = 'none';
-
         logoutButton.textContent = 'เข้าสู่ระบบ';
         logoutButton.onclick = showLoginModal;
         logoutButton.style.display = 'inline-block';
-
         if (adminPanelButton) {
             adminPanelButton.style.display = 'none';
         }
@@ -130,7 +116,9 @@ function closeModal(modalElement) {
 
 async function fetchAndDisplayLeaderboard() {
     leaderboardContainer.innerHTML = '<div class="loader"></div>';
-    const { data, error } = await supabase.rpc('get_leaderboard_data');
+    const { data, error } = await supabase.rpc('get_leaderboard_data', { 
+      p_grade_id: currentGrade 
+    });
     if (error) {
         console.error('Error fetching leaderboard:', error);
         leaderboardContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลด Leaderboard ได้</p>`;
@@ -150,35 +138,21 @@ function renderLeaderboard(leaderboardData) {
         item.className = 'leaderboard-item clickable';
         item.dataset.userId = student.id;
         const profileImageUrl = student.avatar_url || `https://robohash.org/${student.id}.png?set=set4&size=50x50`;
-        item.innerHTML = `
-            <div class="rank">${index + 1}</div>
-            <img src="${profileImageUrl}" alt="Profile" class="profile-pic">
-            <div class="student-info"><div class="student-name">${student.username}</div></div>
-            <div class="score">${student.points || 0} คะแนน</div>
-        `;
+        item.innerHTML = `<div class="rank">${index + 1}</div><img src="${profileImageUrl}" alt="Profile" class="profile-pic"><div class="student-info"><div class="student-name">${student.username}</div></div><div class="score">${student.points || 0} คะแนน</div>`;
         leaderboardContainer.appendChild(item);
     });
 }
 
 async function fetchAndDisplayMissions() {
     missionsContainer.innerHTML = '<div class="loader"></div>';
-    const { data: allMissions, error: missionsError } = await supabase
-        .from('missions')
-        .select('*')
-        .eq('grade', currentGrade)
-        .order('created_at', { ascending: true });
-
+    const { data: allMissions, error: missionsError } = await supabase.from('missions').select('*').eq('grade', currentGrade).order('created_at', { ascending: true });
     if (missionsError) {
         missionsContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลดภารกิจได้: ${missionsError.message}</p>`;
         return;
     }
-
     let submissionMap = new Map();
     if (currentUser) {
-        const { data: userSubmissions } = await supabase
-            .from('submissions')
-            .select('mission_id, status, grade')
-            .eq('student_id', currentUser.id);
+        const { data: userSubmissions } = await supabase.from('submissions').select('mission_id, status, grade').eq('student_id', currentUser.id);
         if (userSubmissions) {
             submissionMap = new Map(userSubmissions.map(s => [s.mission_id, s]));
         }
@@ -202,9 +176,7 @@ function renderMissions(missions, submissionMap) {
         wrapper.className = 'mission-node-wrapper';
         const node = document.createElement('div');
         node.className = `mission-node ${statusClass}`;
-        node.innerHTML = `
-            <div class="mission-node-topic">${mission.title}</div>
-            <div class="mission-node-points">${mission.max_points || 0} pts</div>`;
+        node.innerHTML = `<div class="mission-node-topic">${mission.title}</div><div class="mission-node-points">${mission.max_points || 0} pts</div>`;
         node.onclick = () => openMissionModal(mission, submission);
         wrapper.appendChild(node);
         missionsContainer.appendChild(wrapper);
@@ -217,7 +189,6 @@ function openMissionModal(mission, submission) {
         showLoginModal();
         return;
     }
-    
     currentlyOpenMission = mission;
     openModal(missionModal);
     missionModalHeader.innerHTML = `<h3>${mission.title}</h3><p>${mission.description || 'ไม่มีคำอธิบายเพิ่มเติม'}</p>`;
@@ -225,7 +196,6 @@ function openMissionModal(mission, submission) {
     fileUploadStatus.textContent = '';
     submitMissionButton.disabled = false;
     submitMissionButton.textContent = 'ส่งงาน';
-
     if (submission) {
         if (submission.status === 'graded') {
             submissionStatus.className = 'status-graded';
@@ -434,9 +404,7 @@ async function handleGradeSubmission(event) {
     }
 }
 
-// *** ฟังก์ชันที่แก้ไข ***
 function setupEventListeners() {
-    // ใช้ if เพื่อตรวจสอบว่า element มีอยู่จริงหรือไม่ก่อนจะ .addEventListener
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
     if (modalCloseButton) modalCloseButton.addEventListener('click', hideStudentDetailModal);
     if (studentDetailModal) studentDetailModal.addEventListener('click', (event) => { if (event.target === studentDetailModal) hideStudentDetailModal(); });
@@ -474,17 +442,14 @@ function setupEventListeners() {
     }
 }
 
-
 async function init() {
     currentGrade = getGradeFromHostname();
     classTitle.textContent = `ห้องเรียน ม.${currentGrade}`;
     document.getElementById('main-content').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
     setupEventListeners();
-
     const { data: { session } } = await supabase.auth.getSession();
     await handleSession(session);
-
     supabase.auth.onAuthStateChange(async (_event, session) => {
         await handleSession(session);
     });

@@ -41,8 +41,6 @@ const adminModal = document.getElementById('admin-modal');
 const adminModalCloseButton = adminModal ? adminModal.querySelector('.close-button') : null;
 const addMissionForm = document.getElementById('add-mission-form');
 const gradeSubmissionForm = document.getElementById('grade-submission-form');
-const adminMissionList = document.getElementById('admin-mission-list'); 
-const adminStudentList = document.getElementById('admin-student-list'); 
 
 
 // ================================================================
@@ -54,7 +52,7 @@ let currentlyOpenMission = null;
 
 
 // ================================================================
-// HELPER FUNCTIONS (จัดเรียงใหม่เพื่อแก้ ReferenceError)
+// INITIALIZATION & AUTHENTICATION
 // ================================================================
 
 /**
@@ -70,12 +68,208 @@ function getGradeFromHostname() {
 }
 
 /**
+ * Handles the login form submission.
+ */
+async function handleLogin(event) {
+    event.preventDefault();
+    loginError.textContent = '';
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    const { data: users, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username);
+
+    if (error || !users || users.length === 0) {
+        loginError.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+        return;
+    }
+
+    const user = users[0];
+
+    if (user.password !== password) {
+        loginError.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+        return;
+    }
+
+    if (user.role === 'student' && user.grade !== currentGrade) {
+        loginError.textContent = `คุณเป็นนักเรียน ม.${user.grade} กรุณาไปที่เว็บของชั้นเรียนให้ถูกต้อง`;
+        return;
+    }
+
+    currentUser = user;
+    localStorage.setItem('app_user_session', JSON.stringify(currentUser));
+    
+    hideLoginScreen();
+    updateHeaderUI();
+}
+
+/**
+ * Handles logout.
+ */
+function handleLogout() {
+    localStorage.removeItem('app_user_session');
+    currentUser = null;
+    updateHeaderUI();
+}
+
+
+// ================================================================
+// ADMIN PANEL FUNCTIONS (ย้ายขึ้นมาไว้ข้างบนเพื่อให้ populateGradeSubmissionDropdowns ถูกเรียกได้)
+// ================================================================
+
+function showAdminModal() {
+    if (!currentUser || currentUser.role !== 'admin') {
+        alert('คุณไม่มีสิทธิ์เข้าถึง Admin Panel');
+        return;
+    }
+    adminModal.style.display = 'block';
+    appContainer.classList.add('blur-background');
+
+    populateGradeSubmissionDropdowns(); // Function is now declared below
+}
+
+function hideAdminModal() {
+    adminModal.style.display = 'none';
+    appContainer.classList.remove('blur-background');
+}
+
+async function handleAddMission(event) {
+    event.preventDefault();
+    const topic = document.getElementById('add-mission-topic').value;
+    const detail = document.getElementById('add-mission-detail').value;
+    const dueDate = document.getElementById('add-mission-due-date').value;
+    const maxPoints = parseInt(document.getElementById('add-mission-max-points').value, 10);
+
+    console.log('Form data:', { topic, detail, dueDate, maxPoints }); 
+
+    if (!topic || !dueDate || isNaN(maxPoints)) {
+        alert('กรุณากรอกข้อมูลภารกิจให้ครบถ้วน');
+        return;
+    }
+
+    if (!currentUser || !currentUser.student_id) {
+        alert('กรุณาล็อกอินด้วยบัญชี Admin ที่ถูกต้องก่อนดำเนินการ');
+        return;
+    }
+
+    try {
+        // *** จุดที่แก้ไข: เรียกใช้ supabase.rpc() แทน fetch() ***
+        const { data, error } = await supabase.rpc('add_mission', {
+            p_topic: topic,
+            p_detail: detail,
+            p_assigned_date: new Date().toISOString(), // assigned_date เป็นวันที่ปัจจุบัน
+            p_due_date: new Date(dueDate).toISOString(),
+            p_max_points: maxPoints,
+            p_grade: currentGrade,
+            p_admin_student_id: currentUser.student_id // ส่ง student_id ของ admin ไปด้วย
+        });
+
+        if (error) {
+            console.error('RPC Error:', error);
+            throw new Error(error.message);
+        }
+
+        if (data.success) { // ตรวจสอบจาก success flag ใน response JSON
+            alert('เพิ่มภารกิจสำเร็จ!');
+            addMissionForm.reset();
+            fetchAndDisplayMissions();
+        } else {
+            console.error('API Error Response:', data.error);
+            throw new Error(data.error);
+        }
+    } catch (error) {
+        console.error('Error adding mission:', error);
+        alert(`เกิดข้อผิดพลาดในการเพิ่มภารกิจ: ${error.message}`);
+    }
+}
+
+async function handleGradeSubmission(event) {
+    event.preventDefault();
+    const studentId = document.getElementById('grade-student-id').value;
+    const missionId = document.getElementById('grade-mission-topic').value;
+    const score = parseInt(document.getElementById('grade-score').value, 10);
+
+    if (!studentId || !missionId || isNaN(score)) {
+        alert('กรุณาเลือกนักเรียน ภารกิจ และใส่คะแนน');
+        return;
+    }
+
+    if (!currentUser || !currentUser.student_id) {
+        alert('กรุณาล็อกอินด้วยบัญชี Admin ที่ถูกต้องก่อนดำเนินการ');
+        return;
+    }
+
+    try {
+        // *** จุดที่แก้ไข: เรียกใช้ supabase.rpc() แทน fetch() ***
+        const { data, error } = await supabase.rpc('grade_submission', {
+            p_student_id: parseInt(studentId, 10),
+            p_mission_id: parseInt(missionId, 10),
+            p_score: score,
+            p_admin_student_id: currentUser.student_id // ส่ง student_id ของ admin ไปด้วย
+        });
+
+        if (error) {
+            console.error('RPC Error:', error);
+            throw new Error(error.message);
+        }
+
+        if (data.success) { // ตรวจสอบจาก success flag ใน response JSON
+            alert('บันทึกคะแนนสำเร็จ!');
+            gradeSubmissionForm.reset();
+            fetchAndDisplayLeaderboard();
+            fetchAndDisplayMissions();
+        } else {
+            console.error('API Error Response:', data.error);
+            throw new Error(data.error);
+        }
+    } catch (error) {
+        console.error('Error grading submission:', error);
+        alert(`เกิดข้อผิดพลาดในการบันทึกคะแนน: ${error.message}`);
+    }
+}
+
+
+// ================================================================
+// UI & DISPLAY LOGIC (Core Data Fetching & Rendering)
+// ================================================================
+
+/**
+ * Updates the header based on whether a user is logged in.
+ */
+function updateHeaderUI() {
+    if (currentUser) {
+        userProfile.innerHTML = `
+            <span>สวัสดี, ${currentUser.full_name}</span>
+            ${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}
+        `;
+        userProfile.style.display = 'block';
+        logoutButton.textContent = 'ออกจากระบบ';
+        logoutButton.onclick = handleLogout;
+
+        if (adminPanelButton && currentUser.role === 'admin') {
+            adminPanelButton.style.display = 'block';
+        } else if (adminPanelButton) {
+            adminPanelButton.style.display = 'none';
+        }
+
+    } else {
+        userProfile.style.display = 'none';
+        logoutButton.textContent = 'เข้าสู่ระบบ';
+        logoutButton.onclick = showLoginScreen;
+        if (adminPanelButton) {
+            adminPanelButton.style.display = 'none';
+        }
+    }
+}
+
+/**
  * Shows the login modal.
  */
 function showLoginScreen() {
     loginError.textContent = '';
     loginForm.reset();
-    document.getElementById('username').focus(); // Focus on username field
     loginScreen.classList.add('active');
     appContainer.classList.add('blur-background');
 }
@@ -89,18 +283,25 @@ function hideLoginScreen() {
 }
 
 /**
- * Updates UI to show main content and hides login screen.
+ * Fetches and displays the leaderboard.
  */
-function showMainScreen() {
-    loginScreen.classList.remove('active'); // Hide login modal
-    appContainer.classList.remove('blur-background'); // Remove blur
-    // mainContent is visible by default now.
+async function fetchAndDisplayLeaderboard() {
+    leaderboardContainer.innerHTML = '<div class="loader"></div>';
+    
+    const { data, error } = await supabase
+        .rpc('get_leaderboard_data', {
+            p_grade_id: currentGrade
+        });
+
+    if (error) {
+        console.error('Error fetching leaderboard:', error);
+        leaderboardContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลดข้อมูล Leaderboard ได้</p>`;
+        return;
+    }
+    
+    renderLeaderboard(data);
 }
 
-
-/**
- * Renders the leaderboard data into HTML.
- */
 function renderLeaderboard(leaderboardData) {
     leaderboardContainer.innerHTML = '';
     if (!leaderboardData || leaderboardData.length === 0) {
@@ -130,8 +331,39 @@ function renderLeaderboard(leaderboardData) {
 }
 
 /**
- * Renders the mission data into HTML (Duolingo style nodes).
+ * Fetches and displays all missions.
  */
+async function fetchAndDisplayMissions() {
+    missionsContainer.innerHTML = '<div class="loader"></div>';
+    
+    const { data: allMissions, error: missionsError } = await supabase
+        .from('missions')
+        .select('*')
+        .eq('grade', currentGrade)
+        .order('due_date', { ascending: true });
+
+    if (missionsError) {
+        missionsContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลดภารกิจได้</p>`;
+        return;
+    }
+
+    let submissionMap = new Map();
+    if (currentUser) {
+        const { data: userSubmissions, error: subsError } = await supabase
+            .from('submissions')
+            .select('mission_id, score')
+            .eq('student_id', currentUser.student_id);
+        
+        if (subsError) {
+            console.error("Could not fetch user submissions, statuses may be incorrect.");
+        } else {
+            submissionMap = new Map(userSubmissions.map(s => [s.mission_id, s]));
+        }
+    }
+    
+    renderMissions(allMissions, submissionMap);
+}
+
 function renderMissions(missions, submissionMap) {
     missionsContainer.innerHTML = '';
     if (missions.length === 0) {
@@ -185,6 +417,8 @@ function renderMissions(missions, submissionMap) {
 
 /**
  * Opens the modal for a specific mission.
+ * @param {object} mission The mission object to display.
+ * @param {object|null} submission The existing submission for this mission, if any.
  */
 function openMissionModal(mission, submission) {
     if (!currentUser) {
@@ -192,6 +426,7 @@ function openMissionModal(mission, submission) {
         showLoginScreen();
         return;
     }
+    
     currentlyOpenMission = mission;
     missionModal.style.display = 'block';
 
@@ -231,353 +466,158 @@ function hideMissionModal() {
     currentlyOpenMission = null;
 }
 
-
-// ================================================================
-// ADMIN PANEL FUNCTIONS (Core Logic for Admin Actions)
-// ================================================================
-
 /**
- * Shows the admin panel modal.
+ * Handles the mission submission form.
  */
-function showAdminModal() {
-    if (!currentUser || currentUser.role !== 'admin') {
-        alert('คุณไม่มีสิทธิ์เข้าถึง Admin Panel');
-        return;
-    }
-    adminModal.style.display = 'block';
-    appContainer.classList.add('blur-background');
-
-    populateGradeSubmissionDropdowns(); // Populate dropdowns when modal is shown
-    populateAdminMissionList(); // Populate mission list for admin editing/deleting
-}
-
-/**
- * Hides the admin panel modal.
- */
-function hideAdminModal() {
-    adminModal.style.display = 'none';
-    appContainer.classList.remove('blur-background');
-}
-
-/**
- * Handles adding a new mission via RPC.
- */
-async function handleAddMission(event) {
+async function handleMissionSubmit(event) {
     event.preventDefault();
-    const topic = document.getElementById('add-mission-topic').value;
-    const detail = document.getElementById('add-mission-detail').value;
-    const dueDate = document.getElementById('add-mission-due-date').value;
-    const maxPoints = parseInt(document.getElementById('add-mission-max-points').value, 10);
-
-    console.log('Form data:', { topic, detail, dueDate, maxPoints }); 
-
-    if (!topic || !dueDate || isNaN(maxPoints)) {
-        alert('กรุณากรอกข้อมูลภารกิจให้ครบถ้วน');
-        return;
-    }
-
-    if (!currentUser || currentUser.role !== 'admin' || !currentUser.student_id) {
-        alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
-        return;
-    }
+    submitMissionButton.disabled = true;
+    submitMissionButton.textContent = 'กำลังส่ง...';
+    fileUploadStatus.textContent = '';
+    
+    const submissionLink = document.getElementById('submission-link').value;
+    const fileInput = document.getElementById('submission-file');
+    const file = fileInput.files[0];
+    let proofUrl = '';
 
     try {
-        const { data, error } = await supabase.rpc('add_mission', {
-            p_topic: topic,
-            p_detail: detail,
-            p_assigned_date: new Date().toISOString(),
-            p_due_date: new Date(dueDate).toISOString(),
-            p_max_points: maxPoints,
-            p_grade: currentGrade,
-            p_admin_student_id: currentUser.student_id
-        });
-
-        if (error) {
-            console.error('RPC Error:', error);
-            throw new Error(error.message);
-        }
-
-        if (data.success) { // Check from success flag in response JSON
-            alert('เพิ่มภารกิจสำเร็จ!');
-            addMissionForm.reset();
-            fetchAndDisplayMissions(); // Refresh mission list
-            populateAdminMissionList(); // Also refresh admin mission list in modal
-        } else {
-            console.error('API Error Response:', data.error);
-            throw new Error(data.error);
-        }
-    } catch (error) {
-        console.error('Error adding mission:', error);
-        alert(`เกิดข้อผิดพลาดในการเพิ่มภารกิจ: ${error.message}`);
-    }
-}
-
-/**
- * Handles editing a mission via RPC.
- */
-async function handleAdminEditMission(missionId, newTopic, newDetail, newDueDate, newMaxPoints, newGrade) {
-    if (!currentUser || currentUser.role !== 'admin' || !currentUser.student_id) {
-        alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
-        return;
-    }
-
-    try {
-        const { data, error } = await supabase.rpc('edit_mission', {
-            p_mission_id: missionId,
-            p_topic: newTopic,
-            p_detail: newDetail,
-            p_due_date: new Date(newDueDate).toISOString(),
-            p_max_points: newMaxPoints,
-            p_grade: newGrade, // Can edit mission grade
-            p_admin_student_id: currentUser.student_id
-        });
-
-        if (error) {
-            console.error('RPC Error:', error);
-            throw new Error(error.message);
-        }
-
-        if (data.success) {
-            alert('แก้ไขภารกิจสำเร็จ!');
-            addMissionForm.reset(); // Reset form after editing
-            // Reset "Save Edit" button back to "Add Mission"
-            const originalAddButton = addMissionForm.querySelector('button[type="submit"]');
-            originalAddButton.textContent = 'เพิ่มภารกิจ';
-            originalAddButton.onclick = handleAddMission; // Re-assign original handler
-
-            fetchAndDisplayMissions(); // Refresh mission list
-            populateAdminMissionList(); // Refresh admin mission list in modal
-        } else {
-            console.error('API Error Response:', data.error);
-            throw new Error(data.error);
-        }
-    } catch (error) {
-        console.error('Error editing mission:', error);
-        alert(`เกิดข้อผิดพลาดในการแก้ไขภารกิจ: ${error.message}`);
-    }
-}
-
-/**
- * Handles deleting a mission via RPC.
- */
-async function handleAdminDeleteMission(missionId) {
-    if (!currentUser || currentUser.role !== 'admin' || !currentUser.student_id) {
-        alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
-        return;
-    }
-
-    if (!confirm('คุณต้องการลบภารกิจนี้ใช่หรือไม่? การส่งงานทั้งหมดที่เกี่ยวข้องจะถูกลบด้วย!')) {
-        return;
-    }
-
-    try {
-        const { data, error } = await supabase.rpc('delete_mission', {
-            p_mission_id: missionId,
-            p_admin_student_id: currentUser.student_id
-        });
-
-        if (error) {
-            console.error('RPC Error:', error);
-            throw new Error(error.message);
-        }
-
-        if (data.success) {
-            alert('ลบภารกิจสำเร็จ!');
-            fetchAndDisplayMissions(); // Refresh mission list
-            populateAdminMissionList(); // Refresh admin mission list in modal
-        } else {
-            console.error('API Error Response:', data.error);
-            throw new Error(data.error);
-        }
-    } catch (error) {
-        console.error('Error deleting mission:', error);
-        alert(`เกิดข้อผิดพลาดในการลบภารกิจ: ${error.message}`);
-    }
-}
-
-/**
- * Populates dropdowns for grading submissions in Admin Panel.
- */
-async function populateGradeSubmissionDropdowns() {
-    const studentDropdown = document.getElementById('grade-student-id');
-    const missionDropdown = document.getElementById('grade-mission-topic');
-    
-    studentDropdown.innerHTML = '<option value="">เลือกนักเรียน</option>';
-    missionDropdown.innerHTML = '<option value="">เลือกภารกิจ</option>';
-
-    // Fetch students for the current grade
-    const { data: students, error: studentError } = await supabase
-        .from('users')
-        .select('student_id, full_name')
-        .eq('grade', currentGrade)
-        .eq('role', 'student');
-    
-    if (studentError) { console.error('Error fetching students:', studentError); return; }
-    students.forEach(s => {
-        const option = document.createElement('option');
-        option.value = s.student_id;
-        option.textContent = `${s.full_name} (${s.student_id})`;
-        studentDropdown.appendChild(option);
-    });
-
-    // Fetch missions for the current grade
-    const { data: missions, error: missionError } = await supabase
-        .from('missions')
-        .select('id, topic')
-        .eq('grade', currentGrade);
-    
-    if (missionError) { console.error('Error fetching missions:', missionError); return; }
-    missions.forEach(m => {
-        const option = document.createElement('option');
-        option.value = m.id;
-        option.textContent = m.topic;
-        missionDropdown.appendChild(option);
-    });
-}
-
-/**
- * Populates mission list for admin editing/deleting.
- */
-async function populateAdminMissionList() {
-    if (!adminMissionList) return; // Ensure element exists
-    adminMissionList.innerHTML = '<p>กำลังโหลดภารกิจ...</p>';
-
-    const { data: allMissions, error } = await supabase
-        .from('missions')
-        .select('*')
-        .order('grade', { ascending: true })
-        .order('due_date', { ascending: true });
-
-    if (error) {
-        adminMissionList.innerHTML = `<p class="error-message">ไม่สามารถโหลดภารกิจได้</p>`;
-        console.error('Error fetching admin missions:', error);
-        return;
-    }
-
-    if (allMissions.length === 0) {
-        adminMissionList.innerHTML = '<p>ยังไม่มีภารกิจในระบบ</p>';
-        return;
-    }
-
-    adminMissionList.innerHTML = '';
-    allMissions.forEach(mission => {
-        const item = document.createElement('div');
-        item.className = 'admin-list-item';
-        const dueDate = new Date(mission.due_date).toISOString().split('T')[0]; // Format to YYYY-MM-DD for date input
-
-        item.innerHTML = `
-            <span><b>ม.${mission.grade}</b> - ${mission.topic} (${mission.max_points} คะแนน)</span>
-            <div class="admin-actions">
-                <button class="admin-edit-mission-btn" 
-                        data-mission-id="${mission.id}" 
-                        data-topic="${mission.topic}" 
-                        data-detail="${mission.detail || ''}" 
-                        data-due-date="${dueDate}" 
-                        data-max-points="${mission.max_points}"
-                        data-grade="${mission.grade}">แก้ไข</button>
-                <button class="admin-delete-mission-btn" data-mission-id="${mission.id}">ลบ</button>
-            </div>
-        `;
-        adminMissionList.appendChild(item);
-    });
-
-    // Add event listeners for edit/delete buttons
-    adminMissionList.querySelectorAll('.admin-edit-mission-btn').forEach(button => {
-        button.addEventListener('click', (event) => {
-            const { missionId, topic, detail, dueDate, maxPoints, grade } = event.target.dataset;
-            // Populate "Add Mission" form for editing
-            document.getElementById('add-mission-topic').value = topic;
-            document.getElementById('add-mission-detail').value = detail;
-            document.getElementById('add-mission-due-date').value = dueDate;
-            document.getElementById('add-mission-max-points').value = maxPoints;
+        if (file) {
+            fileUploadStatus.textContent = `กำลังอัปโหลด: ${file.name}`;
+            const filePath = `${currentUser.grade}/${currentUser.student_id}/${currentlyOpenMission.id}-${file.name}`;
             
-            // Change button text and add listener for update
-            const originalAddButton = addMissionForm.querySelector('button[type="submit"]');
-            originalAddButton.textContent = 'บันทึกการแก้ไขภารกิจ';
-            originalAddButton.onclick = async (e) => {
-                e.preventDefault();
-                const newTopic = document.getElementById('add-mission-topic').value;
-                const newDetail = document.getElementById('add-mission-detail').value;
-                const newDueDate = document.getElementById('add-mission-due-date').value;
-                const newMaxPoints = parseInt(document.getElementById('add-mission-max-points').value, 10);
-                const newGrade = parseInt(grade, 10); // Keep original grade for now, or add an input
+            const { error: uploadError } = await supabase.storage
+                .from('submissions')
+                .upload(filePath, file, { upsert: true });
 
-                if (!newTopic || !newDueDate || isNaN(newMaxPoints)) {
-                    alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-                    return;
-                }
-                await handleAdminEditMission(parseInt(missionId, 10), newTopic, newDetail, newDueDate, newMaxPoints, newGrade);
-                // Reset form and button
-                addMissionForm.reset();
-                originalAddButton.textContent = 'เพิ่มภารกิจ';
-                originalAddButton.onclick = handleAddMission; // Re-assign original handler
-            };
-        });
-    });
+            if (uploadError) throw uploadError;
 
-    adminMissionList.querySelectorAll('.admin-delete-mission-btn').forEach(button => {
-        button.addEventListener('click', (event) => {
-            const missionId = parseInt(event.target.dataset.missionId, 10);
-            handleAdminDeleteMission(missionId);
-        });
-    });
+            const { data } = supabase.storage
+                .from('submissions')
+                .getPublicUrl(filePath);
+            
+            proofUrl = data.publicUrl;
+            fileUploadStatus.textContent = 'อัปโหลดไฟล์สำเร็จ!';
+        }
+
+        const { error: dbError } = await supabase
+            .from('submissions')
+            .upsert({
+                student_id: currentUser.student_id,
+                mission_id: currentlyOpenMission.id,
+                submission_date: new Date().toISOString(),
+                proof_url: proofUrl || submissionLink || ''
+            }, {
+                onConflict: 'student_id, mission_id'
+            });
+
+        if (dbError) throw dbError;
+
+        alert('ส่งงานสำเร็จ!');
+        hideMissionModal();
+        fetchAndDisplayMissions();
+
+    } catch (error) {
+        console.error('Submission Error:', error);
+        alert(`เกิดข้อผิดพลาดในการส่งงาน: ${error.message}`);
+        submitMissionButton.disabled = false;
+        submitMissionButton.textContent = 'ลองอีกครั้ง';
+    }
 }
 
 /**
- * Handles grading a submission via RPC (from main Admin Panel form).
+ * Shows the student detail modal.
+ * @param {string} studentId The ID of the student to show details for.
  */
-async function handleGradeSubmission(event) {
-    event.preventDefault();
-    const studentId = document.getElementById('grade-student-id').value;
-    const missionId = document.getElementById('grade-mission-topic').value;
-    const score = parseInt(document.getElementById('grade-score').value, 10);
+async function showStudentDetailModal(studentId) {
+    studentDetailModal.style.display = 'block';
+    modalHeader.innerHTML = '<div class="loader"></div>';
+    modalBody.innerHTML = '';
 
-    if (!studentId || !missionId || isNaN(score)) {
-        alert('กรุณาเลือกนักเรียน ภารกิจ และใส่คะแนน');
+    const { data: allMissions, error: missionsError } = await supabase
+        .from('missions')
+        .select('id, topic, detail, max_points')
+        .eq('grade', currentGrade)
+        .order('due_date', { ascending: false });
+    
+    if (missionsError) {
+        modalHeader.innerHTML = '<p class="error-message">ไม่สามารถโหลดข้อมูลภารกิจได้</p>';
         return;
     }
 
-    if (!currentUser || currentUser.role !== 'admin' || !currentUser.student_id) {
-        alert('คุณไม่มีสิทธิ์ดำเนินการนี้');
+    const { data: studentSubmissions, error: subsError } = await supabase
+        .from('submissions')
+        .select('mission_id, score, proof_url')
+        .eq('student_id', studentId);
+    
+    if (subsError) {
+        modalHeader.innerHTML = '<p class="error-message">ไม่สามารถโหลดข้อมูลการส่งงานได้</p>';
+        return;
+    }
+    
+    const { data: studentInfo, error: userError } = await supabase
+        .from('users')
+        .select('full_name, profile_picture_url')
+        .eq('student_id', studentId)
+        .single();
+    
+    if (userError) {
+        modalHeader.innerHTML = '<p class="error-message">ไม่พบข้อมูลนักเรียน</p>';
         return;
     }
 
-    await handleAdminGradeSubmission(studentId, missionId, score); // Re-use the handler
-    gradeSubmissionForm.reset(); // Reset after submission
-}
+    const submissionMap = new Map(studentSubmissions.map(s => [s.mission_id, s]));
+    let totalScore = 0;
+    studentSubmissions.forEach(s => totalScore += s.score || 0);
 
+    const profileImageUrl = studentInfo.profile_picture_url || `https://robohash.org/${studentId}.png?set=set4&size=80x80`;
+    modalHeader.innerHTML = `
+        <img src="${profileImageUrl}" alt="Profile">
+        <div class="student-summary">
+            <h3>${studentInfo.full_name}</h3>
+            <p>คะแนนรวม: ${totalScore} | ส่งงานแล้ว: ${studentSubmissions.length} / ${allMissions.length} ชิ้น</p>
+        </div>
+    `;
+    
+    modalBody.innerHTML = '';
+    allMissions.forEach(mission => {
+        const submission = submissionMap.get(mission.id);
+        let status, statusClass, scoreText, proofLink = '';
 
-// ================================================================
-// AUTHENTICATION & UI UPDATES
-// ================================================================
+        if (submission) {
+            if (submission.score !== null && submission.score !== undefined) {
+                status = 'ตรวจแล้ว';
+                statusClass = 'status-graded';
+                scoreText = `<b>${submission.score}</b> / ${mission.max_points}`;
+            } else {
+                status = 'รอตรวจ';
+                statusClass = 'status-pending';
+                scoreText = `- / ${mission.max_points}`;
+            }
+            if (submission.proof_url) {
+                proofLink = `<a href="${submission.proof_url}" target="_blank" style="margin-left: 10px; color:#007bff;">ดูงาน</a>`;
+            }
+        } else {
+            status = 'ยังไม่ส่ง';
+            statusClass = 'status-not-submitted';
+            scoreText = `- / ${mission.max_points}`;
+        }
 
-/**
- * Updates the header based on whether a user is logged in.
- */
-function updateHeaderUI() {
-    if (currentUser) {
-        userProfile.innerHTML = `
-            <span>สวัสดี, ${currentUser.full_name}</span>
-            ${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}
+        const taskItem = document.createElement('div');
+        taskItem.className = 'task-list-item';
+        taskItem.innerHTML = `
+            <span class="task-name">${mission.topic}</span>
+            <span class="task-status ${statusClass}">${status}</span>
+            <span>${scoreText} ${proofLink}</span>
         `;
-        userProfile.style.display = 'block';
-        logoutButton.textContent = 'ออกจากระบบ';
-        logoutButton.onclick = handleLogout;
+        modalBody.appendChild(taskItem);
+    });
+}
 
-        if (adminPanelButton && currentUser.role === 'admin') {
-            adminPanelButton.style.display = 'block';
-        } else if (adminPanelButton) {
-            adminPanelButton.style.display = 'none';
-        }
-
-    } else {
-        userProfile.style.display = 'none';
-        logoutButton.textContent = 'เข้าสู่ระบบ';
-        logoutButton.onclick = showLoginScreen;
-        if (adminPanelButton) {
-            adminPanelButton.style.display = 'none';
-        }
-    }
+/**
+ * Hides the student detail modal.
+ */
+function hideStudentDetailModal() {
+    studentDetailModal.style.display = 'none';
 }
 
 
@@ -666,20 +706,13 @@ async function init() {
         const userData = JSON.parse(storedSession);
         if (userData.role === 'admin' || userData.grade === currentGrade) {
             currentUser = userData;
-            // *** แก้ไข: เรียก showMainScreen() และ updateHeaderUI() ที่นี่เมื่อล็อกอินสำเร็จใน init() ***
-            showMainScreen(); 
-            updateHeaderUI();
         } else {
             localStorage.removeItem('app_user_session');
-            // User is on wrong page, will remain on public view
-            updateHeaderUI(); // Update header to show login button
         }
-    } else {
-        // No stored session, just remain on public view, header will show login button
-        updateHeaderUI();
     }
     
-    setupEventListeners(); // Setup event listeners regardless of login status
+    updateHeaderUI();
+    setupEventListeners();
 }
 
 init(); // Call init to start the application

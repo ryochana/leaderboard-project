@@ -4,10 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leaderboard</title>
+    
+    <!-- CSS and Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&family=Cinzel:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+
+    <!-- Main App Container -->
     <div id="app-container">
         <div id="main-content">
             <header>
@@ -16,64 +25,41 @@
             </header>
             <main>
                 <h2 id="class-title"></h2>
-                <h2>กระดานผู้นำ (Leaderboard)</h2>
-                <div id="leaderboard-container"></div>
-                <h2>ภารกิจทั้งหมด</h2>
-                <div id="missions-container"></div>
+                <h2>หอเกียรติยศ (Leaderboard)</h2>
+                <div id="leaderboard-container" class="card"></div>
+                <h2>บันทึกภารกิจ (Quest Log)</h2>
+                <div id="missions-container" class="card"></div>
             </main>
         </div>
     </div>
 
+    <!-- Admin Panel Floating Button -->
+    <button id="admin-panel-button">Admin Panel</button>
+
+    <!-- ========= MODALS ========= -->
+    <!-- All modals are placed here, outside the main app container -->
+
+    <!-- Login Modal -->
     <div id="login-screen" class="modal">
-        <div class="login-card">
+        <div class="modal-content login-card">
             <span class="close-button">×</span>
             <h2>กรุณาเข้าสู่ระบบ</h2>
             <form id="login-form">
-                <input type="text" id="username" placeholder="ชื่อผู้ใช้" required>
-                <input type="password" id="password" placeholder="รหัสผ่าน" required>
+                <div class="form-group">
+                    <label for="username">ชื่อผู้ใช้</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">รหัสผ่าน</label>
+                    <input type="password" id="password" required>
+                </div>
                 <button type="submit">เข้าสู่ระบบ</button>
             </form>
             <p id="login-error" class="error-message"></p>
         </div>
     </div>
 
-<div id="profile-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-button">×</span>
-        <h2>แก้ไขรูปโปรไฟล์</h2>
-        <div class="profile-edit-area">
-            <img id="profile-pic-display" src="https://robohash.org/default.png?set=set4&size=100x100" alt="Current Profile Picture" class="profile-pic-lg">
-            <input type="file" id="profile-file-input" accept="image/png, image/jpeg, image/gif">
-            <p id="profile-upload-status" class="status-message"></p>
-            <button id="save-profile-button" class="button primary">บันทึกรูปโปรไฟล์</button>
-        </div>
-    </div>
-</div>
-
-<!-- Change Password Modal (สำหรับเปลี่ยนรหัสผ่านเท่านั้น) -->
-<div id="change-password-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-button">×</span>
-        <h2>เปลี่ยนรหัสผ่าน</h2>
-        <form id="change-password-form">
-            <div class="form-group">
-                <label for="current-password">รหัสผ่านปัจจุบัน</label>
-                <input type="password" id="current-password" required>
-            </div>
-            <div class="form-group">
-                <label for="new-password">รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)</label>
-                <input type="password" id="new-password" required minlength="6">
-            </div>
-            <div class="form-group">
-                <label for="confirm-password">ยืนยันรหัสผ่านใหม่</label>
-                <input type="password" id="confirm-password" required minlength="6">
-            </div>
-            <p id="password-error" class="error-message"></p>
-            <button type="submit" id="submit-password-change">ยืนยันการเปลี่ยนแปลง</button>
-        </form>
-    </div>
-</div>
-
+    <!-- Student Detail Modal -->
     <div id="student-detail-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -82,6 +68,7 @@
         </div>
     </div>
 
+    <!-- Mission Submission Modal -->
     <div id="mission-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -89,10 +76,10 @@
             <div id="mission-modal-body">
                 <div id="submission-status"></div>
                 <form id="submission-form">
-                    <p>คุณสามารถส่งงานได้โดยการแนบลิงก์ (เช่น Google Docs, Canva) หรืออัปโหลดไฟล์รูปภาพ/PDF</p>
+                    <p>ส่งงานโดยแนบลิงก์ (เช่น Google Docs) หรืออัปโหลดไฟล์</p>
                     <div class="form-group">
                         <label for="submission-link">ลิงก์ส่งงาน (ถ้ามี)</label>
-                        <input type="url" id="submission-link" placeholder="https://docs.google.com/...">
+                        <input type="url" id="submission-link" placeholder="https://...">
                     </div>
                     <div class="form-group">
                         <label for="submission-file">อัปโหลดไฟล์ (ถ้ามี)</label>
@@ -105,8 +92,7 @@
         </div>
     </div>
 
-    <button id="admin-panel-button" style="display:none; position:fixed; bottom:20px; right:20px; background-color:#ffc107; color:black; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold;">Admin Panel</button>
-
+    <!-- Admin Panel Modal -->
     <div id="admin-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -114,7 +100,7 @@
             <h3>เพิ่มภารกิจใหม่</h3>
             <form id="add-mission-form">
                 <div class="form-group">
-                    <label for="add-mission-topic">หัวข้อภารกิจ (Topic)</label>
+                    <label for="add-mission-topic">หัวข้อภารกิจ</label>
                     <input type="text" id="add-mission-topic" required>
                 </div>
                 <div class="form-group">
@@ -131,20 +117,15 @@
                 </div>
                 <button type="submit">เพิ่มภารกิจ</button>
             </form>
-
             <h3 style="margin-top:40px;">บันทึกคะแนนงาน</h3>
             <form id="grade-submission-form">
                 <div class="form-group">
                     <label for="grade-student-id">นักเรียน</label>
-                    <select id="grade-student-id" required>
-                        <option value="">กำลังโหลด...</option>
-                    </select>
+                    <select id="grade-student-id" required></select>
                 </div>
                 <div class="form-group">
                     <label for="grade-mission-topic">ภารกิจ</label>
-                    <select id="grade-mission-topic" required>
-                        <option value="">กำลังโหลด...</option>
-                    </select>
+                    <select id="grade-mission-topic" required></select>
                 </div>
                 <div class="form-group">
                     <label for="grade-score">คะแนน</label>
@@ -154,83 +135,94 @@
             </form>
         </div>
     </div>
-
-<div id="customization-modal" class="modal">
-    <div class="modal-content large">
-        <span class="close-button">×</span>
-        <h2>ตกแต่งโปรไฟล์</h2>
-        <div class="customization-container">
-            <div class="customization-preview">
-                <div id="preview-card-background" class="leaderboard-item preview-item">
-                    <div class="rank">1</div>
-                    <div id="preview-profile-effect" class="profile-pic-wrapper">
-                        <img id="preview-profile-image" src="" alt="Profile" class="profile-pic">
-                    </div>
-                    <div class="student-info">
-                        <div class="student-name-wrapper">
-                            <div id="preview-username" class="student-name">ชื่อของคุณ</div>
-                            <img id="preview-badge" src="" alt="Badge" class="equipped-badge preview-badge">
-                        </div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" style="width: 75%;"></div>
-                        </div>
-                    </div>
-                    <div id="preview-points" class="score">XXX คะแนน</div>
-                </div>
+    
+    <!-- Profile Settings Modal (รวมเปลี่ยนรูปและรหัสผ่าน) -->
+    <div id="profile-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">×</span>
+            <h2>ตั้งค่าโปรไฟล์</h2>
+            <div class="profile-edit-area">
+                <img id="profile-pic-display" src="" alt="Current Profile Picture" class="profile-pic-lg">
+                <input type="file" id="profile-file-input" accept="image/png, image/jpeg, image/gif">
+                <p id="profile-upload-status" class="status-message"></p>
+                <button id="save-profile-button">บันทึกรูปโปรไฟล์</button>
             </div>
+            <hr style="margin: 20px 0;">
+            <button id="go-to-change-password-btn" style="width:100%;">ต้องการเปลี่ยนรหัสผ่าน?</button>
+        </div>
+    </div>
+    
+    <!-- Change Password Modal -->
+    <div id="change-password-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">×</span>
+            <h2>เปลี่ยนรหัสผ่าน</h2>
+            <form id="change-password-form">
+                <div class="form-group">
+                    <label for="current-password">รหัสผ่านปัจจุบัน</label>
+                    <input type="password" id="current-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-password">รหัสผ่านใหม่</label>
+                    <input type="password" id="new-password" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">ยืนยันรหัสผ่านใหม่</label>
+                    <input type="password" id="confirm-password" required minlength="6">
+                </div>
+                <p id="password-error" class="error-message"></p>
+                <button type="submit" id="submit-password-change">ยืนยันการเปลี่ยนแปลง</button>
+            </form>
+        </div>
+    </div>
 
-            <div class="customization-shop">
-                <div class="shop-category">
-                    <h3>กรอบโปรไฟล์</h3>
-                    <div id="shop-frame_color" class="shop-grid">
+    <!-- Profile Customization Modal -->
+    <div id="customization-modal" class="modal">
+        <div class="modal-content large">
+            <span class="close-button">×</span>
+            <h2>ตกแต่งโปรไฟล์</h2>
+            <div class="customization-container">
+                <div class="customization-preview">
+                    <div id="preview-card-background" class="leaderboard-item preview-item">
+                        <div class="rank">1</div>
+                        <div id="preview-profile-effect" class="profile-pic-wrapper">
+                            <img id="preview-profile-image" src="" alt="Profile" class="profile-pic">
+                        </div>
+                        <div class="student-info">
+                            <div class="student-name-wrapper">
+                                <div id="preview-username" class="student-name">ชื่อของคุณ</div>
+                                <img id="preview-badge" src="" alt="Badge" class="equipped-badge preview-badge">
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 75%;"></div>
+                            </div>
+                        </div>
+                        <div id="preview-points" class="score">XXX คะแนน</div>
                     </div>
+                    <button id="settings-btn">ตั้งค่า (รูปโปรไฟล์ / รหัสผ่าน)</button>
                 </div>
-                <div class="shop-category">
-                    <h3>ป้ายแสดง</h3>
-                    <div id="shop-badge" class="shop-grid">
+                <div class="customization-shop">
+                    <div class="shop-category">
+                        <h3>กรอบโปรไฟล์</h3>
+                        <div id="shop-frame_color" class="shop-grid"></div>
                     </div>
-                </div>
-                <div class="shop-category">
-                    <h3>เอฟเฟกต์พิเศษ</h3>
-                    <div id="shop-profile_effect" class="shop-grid">
+                    <div class="shop-category">
+                        <h3>ป้ายแสดง</h3>
+                        <div id="shop-badge" class="shop-grid"></div>
                     </div>
-                </div>
-                <div class="shop-category">
-                    <h3>พื้นหลังการ์ด</h3>
-                    <div id="shop-card_background" class="shop-grid">
+                    <div class="shop-category">
+                        <h3>เอฟเฟกต์พิเศษ</h3>
+                        <div id="shop-profile_effect" class="shop-grid"></div>
+                    </div>
+                    <div class="shop-category">
+                        <h3>พื้นหลังการ์ด</h3>
+                        <div id="shop-card_background" class="shop-grid"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<!-- =============================================================== -->
-<!-- Change Password Modal -->
-<!-- =============================================================== -->
-<div id="change-password-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-button">×</span>
-        <h2>เปลี่ยนรหัสผ่าน</h2>
-        <form id="change-password-form">
-            <div class="form-group">
-                <label for="current-password">รหัสผ่านปัจจุบัน</label>
-                <input type="password" id="current-password" required>
-            </div>
-            <div class="form-group">
-                <label for="new-password">รหัสผ่านใหม่</label>
-                <input type="password" id="new-password" required minlength="6">
-            </div>
-            <div class="form-group">
-                <label for="confirm-password">ยืนยันรหัสผ่านใหม่</label>
-                <input type="password" id="confirm-password" required minlength="6">
-            </div>
-            <p id="password-error" class="error-message"></p>
-            <button type="submit" id="submit-password-change">ยืนยันการเปลี่ยนแปลง</button>
-        </form>
-    </div>
-</div>
-
+    
     <script src="main.js" defer></script>
 </body>
 </html>

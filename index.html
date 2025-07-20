@@ -68,7 +68,11 @@
         </nav>
     </div>
 
+    <!-- Admin Panel Floating Button (กลับมาแล้ว!) -->
+    <button id="admin-panel-button">Admin Panel</button>
+
     <!-- ========= MODALS ========= -->
+    <!-- All modals are placed here, outside the main app container -->
 
     <div id="login-screen" class="modal">
         <div class="modal-content login-card">
@@ -114,7 +118,7 @@
                         <input type="file" id="submission-file">
                         <small id="file-upload-status"></small>
                     </div>
-                    <button type="submit" id="submit-mission-button">ส่งงาน</button>
+                    <button type="submit">ส่งงาน</button>
                 </form>
             </div>
         </div>
@@ -163,6 +167,21 @@
         </div>
     </div>
     
+    <div id="profile-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">×</span>
+            <h2>ตั้งค่าโปรไฟล์</h2>
+            <div class="profile-edit-area">
+                <img id="profile-pic-display" src="" alt="Current Profile Picture" class="profile-pic-lg">
+                <input type="file" id="profile-file-input" accept="image/png, image/jpeg, image/gif">
+                <p id="profile-upload-status" class="status-message"></p>
+                <button id="save-profile-button">บันทึกรูปโปรไฟล์</button>
+            </div>
+            <hr>
+            <button id="go-to-change-password-btn">ต้องการเปลี่ยนรหัสผ่าน?</button>
+        </div>
+    </div>
+    
     <div id="change-password-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -183,6 +202,52 @@
                 <p id="password-error" class="error-message"></p>
                 <button type="submit" id="submit-password-change">ยืนยันการเปลี่ยนแปลง</button>
             </form>
+        </div>
+    </div>
+    
+    <div id="customization-modal" class="modal">
+        <div class="modal-content large">
+            <span class="close-button">×</span>
+            <h2>ตกแต่งโปรไฟล์</h2>
+            <div class="customization-container">
+                <div class="customization-preview">
+                    <div id="preview-card-background" class="leaderboard-item preview-item">
+                        <div class="rank">1</div>
+                        <div id="preview-profile-effect" class="profile-pic-wrapper">
+                            <img id="preview-profile-image" src="" alt="Profile" class="profile-pic">
+                        </div>
+                        <div class="student-info">
+                            <div class="student-name-wrapper">
+                                <div id="preview-username" class="student-name">ชื่อของคุณ</div>
+                                <img id="preview-badge" src="" alt="Badge" class="equipped-badge preview-badge">
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 75%;"></div>
+                            </div>
+                        </div>
+                        <div id="preview-points" class="score">XXX คะแนน</div>
+                    </div>
+                    <button id="settings-btn">ตั้งค่า (รูปโปรไฟล์ / รหัสผ่าน)</button>
+                </div>
+                <div class="customization-shop">
+                    <div class="shop-category">
+                        <h3>กรอบโปรไฟล์</h3>
+                        <div id="shop-frame_color" class="shop-grid"></div>
+                    </div>
+                    <div class="shop-category">
+                        <h3>ป้ายแสดง</h3>
+                        <div id="shop-badge" class="shop-grid"></div>
+                    </div>
+                    <div class="shop-category">
+                        <h3>เอฟเฟกต์พิเศษ</h3>
+                        <div id="shop-profile_effect" class="shop-grid"></div>
+                    </div>
+                    <div class="shop-category">
+                        <h3>พื้นหลังการ์ด</h3>
+                        <div id="shop-card_background" class="shop-grid"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     

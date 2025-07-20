@@ -575,3 +575,35 @@ h1, h2, h3 {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* =============================================================== */
+/* การแก้ไข Modal ให้เลื่อนเนื้อหาได้ (Scrollable Modal Content) */
+/* =============================================================== */
+
+/* 1. ทำให้ตัวกล่อง Modal หลักมีความสูงไม่เกินหน้าจอ และจัดโครงสร้างภายใน */
+.modal-content {
+    max-height: 85vh; /* จำกัดความสูงสูงสุดของ Modal ไม่ให้เกิน 85% ของความสูงหน้าจอ */
+    display: flex;
+    flex-direction: column; /* จัดโครงสร้างภายในเป็นแนวตั้ง (หัว -> เนื้อหา) */
+}
+
+/* 2. ทำให้ส่วนเนื้อหาของ Modal สามารถ Scroll ได้ */
+/* สำหรับ Student Detail Modal */
+#student-detail-modal #modal-body {
+    overflow-y: auto; /* หัวใจของการแก้ไข: ทำให้ส่วนนี้มี scrollbar เมื่อเนื้อหายาวเกิน */
+    flex-grow: 1; /* ทำให้ส่วนนี้ขยายเต็มพื้นที่ที่เหลือ */
+    padding-right: 15px; /* เพิ่มช่องว่างด้านขวาเล็กน้อยไม่ให้ scrollbar ติดขอบเกินไป */
+}
+
+/* สำหรับ Admin Panel Modal */
+/* เราจะทำให้ฟอร์มทั้งสองส่วนสามารถ scroll ได้ */
+#admin-modal .modal-content {
+    /* ใช้ overflow-y ที่ตัว modal-content ของ admin เลย เพราะมันมีแต่ฟอร์ม */
+    overflow-y: auto;
+}
+
+/* สำหรับ Mission Modal (เผื่อในอนาคต description ยาวมาก) */
+#mission-modal #mission-modal-body {
+    overflow-y: auto;
+    flex-grow: 1;
+}

@@ -5,153 +5,133 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leaderboard</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Import Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div id="app-container">
-        <!-- Login Screen - จะถูกควบคุมด้วย JS ว่าจะแสดงตอนไหน -->
-        <div id="login-screen"> 
-            <div class="login-card">
-                <h1 id="class-title"></h1>
-                <p>กรุณาเข้าสู่ระบบ</p>
-                <form id="login-form">
-                    <input type="text" id="username" placeholder="ชื่อผู้ใช้" required>
-                    <input type="password" id="password" placeholder="รหัสผ่าน" required>
-                    <button type="submit">เข้าสู่ระบบ</button>
-                </form>
-                <p id="login-error" class="error-message"></p>
-            </div>
-        </div>
-
-        <!-- Main Content - จะถูกควบคุมด้วย JS ว่าจะแสดงตอนไหน -->
         <div id="main-content">
             <header>
                 <div id="user-profile"></div>
                 <button id="logout-button">เข้าสู่ระบบ</button>
             </header>
             <main>
+                <h2 id="class-title"></h2>
                 <h2>กระดานผู้นำ (Leaderboard)</h2>
-                <div id="leaderboard-container">
-                    <!-- เนื้อหาจะถูกสร้างโดย JS -->
-                </div>
-                
+                <div id="leaderboard-container"></div>
                 <h2>ภารกิจทั้งหมด</h2>
-                <div id="missions-container">
-                    <!-- เนื้อหาจะถูกสร้างโดย JS -->
-                </div>
+                <div id="missions-container"></div>
             </main>
         </div>
     </div>
 
-<!-- Profile Modal -->
-<div id="profile-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-button">×</span>
-        <h2>แก้ไขรูปโปรไฟล์</h2>
-        <div class="profile-edit-area">
-            <img id="profile-pic-display" src="https://robohash.org/default.png?set=set4&size=100x100" alt="Current Profile Picture" class="profile-pic-lg">
-            <input type="file" id="profile-file-input" accept="image/png, image/jpeg, image/gif">
-            <p id="profile-upload-status" class="status-message"></p>
-            <button id="save-profile-button" class="button primary">บันทึกรูปโปรไฟล์</button>
+    <div id="login-screen" class="modal">
+        <div class="login-card">
+            <span class="close-button">×</span>
+            <h2>กรุณาเข้าสู่ระบบ</h2>
+            <form id="login-form">
+                <input type="email" id="username" placeholder="Email" required>
+                <input type="password" id="password" placeholder="รหัสผ่าน" required>
+                <button type="submit">เข้าสู่ระบบ</button>
+            </form>
+            <p id="login-error" class="error-message"></p>
         </div>
     </div>
-</div>
 
-<!-- Student Detail Modal -->
-<div id="student-detail-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-button">×</span>
-        <div id="modal-header">
-            <!-- Student profile will be loaded here by JS -->
-        </div>
-        <div id="modal-body">
-            <!-- Submission details will be loaded here by JS -->
+    <div id="profile-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">×</span>
+            <h2>แก้ไขรูปโปรไฟล์</h2>
+            <div class="profile-edit-area">
+                <img id="profile-pic-display" src="https://robohash.org/default.png?set=set4&size=100x100" alt="Current Profile Picture" class="profile-pic-lg">
+                <input type="file" id="profile-file-input" accept="image/png, image/jpeg, image/gif">
+                <p id="profile-upload-status" class="status-message"></p>
+                <button id="save-profile-button" class="button primary">บันทึกรูปโปรไฟล์</button>
+            </div>
         </div>
     </div>
-</div>
-    
-<!-- Mission Modal -->
-<div id="mission-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-button">×</span>
-        <div id="mission-modal-header">
-            <!-- Mission Title and Details will be loaded here -->
+
+    <div id="student-detail-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">×</span>
+            <div id="modal-header"></div>
+            <div id="modal-body"></div>
         </div>
-        <div id="mission-modal-body">
-            <div id="submission-status">
-                <!-- Submission status will be shown here -->
+    </div>
+
+    <div id="mission-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">×</span>
+            <div id="mission-modal-header"></div>
+            <div id="mission-modal-body">
+                <div id="submission-status"></div>
+                <form id="submission-form">
+                    <p>คุณสามารถส่งงานได้โดยการแนบลิงก์ (เช่น Google Docs, Canva) หรืออัปโหลดไฟล์รูปภาพ/PDF</p>
+                    <div class="form-group">
+                        <label for="submission-link">ลิงก์ส่งงาน (ถ้ามี)</label>
+                        <input type="url" id="submission-link" placeholder="https://docs.google.com/...">
+                    </div>
+                    <div class="form-group">
+                        <label for="submission-file">อัปโหลดไฟล์ (ถ้ามี)</label>
+                        <input type="file" id="submission-file">
+                        <small id="file-upload-status"></small>
+                    </div>
+                    <button type="submit" id="submit-mission-button">ส่งงาน</button>
+                </form>
             </div>
-            <form id="submission-form">
-                <p>คุณสามารถส่งงานได้โดยการแนบลิงก์ (เช่น Google Docs, Canva) หรืออัปโหลดไฟล์รูปภาพ/PDF</p>
+        </div>
+    </div>
+
+    <button id="admin-panel-button" style="display:none; position:fixed; bottom:20px; right:20px; background-color:#ffc107; color:black; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold;">Admin Panel</button>
+
+    <div id="admin-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">×</span>
+            <h2>Admin Panel</h2>
+            <h3>เพิ่มภารกิจใหม่</h3>
+            <form id="add-mission-form">
                 <div class="form-group">
-                    <label for="submission-link">ลิงก์ส่งงาน (ถ้ามี)</label>
-                    <input type="url" id="submission-link" placeholder="https://docs.google.com/...">
+                    <label for="add-mission-topic">หัวข้อภารกิจ (Topic)</label>
+                    <input type="text" id="add-mission-topic" required>
                 </div>
                 <div class="form-group">
-                    <label for="submission-file">อัปโหลดไฟล์ (ถ้ามี)</label>
-                    <input type="file" id="submission-file">
-                    <small id="file-upload-status"></small>
+                    <label for="add-mission-detail">รายละเอียด</label>
+                    <textarea id="add-mission-detail"></textarea>
                 </div>
-                <button type="submit" id="submit-mission-button">ส่งงาน</button>
+                <div class="form-group">
+                    <label for="add-mission-due-date">วันที่ส่ง</label>
+                    <input type="date" id="add-mission-due-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="add-mission-max-points">คะแนนเต็ม</label>
+                    <input type="number" id="add-mission-max-points" required>
+                </div>
+                <button type="submit">เพิ่มภารกิจ</button>
+            </form>
+
+            <h3 style="margin-top:40px;">บันทึกคะแนนงาน</h3>
+            <form id="grade-submission-form">
+                <div class="form-group">
+                    <label for="grade-student-id">นักเรียน</label>
+                    <select id="grade-student-id" required>
+                        <option value="">กำลังโหลด...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="grade-mission-topic">ภารกิจ</label>
+                    <select id="grade-mission-topic" required>
+                        <option value="">กำลังโหลด...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="grade-score">คะแนน</label>
+                    <input type="number" id="grade-score" min="0" required>
+                </div>
+                <button type="submit">บันทึกคะแนน</button>
             </form>
         </div>
     </div>
-</div>
 
-<button id="admin-panel-button" style="display:none; position:fixed; bottom:20px; right:20px; background-color:#ffc107; color:black; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold;">Admin Panel</button>
-
-<!-- Admin Modal -->
-<div id="admin-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-button">×</span>
-        <h2>Admin Panel</h2>
-        
-        <h3>เพิ่มภารกิจใหม่</h3>
-        <form id="add-mission-form">
-            <div class="form-group">
-                <label for="add-mission-topic">หัวข้อภารกิจ (Topic)</label>
-                <input type="text" id="add-mission-topic" required>
-            </div>
-            <div class="form-group">
-                <label for="add-mission-detail">รายละเอียด</label>
-                <textarea id="add-mission-detail"></textarea>
-            </div>
-            <div class="form-group">
-                <label for="add-mission-due-date">วันที่ส่ง</label>
-                <input type="date" id="add-mission-due-date" required>
-            </div>
-            <div class="form-group">
-                <label for="add-mission-max-points">คะแนนเต็ม</label>
-                <input type="number" id="add-mission-max-points" required>
-            </div>
-            <button type="submit">เพิ่มภารกิจ</button>
-        </form>
-
-        <h3 style="margin-top:40px;">บันทึกคะแนนงาน</h3>
-        <form id="grade-submission-form">
-            <div class="form-group">
-                <label for="grade-student-id">นักเรียน</label>
-                <select id="grade-student-id" required>
-                    <option value="">กำลังโหลด...</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="grade-mission-topic">ภารกิจ</label>
-                <select id="grade-mission-topic" required>
-                    <option value="">กำลังโหลด...</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="grade-score">คะแนน</label>
-                <input type="number" id="grade-score" min="0" required>
-            </div>
-            <button type="submit">บันทึกคะแนน</button>
-        </form>
-    </div>
-</div>
-
-<script type="module" src="main.js"></script> <!-- ใช้ main.js ตามที่คุณระบุ -->
+    <script type="module" src="main.js"></script>
 
 </body>
 </html>

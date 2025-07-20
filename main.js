@@ -1,4 +1,4 @@
-// main.js (V6.2 - Fully Integrated & Bug Fixed - Final Push)
+// main.js (V6.3 - Final Integration & Bug Fixes)
 // Last Updated: 2025-07-20
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
@@ -6,7 +6,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// DOM Elements (Declared at the top for clarity and accessibility)
+// DOM Elements (All declared at the top for clarity and accessibility)
 const appContainer = document.getElementById('app-container');
 const topHeader = document.getElementById('top-header');
 const classTitleMain = document.getElementById('class-title-main');
@@ -108,6 +108,7 @@ function handleLogout() {
 
 function updateAfterLoginOrLogout() {
     updateHeaderUI();
+    // Re-fetch all data to ensure latest state after login/logout
     fetchAndDisplayFeed();
     fetchAndDisplayMissions();
     fetchAndDisplayLeaderboard();
@@ -344,6 +345,8 @@ function renderProfilePage() {
         </div>
     `;
     // Event listeners for the new buttons within the profile page (dynamically added)
+    // IMPORTANT: THESE LISTENERS NEED TO BE ATTACHED AFTER THE HTML IS RENDERED.
+    // They are called from renderProfilePage(), so the elements should exist by then.
     const customizeBtn = document.getElementById('customize-button');
     if(customizeBtn) customizeBtn.addEventListener('click', showCustomizationModal);
     const changePassBtn = document.getElementById('change-password-button-in-profile');
@@ -352,8 +355,15 @@ function renderProfilePage() {
     if(profilePicBtn) profilePicBtn.addEventListener('click', showProfileModalActual);
 }
 
+// main.js (V6.3 - Final Integration & Bug Fixes) - Part 3/3
+
 function openMissionModal(mission, submission) {
-    if (!currentUser) { alert("กรุณาล็อกอินก่อนส่งงาน"); showLoginModal(); return; }
+    // Check if user is logged in
+    if (!currentUser) { 
+        alert("กรุณาล็อกอินก่อนส่งงาน"); 
+        showLoginModal(); 
+        return; 
+    }
     currentlyOpenMission = mission;
     openModal(missionModal);
     if(missionModalHeader) missionModalHeader.innerHTML = `<h3>${mission.title}</h3><p>${mission.description || 'ไม่มีคำอธิบายเพิ่มเติม'}</p>`;
@@ -402,9 +412,7 @@ async function handleMissionSubmit(event) {
             formData.append('image', file);
             const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
             const result = await response.json();
-            if (!result.success) {
-                throw new Error(result.error.message || 'ImgBB upload failed');
-            }
+            if (!result.success) throw new Error(result.error.message || 'ImgBB upload failed');
             proofUrl = result.data.url;
             fileStatus.textContent = 'อัปโหลดไฟล์สำเร็จ!';
         }
@@ -591,6 +599,7 @@ function updatePreview() {
 }
 
 async function handleItemClick(item, locked, equipped) {
+    if (!currentUser) { alert("กรุณาล็อกอินก่อน"); showLoginModal(); return; } // Ensure user is logged in
     if (locked) {
         alert(`คุณต้องมี ${item.unlock_points} คะแนนเพื่อปลดล็อกไอเทมนี้!`);
         return;
@@ -612,7 +621,7 @@ async function handleItemClick(item, locked, equipped) {
 }
 
 function showProfileModalActual() { // Actual Profile Picture & Password Change settings
-    if (!currentUser) return;
+    if (!currentUser) return; // Should already be logged in
     closeModal(customizationModal); // Close customization modal
     openModal(profileModal); // Open profile modal
     
@@ -630,7 +639,7 @@ function showProfileModalActual() { // Actual Profile Picture & Password Change 
         changePassBtn.textContent = 'ต้องการเปลี่ยนรหัสผ่าน?';
         changePassBtn.onclick = () => {
             closeModal(profileModal);
-            showChangePasswordModal(); // Call actual show change password modal
+            showChangePasswordModal();
         };
         profileEditArea.appendChild(changePassBtn);
     }
@@ -709,15 +718,15 @@ async function handleChangePassword(event) {
     closeModal(changePasswordModal);
 }
 
+// *** Final setupEventListeners function ***
 function setupEventListeners() {
-    // Top-level DOM elements
-    // Login Form Listener
+    // 1. Login Form Listener
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
     
-    // Admin Panel Button Listener
+    // 2. Admin Panel Button Listener
     if (adminPanelButton) adminPanelButton.addEventListener('click', showAdminModal);
 
-    // General modal close listeners for ALL modals
+    // 3. General modal close listeners for ALL modals
     document.querySelectorAll('.modal').forEach(modal => {
         const closeBtn = modal.querySelector('.close-button');
         if (closeBtn) {
@@ -733,7 +742,7 @@ function setupEventListeners() {
         });
     });
 
-    // Tab button listeners (handle switching sections)
+    // 4. Tab button listeners (handle switching sections)
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             const targetId = button.dataset.content;
@@ -742,13 +751,13 @@ function setupEventListeners() {
             if (targetId === 'feed-container') fetchAndDisplayFeed();
             else if (targetId === 'missions-container') fetchAndDisplayMissions();
             else if (targetId === 'leaderboard-container') fetchAndDisplayLeaderboard();
-            else if (targetId === 'profile-container') renderProfilePage();
+            else if (targetId === 'profile-container') renderProfilePage(); // Render profile page when tab is clicked
         });
     });
 
-    // Specific listeners for forms and buttons inside modals
+    // 5. Specific listeners for forms and buttons inside modals (check if element exists)
     // Mission Modal (Submit form)
-    if (missionModal && submissionForm) {
+    if (submissionForm) { // missionModal is checked above in DOM element declarations
         submissionForm.addEventListener('submit', handleMissionSubmit);
     }
     
@@ -818,11 +827,11 @@ async function init() {
     // Pre-fetch/render other tab contents in background
     fetchAndDisplayFeed();
     fetchAndDisplayMissions();
-    renderProfilePage(); 
+    renderProfilePage(); // Render profile page initially
 
-    // If no user is logged in, show login modal after initial content is loaded
-    // This is managed by the specific actions now (e.g., clicking on Mission, Profile tab)
-    // No direct showLoginModal() on init anymore.
+    // If no user is logged in, and user clicks on a tab/action that requires login, show login modal.
+    // This is handled within the functions themselves (e.g., openMissionModal, showCustomizationModal).
+    // No direct showLoginModal() on init anymore to avoid it popping up on page load.
 }
 
 init();

@@ -1,122 +1,98 @@
-/* General Modal Styles */
-.modal {
-    display: none; /* สำคัญมาก: ซ่อน Modal ทั้งหมดตั้งแต่แรก */
-    position: fixed;
-    z-index: 1000; /* อยู่ด้านบนสุด */
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0,0,0,0.5); /* พื้นหลังทึบแสงเล็กน้อย */
-    align-items: center; /* จัดกึ่งกลางแนวตั้ง */
-    justify-content: center; /* จัดกึ่งกลางแนวนอน */
+/* style.css (V1.2 - Modern RPG UI) */
+/* =============================================================== */
+/* 1. SETUP & THEME */
+/* =============================================================== */
+
+/* --- Google Fonts --- */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&family=Cinzel:wght@700&display=swap');
+
+/* --- Theme Variables (CSS Variables) --- */
+:root {
+    /* Fonts */
+    --font-primary: 'Sarabun', sans-serif;
+    --font-display: 'Cinzel', serif;
+
+    /* Colors */
+    --color-background: #1C2833; /* Dark Slate Blue */
+    --color-surface: #273746; /* Lighter Slate */
+    --color-text-primary: #FDFEFE;
+    --color-text-secondary: #ABB2B9;
+    --color-border: #34495E;
+
+    /* Accent Colors */
+    --color-primary: #8E44AD; /* Royal Purple */
+    --color-secondary: #F1C40F; /* Amber Gold */
+    --color-success: #2ECC71; /* Emerald Green */
+    --color-danger: #E74C3C; /* Alizarin Crimson */
+    
+    /* Spacing & Sizing */
+    --spacing-xs: 0.25rem;  /* 4px */
+    --spacing-sm: 0.5rem;   /* 8px */
+    --spacing-md: 1rem;     /* 16px */
+    --spacing-lg: 1.5rem;   /* 24px */
+    --spacing-xl: 2rem;     /* 32px */
+    
+    /* Border Radius */
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 16px;
+    --border-radius-pill: 999px; /* For capsule-shaped buttons */
 }
 
-.modal-content {
-    background-color: #fefefe;
-    padding: 30px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 90%;
-    max-width: 500px; /* กว้างสูงสุด */
-    position: relative;
-    animation-name: animatetop;
-    animation-duration: 0.4s;
-    pointer-events: all; /* ทำให้สามารถคลิกในเนื้อหา Modal ได้ */
+/* --- Base Styles --- */
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
-/* Close button */
-.close-button {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    position: absolute;
-    top: 10px;
-    right: 15px;
-    cursor: pointer;
-}
-
-.close-button:hover,
-.close-button:focus {
-    color: black;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-/* Animation for modal */
-@keyframes animatetop {
-    from {top: -300px; opacity: 0}
-    to {top: 0; opacity: 1}
-}
-
-/* --- การจัดการหน้า Login และ Main Content --- */
-#login-screen {
-    display: none; /* สำคัญ: ซ่อน Login Screen ตั้งแต่แรก, JS จะจัดการ */
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 99; /* อยู่ใต้ Modal อื่นๆ แต่เหนือ Main Content */
-    background-color: #f0f2f5;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-}
-
-#main-content {
-    display: none; /* สำคัญ: ซ่อน Main Content ตั้งแต่แรก, JS จะจัดการ */
-    flex-direction: column;
-    min-height: 100vh;
-}
-
-/* การเบลอพื้นหลังเมื่อมี Modal เปิดทับ */
-#app-container.blur-background {
-    filter: blur(5px);
-    pointer-events: none; /* ป้องกันการโต้ตอบกับเนื้อหาที่เบลอ */
-}
-
-/* --- Style ที่เหลือ (จากโค้ดเดิม) --- */
 body {
-    font-family: Arial, sans-serif;
+    font-family: var(--font-primary);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
     margin: 0;
-    background-color: #333;
-    color: #eee;
-    --primary-color: #007bff;
-    --secondary-color: #6c757d;
-    --success-color: #28a745;
-    --warning-color: #ffc107;
-    --danger-color: #dc3545;
+    line-height: 1.6;
 }
 
 #app-container {
-    padding: 20px;
-    max-width: 1200px;
+    max-width: 900px;
     margin: 0 auto;
-    transition: filter 0.3s ease-in-out; /* เพื่อให้การเบลอเป็นไปอย่างนุ่มนวล */
+    padding: var(--spacing-xl);
+    transition: filter 0.3s ease-in-out;
 }
+
+h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-md) 0;
+    letter-spacing: 1px;
+}
+
+h2 {
+    font-size: 1.75rem;
+    margin-top: var(--spacing-xl);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* =============================================================== */
+/* 2. LAYOUT & HEADER */
+/* =============================================================== */
 
 header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 0;
-    border-bottom: 1px solid #555;
-    margin-bottom: 20px;
-    position: relative; /* สำหรับ z-index ของ admin button */
+    padding-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
 }
 
 #user-profile {
-    display: flex; /* Ensure it's a flex container */
+    display: flex;
     align-items: center;
-    gap: 10px; /* Space between img and text */
-    cursor: pointer; /* Indicate clickable */
-    padding: 5px 10px;
-    border-radius: 20px;
-    transition: background-color 0.2s ease-in-out;
-    color: white; /* Make text visible */
+    gap: var(--spacing-md);
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--border-radius-pill);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
 }
 
 #user-profile:hover {
@@ -124,715 +100,518 @@ header {
 }
 
 #user-profile .profile-pic {
-    width: 40px; /* Adjust size as needed */
+    width: 40px;
     height: 40px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid rgba(255, 255, 255, 0.5); /* Optional border */
 }
 
 .admin-badge {
-    background-color: var(--warning-color);
-    color: black;
-    padding: 3px 8px;
-    border-radius: 10px;
+    background-color: var(--color-secondary);
+    color: var(--color-background);
+    padding: 3px 10px;
+    border-radius: var(--border-radius-pill);
     font-size: 0.8em;
-    margin-left: 5px;
+    font-weight: 700;
 }
 
-h1, h2, h3 {
-    color: #eee;
-}
-
-.login-card {
-    background-color: #444;
-    padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-    text-align: center;
-    width: 100%;
-    max-width: 400px;
-    margin: auto;
-}
-
-.login-card h1 {
-    margin-top: 0;
-    color: var(--primary-color);
-}
-
-.login-card input[type="text"],
-.login-card input[type="password"] {
-    width: calc(100% - 20px);
-    padding: 10px;
-    margin: 10px 0;
-    border: 1px solid #555;
-    border-radius: 5px;
-    background-color: #666;
-    color: #eee;
-}
-
-.login-card button {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 10px 20px;
+/* --- Buttons --- */
+button, #logout-button {
+    font-family: var(--font-primary);
+    font-weight: 700;
+    padding: var(--spacing-sm) var(--spacing-lg);
     border: none;
-    border-radius: 5px;
+    border-radius: var(--border-radius-pill);
     cursor: pointer;
-    font-size: 1em;
-    margin-top: 10px;
-    width: 100%;
+    transition: transform 0.1s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    background-color: var(--color-primary);
+    color: var(--color-text-primary);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-.login-card button:hover {
-    background-color: #0056b3;
+button:hover, #logout-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
 
-.error-message {
-    color: var(--danger-color);
-    margin-top: 10px;
-    font-size: 0.9em;
+#logout-button {
+    background-color: var(--color-surface);
 }
 
-/* Leaderboard */
+#admin-panel-button {
+    background-color: var(--color-secondary);
+    color: var(--color-background);
+    position: fixed;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    z-index: 999;
+}
+
+/* =============================================================== */
+/* 3. CARDS & CONTAINERS */
+/* =============================================================== */
+
+.card {
+    background-color: var(--color-surface);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
 #leaderboard-container {
-    background-color: #444;
-    padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 30px;
+    padding-top: var(--spacing-sm);
 }
 
 .leaderboard-item {
     display: flex;
     align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid #555;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    transition: background-color 0.2s ease;
 }
 
 .leaderboard-item:last-child {
     border-bottom: none;
 }
 
-.leaderboard-item .rank {
-    font-size: 1.2em;
-    font-weight: bold;
-    width: 40px;
-    text-align: center;
-    color: var(--primary-color);
-}
-
-.leaderboard-item .profile-pic {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin: 0 15px;
-    border: 2px solid #555;
-}
-
-.leaderboard-item .student-info {
-    flex-grow: 1;
-}
-
-.leaderboard-item .student-name {
-    font-weight: bold;
-    color: #fff;
-}
-
-.leaderboard-item .progress-bar-container {
-    width: 80%;
-    height: 5px;
-    background-color: #666;
-    border-radius: 2.5px;
-    margin-top: 5px;
-    overflow: hidden;
-}
-
-.leaderboard-item .progress-bar {
-    height: 100%;
-    background-color: var(--success-color);
-    border-radius: 2.5px;
-    transition: width 0.5s ease-in-out;
-}
-
-.leaderboard-item .score {
-    font-size: 1.1em;
-    font-weight: bold;
-    margin-left: 20px;
-    color: var(--warning-color);
-}
-
-.clickable {
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
-}
-
-.clickable:hover {
+.leaderboard-item.clickable:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Missions */
-#missions-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    background-color: #444;
-    padding: 20px;
-    border-radius: 10px;
-}
-
-.mission-node-wrapper {
-    flex: 0 0 auto; /* No flex grow/shrink, base size is auto */
-    width: calc(33.333% - 10px); /* 3 items per row */
-    box-sizing: border-box; /* Include padding/border in width */
-}
-
-@media (max-width: 768px) {
-    .mission-node-wrapper {
-        width: calc(50% - 7.5px); /* 2 items per row */
-    }
-}
-
-@media (max-width: 480px) {
-    .mission-node-wrapper {
-        width: 100%; /* 1 item per row */
-    }
-}
-
-
-.mission-node {
-    background-color: #555;
-    padding: 15px;
-    border-radius: 8px;
+.leaderboard-item .rank {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    width: 32px;
     text-align: center;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 100px; /* Fixed height for consistency */
-    cursor: pointer;
-    transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    flex-shrink: 0;
 }
 
-.mission-node:hover {
-    transform: translateY(-3px);
-    background-color: #666;
-}
-
-.mission-node-topic {
-    font-weight: bold;
-    font-size: 1.1em;
-    margin-bottom: 5px;
-}
-
-.mission-node-points {
-    font-size: 0.9em;
-    color: #bbb;
-}
-
-/* Mission Status Colors */
-.status-not-submitted { background-color: #6c757d; /* grey */ }
-.status-pending { background-color: #ffc107; /* orange */ color: #333;}
-.status-graded { background-color: #28a745; /* green */ }
-.status-overdue { background-color: #dc3545; /* red */ }
-.status-urgent { background-color: #fd7e14; /* dark orange */ }
-
-
-/* Mission Modal Body */
-#mission-modal-body .form-group {
-    margin-bottom: 15px;
-}
-
-#mission-modal-body label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #333; /* Darker text for labels */
-}
-
-#mission-modal-body input[type="url"],
-#mission-modal-body input[type="file"] {
-    width: calc(100% - 20px);
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background-color: #f9f9f9;
-    color: #333;
-}
-
-#mission-modal-body button {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1em;
-    margin-top: 10px;
-}
-
-#mission-modal-body button:hover {
-    background-color: #0056b3;
-}
-
-#mission-modal-body #submission-status {
-    padding: 10px;
-    margin-bottom: 20px;
-    border-radius: 5px;
-    font-weight: bold;
-    text-align: center;
-    color: white; /* Default text color */
-}
-
-#mission-modal-body #submission-status.status-graded { background-color: var(--success-color); }
-#mission-modal-body #submission-status.status-pending { background-color: var(--warning-color); color: #333;}
-#mission-modal-body #file-upload-status {
-    font-size: 0.8em;
-    color: #666;
-    margin-top: 5px;
-}
-
-/* Student Detail Modal */
-#student-detail-modal #modal-header {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
-}
-
-#student-detail-modal #modal-header img {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid var(--primary-color);
-}
-
-#student-detail-modal #modal-header .student-summary h3 {
-    margin: 0 0 5px 0;
-    color: #333;
-}
-
-#student-detail-modal #modal-header .student-summary p {
-    margin: 0;
-    font-size: 0.9em;
-    color: #666;
-}
-
-#student-detail-modal #modal-body .task-list-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px dashed #eee;
-    color: #333;
-}
-
-#student-detail-modal #modal-body .task-list-item:last-child {
-    border-bottom: none;
-}
-
-#student-detail-modal #modal-body .task-name {
-    flex-grow: 1;
-    font-weight: bold;
-}
-
-#student-detail-modal #modal-body .task-status {
-    padding: 3px 8px;
-    border-radius: 5px;
-    font-size: 0.8em;
-    color: white;
-    margin-left: 10px;
-}
-
-#student-detail-modal #modal-body .task-status.status-not-submitted { background-color: #6c757d; }
-#student-detail-modal #modal-body .task-status.status-pending { background-color: #ffc107; color: #333;}
-#student-detail-modal #modal-body .task-status.status-graded { background-color: #28a745; }
-
-
-/* Admin Panel */
-#admin-panel-button {
-    background-color: #f0ad4e;
-    color: white;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 0.9em;
-    margin-left: 10px;
-    display: none; /* Hidden by default, shown by JS */
-    z-index: 100; /* Ensure button is above main content */
-}
-
-#admin-panel-button:hover {
-    background-color: #ec971f;
-}
-
-#admin-modal h3 {
-    color: #333;
-    margin-top: 30px;
-    margin-bottom: 15px;
-    border-bottom: 2px solid #ddd;
-    padding-bottom: 5px;
-}
-
-#admin-modal .form-group {
-    margin-bottom: 15px;
-}
-
-#admin-modal label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #333;
-}
-
-#admin-modal input[type="text"],
-#admin-modal input[type="date"],
-#admin-modal input[type="number"],
-#admin-modal textarea,
-#admin-modal select {
-    width: calc(100% - 20px);
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background-color: #f9f9f9;
-    color: #333;
-    box-sizing: border-box;
-}
-
-#admin-modal textarea {
-    min-height: 80px;
-    resize: vertical;
-}
-
-#admin-modal button {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1em;
-    margin-top: 10px;
-}
-
-#admin-modal button:hover {
-    background-color: #0056b3;
-}
-
-/* Profile Modal Specific Styles */
-#profile-modal .modal-content {
-    text-align: center;
-}
-
-.profile-edit-area {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-    margin-top: 20px;
-}
-
-.profile-pic-lg {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid var(--primary-color);
-}
-
-#profile-file-input {
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    width: 100%;
-    max-width: 300px;
-    box-sizing: border-box;
-    background-color: #f9f9f9; /* Match other inputs */
-    color: #333; /* Match other inputs */
-}
-
-#profile-upload-status {
-    font-size: 0.9em;
-    color: #666;
-    margin-top: -10px;
-}
-
-/* Styles for loading spinner */
-.loader {
-    border: 4px solid #f3f3f3; /* Light grey */
-    border-top: 4px solid var(--primary-color); /* Blue */
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 2s linear infinite;
-    margin: 20px auto;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* =============================================================== */
-/* การแก้ไข Modal ให้เลื่อนเนื้อหาได้ (Scrollable Modal Content) */
-/* =============================================================== */
-
-/* 1. ทำให้ตัวกล่อง Modal หลักมีความสูงไม่เกินหน้าจอ และจัดโครงสร้างภายใน */
-.modal-content {
-    max-height: 85vh; /* จำกัดความสูงสูงสุดของ Modal ไม่ให้เกิน 85% ของความสูงหน้าจอ */
-    display: flex;
-    flex-direction: column; /* จัดโครงสร้างภายในเป็นแนวตั้ง (หัว -> เนื้อหา) */
-}
-
-/* 2. ทำให้ส่วนเนื้อหาของ Modal สามารถ Scroll ได้ */
-/* สำหรับ Student Detail Modal */
-#student-detail-modal #modal-body {
-    overflow-y: auto; /* หัวใจของการแก้ไข: ทำให้ส่วนนี้มี scrollbar เมื่อเนื้อหายาวเกิน */
-    flex-grow: 1; /* ทำให้ส่วนนี้ขยายเต็มพื้นที่ที่เหลือ */
-    padding-right: 15px; /* เพิ่มช่องว่างด้านขวาเล็กน้อยไม่ให้ scrollbar ติดขอบเกินไป */
-}
-
-/* สำหรับ Admin Panel Modal */
-/* เราจะทำให้ฟอร์มทั้งสองส่วนสามารถ scroll ได้ */
-#admin-modal .modal-content {
-    /* ใช้ overflow-y ที่ตัว modal-content ของ admin เลย เพราะมันมีแต่ฟอร์ม */
-    overflow-y: auto;
-}
-
-/* สำหรับ Mission Modal (เผื่อในอนาคต description ยาวมาก) */
-#mission-modal #mission-modal-body {
-    overflow-y: auto;
-    flex-grow: 1;
-}
-
-/* =============================================================== */
-/* สไตล์สำหรับ Progress Bar */
-/* =============================================================== */
-
-/* กล่องครอบ Progress Bar */
-.progress-bar-container {
-    width: 100%; /* ให้เต็มความกว้างของ student-info */
-    height: 8px; /* ความสูงของแถบ */
-    background-color: #555; /* สีพื้นหลังของแถบ (สีเทาเข้ม) */
-    border-radius: 4px; /* ทำให้ขอบมน */
-    margin-top: 5px; /* ระยะห่างจากชื่อ */
-    overflow: hidden; /* ซ่อนส่วนที่เกินขอบ */
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4); /* เพิ่มเงาด้านในให้ดูมีมิติ */
-}
-
-/* แถบสีที่แสดงความคืบหน้า */
-.progress-bar {
-    height: 100%;
-    background-color: #4caf50; /* สีเขียว */
-    border-radius: 4px;
-    transition: width 0.5s ease-in-out; /* ทำให้แถบเลื่อนอย่างนุ่มนวล */
-    background-image: linear-gradient(
-      45deg, 
-      rgba(255, 255, 255, .15) 25%, 
-      transparent 25%, 
-      transparent 50%, 
-      rgba(255, 255, 255, .15) 50%, 
-      rgba(255, 255, 255, .15) 75%, 
-      transparent 75%, 
-      transparent
-    ); /* เพิ่มลายเส้นทะแยงให้ดูสวยขึ้น */
-    background-size: 20px 20px;
-}
-
-/* =============================================================== */
-/* สไตล์สำหรับระบบของตกแต่ง */
-/* =============================================================== */
-
-/* -- 1. การแสดงผลบน Leaderboard -- */
-
-.leaderboard-item .profile-pic-wrapper {
+/* --- Profile Picture & Cosmetics --- */
+.profile-pic-wrapper {
     position: relative;
-    padding: 3px; /* ระยะห่างสำหรับกรอบ */
+    width: 64px;
+    height: 64px;
+    padding: 4px;
     border-radius: 50%;
-    margin: 0 15px;
-    background-clip: padding-box; /* สำคัญ: ทำให้ background อยู่แค่ใน padding */
-    border: 3px solid transparent; /* สร้างขอบใสๆ ไว้ก่อน */
+    flex-shrink: 0;
+    border: 3px solid var(--color-border);
+    background-clip: padding-box;
+    transition: transform 0.2s ease, border-color 0.3s ease;
 }
 
-.leaderboard-item .profile-pic {
-    width: 50px;
-    height: 50px;
+.leaderboard-item:hover .profile-pic-wrapper {
+    transform: scale(1.1);
+}
+
+.profile-pic-wrapper .profile-pic {
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
     object-fit: cover;
     display: block;
+}
+
+.student-info {
+    flex-grow: 1;
+    min-width: 0; /* Important for flexbox text ellipsis */
 }
 
 .student-name-wrapper {
     display: flex;
     align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.student-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .equipped-badge {
-    width: 20px;
-    height: 20px;
-    margin-left: 8px;
+    width: 24px;
+    height: 24px;
 }
 
-/* -- 2. เอฟเฟกต์พิเศษ (Special Effects) -- */
-
-@keyframes glow {
-    0% { box-shadow: 0 0 3px rgba(255, 255, 10, 0.7); }
-    50% { box-shadow: 0 0 10px rgba(255, 255, 10, 0.9); }
-    100% { box-shadow: 0 0 3px rgba(255, 255, 10, 0.7); }
+.progress-bar-container {
+    width: 100%;
+    height: 10px;
+    background-color: rgba(0,0,0,0.3);
+    border-radius: var(--border-radius-pill);
+    margin-top: var(--spacing-sm);
+    overflow: hidden;
 }
 
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
+.progress-bar {
+    height: 100%;
+    background-color: var(--color-success);
+    border-radius: var(--border-radius-pill);
+    transition: width 0.5s ease-in-out;
 }
 
-.effect-glow {
-    animation: glow 2s ease-in-out infinite;
+.leaderboard-item .score {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+    flex-shrink: 0;
 }
 
-.effect-pulse {
-    animation: pulse 2s ease-in-out infinite;
+/* --- Missions --- */
+#missions-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--spacing-md);
 }
 
-/* -- 3. หน้าต่างตกแต่งโปรไฟล์ (Customization Modal) -- */
+.mission-node {
+    background-color: var(--color-surface);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-left: 4px solid var(--color-border);
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
 
+.mission-node:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
+.mission-node-topic {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.mission-node-points {
+    font-family: var(--font-display);
+    color: var(--color-secondary);
+    font-size: 1.2rem;
+}
+
+/* Mission Status Colors */
+.status-not-submitted { border-left-color: var(--color-text-secondary); }
+.status-pending { border-left-color: var(--color-secondary); color: var(--color-secondary); }
+.status-graded { border-left-color: var(--color-success); color: var(--color-success); }
+.status-overdue { border-left-color: var(--color-danger); } /* Not used in new system, but kept */
+.status-urgent { border-left-color: #E67E22; } /* Not used, kept */
+
+
+/* =============================================================== */
+/* 4. MODALS */
+/* =============================================================== */
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Prevent body scroll */
+    background-color: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-md);
+}
+
+.modal-content {
+    background-color: #f1f3f4;
+    color: #212529;
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius-lg);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    width: 100%;
+    max-width: 500px;
+    position: relative;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: fadeInScale 0.3s ease-out;
+}
+
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.close-button {
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.close-button:hover {
+    transform: scale(1.2);
+}
+
+.modal h2, .modal h3 {
+    color: #212529;
+}
+
+/* --- Forms inside Modals --- */
+.form-group {
+    margin-bottom: var(--spacing-md);
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ced4da;
+    border-radius: var(--border-radius-md);
+    font-family: var(--font-primary);
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(142, 68, 173, 0.2);
+}
+
+/* --- Login Modal --- */
+.login-card {
+    text-align: center;
+}
+.login-card h2 {
+    font-size: 1.75rem;
+}
+
+/* --- Student Detail Modal --- */
+#student-detail-modal .modal-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: var(--spacing-md);
+    transition: background 0.3s ease;
+}
+
+#student-detail-modal .modal-header img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+}
+
+#student-detail-modal .modal-body {
+    overflow-y: auto;
+    flex-grow: 1;
+}
+.task-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid #e9ecef;
+}
+.task-status {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-pill);
+    font-size: 0.8em;
+    font-weight: 700;
+}
+.status-graded { background-color: var(--color-success); color: white; }
+.status-pending { background-color: var(--color-secondary); color: var(--color-background); }
+.status-not-submitted { background-color: #6c757d; color: white; }
+
+/* --- Customization Modal --- */
 .modal-content.large {
-    max-width: 900px; /* ทำให้หน้าต่างใหญ่ขึ้น */
+    max-width: 900px;
 }
 
 .customization-container {
     display: flex;
-    gap: 20px;
-    margin-top: 15px;
-    height: 65vh; /* จำกัดความสูงรวม */
+    gap: var(--spacing-lg);
+    margin-top: var(--spacing-md);
+    height: 65vh;
 }
 
 .customization-preview {
-    flex: 1;
+    flex-basis: 40%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    background-color: #333;
-    border-radius: 8px;
-    padding: 20px;
+    background-color: #e9ecef;
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
 }
 
 .preview-item {
     width: 100%;
     max-width: 400px;
-    background-color: #444; /* สีเริ่มต้น */
-    border-radius: 8px;
-    padding: 10px;
-}
-
-.preview-badge {
-    display: none; /* ซ่อนไว้ก่อน JS จะทำให้แสดง */
+    background-color: #f8f9fa;
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-md);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: background 0.3s ease;
 }
 
 .customization-shop {
-    flex: 1;
-    overflow-y: auto; /* ทำให้ส่วนร้านค้า scroll ได้ */
-    padding-right: 10px;
-    border-left: 1px solid #ddd;
-    padding-left: 20px;
-}
-
-.shop-category {
-    margin-bottom: 20px;
+    flex-basis: 60%;
+    overflow-y: auto;
+    padding-right: var(--spacing-sm);
 }
 
 .shop-category h3 {
-    color: #333;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
-    margin-bottom: 10px;
+    margin-top: var(--spacing-md);
 }
 
 .shop-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: var(--spacing-md);
 }
 
 .shop-item {
     cursor: pointer;
-    border: 2px solid #ccc;
-    border-radius: 8px;
-    padding: 5px;
+    border: 2px solid #dee2e6;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-sm);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
     position: relative;
-    height: 80px;
-    background-color: #f9f9f9;
+    height: 100px;
+    background-color: white;
 }
 
 .shop-item:hover {
-    transform: translateY(-2px);
-    border-color: var(--primary-color);
+    transform: scale(1.05);
+    border-color: var(--color-primary);
 }
 
 .shop-item.locked {
     cursor: not-allowed;
-    background-color: #e0e0e0;
+    background-color: #e9ecef;
     opacity: 0.7;
 }
 
 .shop-item.equipped {
-    border-color: #4caf50;
-    box-shadow: 0 0 8px rgba(76, 175, 80, 0.7);
+    border-color: var(--color-success);
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.7);
 }
 
 .shop-item img {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
+    margin-bottom: var(--spacing-xs);
 }
 
 .shop-item-points {
-    position: absolute;
-    bottom: 3px;
-    right: 5px;
-    font-size: 0.7em;
-    font-weight: bold;
-    color: #fff;
-    background-color: rgba(0, 0, 0, 0.6);
-    padding: 1px 4px;
-    border-radius: 3px;
+    font-size: 0.8em;
+    font-weight: 700;
+    color: var(--color-text-secondary);
 }
 
 .locked .shop-item-points {
-    color: #ffc107;
+    color: var(--color-danger);
 }
 
 .lock-icon {
     position: absolute;
-    top: 5px;
-    left: 5px;
-    font-size: 1.2em;
-    color: rgba(0, 0, 0, 0.5);
+    top: var(--spacing-sm);
+    left: var(--spacing-sm);
+    font-size: 1.1em;
+    color: rgba(0,0,0,0.4);
 }
 
-/* สไตล์สำหรับปุ่ม Settings ในหน้าต่างตกแต่ง */
 #settings-btn {
     width: 100%;
-    padding: 10px;
-    margin-top: 20px;
-    background-color: #6c757d; /* สีเทา */
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.2s;
+    margin-top: var(--spacing-lg);
+    background-color: var(--color-text-secondary);
 }
 
-#settings-btn:hover {
-    background-color: #5a6268;
+/* =============================================================== */
+/* 5. RESPONSIVE DESIGN */
+/* =============================================================== */
+
+@media (max-width: 768px) {
+    #app-container {
+        padding: var(--spacing-md);
+    }
+    h2 {
+        font-size: 1.5rem;
+    }
+    .leaderboard-item {
+        flex-wrap: wrap; /* Allow items to wrap */
+        gap: var(--spacing-sm);
+    }
+    .leaderboard-item .rank, .profile-pic-wrapper {
+        margin-bottom: var(--spacing-sm);
+    }
+    .leaderboard-item .student-info {
+        width: calc(100% - 96px); /* Full width minus rank and pic */
+    }
+    .leaderboard-item .score {
+        width: 100%;
+        text-align: right;
+        margin-left: 0;
+        margin-top: var(--spacing-sm);
+    }
+    .customization-container {
+        flex-direction: column;
+        height: auto;
+    }
+    .customization-shop {
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid #dee2e6;
+        padding-top: var(--spacing-lg);
+    }
+}
+
+/* --- Loader & Error Styles (Kept from original for functionality) --- */
+.loader {
+    border: 4px solid rgba(255,255,255,0.2);
+    border-top: 4px solid var(--color-secondary);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.error-message {
+    color: var(--color-danger);
+    font-weight: 500;
+}
+#app-container.blur-background {
+    filter: blur(5px);
+    pointer-events: none;
 }

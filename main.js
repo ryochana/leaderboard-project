@@ -1,4 +1,4 @@
-// main.js (V6.0 - Fully Integrated & Bug Fixed)
+// main.js (V6.1 - Fully Integrated & Bug Fixed)
 // Last Updated: 2025-07-20
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
@@ -8,7 +8,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // DOM Elements
 const appContainer = document.getElementById('app-container');
-const topHeader = document.getElementById('top-header');
 const classTitleMain = document.getElementById('class-title-main');
 const schoolName = document.getElementById('school-name');
 const headerUserControls = document.querySelector('.header-user-controls');
@@ -108,10 +107,11 @@ function handleLogout() {
 
 function updateAfterLoginOrLogout() {
     updateHeaderUI();
+    // Re-fetch all data to ensure latest state after login/logout
     fetchAndDisplayFeed();
     fetchAndDisplayMissions();
     fetchAndDisplayLeaderboard();
-    renderProfilePage(); // Always render profile page to update state
+    renderProfilePage(); 
 }
 
 function updateHeaderUI() {
@@ -119,7 +119,7 @@ function updateHeaderUI() {
         const profileImageUrl = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=50x50`;
         if(userProfile) userProfile.innerHTML = `<img src="${profileImageUrl}" alt="Profile" class="profile-pic"><span class="student-name">${currentUser.display_name}</span>`;
         if(userProfile) userProfile.style.display = 'flex';
-        if(userProfile) userProfile.onclick = showCustomizationModal; // Customization modal
+        if(userProfile) userProfile.onclick = showCustomizationModal; 
         if(logoutButton) logoutButton.textContent = 'ออกจากระบบ';
         if(logoutButton) logoutButton.onclick = handleLogout;
         if (adminPanelButton) adminPanelButton.style.display = currentUser.role === 'admin' ? 'block' : 'none';
@@ -220,15 +220,15 @@ function renderLeaderboard(leaderboardData) {
             let rankIcon = '';
             let profileSizeClass = '';
             if (index === 0) {
-                rankIcon = '👑'; // Gold crown
+                rankIcon = '👑';
                 profileSizeClass = 'rank-1';
                 frameStyle = `border-image: linear-gradient(45deg, #FFD700, #FFA500) 1; background-image: linear-gradient(45deg, #FFD700, #FFA500);`;
             } else if (index === 1) {
-                rankIcon = '🥈'; // Silver medal
+                rankIcon = '🥈';
                 profileSizeClass = 'rank-2';
                 frameStyle = `border-image: linear-gradient(45deg, #C0C0C0, #A9A9A9) 1; background-image: linear-gradient(45deg, #C0C0C0, #A9A9A9);`;
             } else if (index === 2) {
-                rankIcon = '🥉'; // Bronze medal
+                rankIcon = '🥉';
                 profileSizeClass = 'rank-3';
                 frameStyle = `border-image: linear-gradient(45deg, #CD7F32, #B87333) 1; background-image: linear-gradient(45deg, #CD7F32, #B87333);`;
             }
@@ -493,20 +493,12 @@ async function populateGradeSubmissionDropdowns() {
     const missionSelect = document.getElementById('grade-mission-topic');
     if(studentSelect) studentSelect.innerHTML = '<option value="">กำลังโหลด...</option>';
     if(missionSelect) missionSelect.innerHTML = '<option value="">กำลังโหลด...</option>';
-    const { data: students, error: studentError } = await supabase.from('users').select('id, display_name').eq('role', 'student').eq('grade', currentGrade);
-    if (studentError) {
-        if(studentSelect) studentSelect.innerHTML = '<option value="">ไม่สามารถโหลดนักเรียนได้</option>';
-    } else {
-        if(studentSelect) studentSelect.innerHTML = '<option value="">เลือกนักเรียน</option>';
-        if (students) students.forEach(s => { if(studentSelect) studentSelect.innerHTML += `<option value="${s.id}">${s.display_name}</option>`; });
-    }
-    const { data: missions, error: missionError } = await supabase.from('missions').select('id, title').eq('grade', currentGrade);
-    if (missionError) {
-        if(missionSelect) missionSelect.innerHTML = '<option value="">ไม่สามารถโหลดภารกิจได้</option>';
-    } else {
-        if(missionSelect) missionSelect.innerHTML = '<option value="">เลือกภารกิจ</option>';
-        if (missions) missions.forEach(m => { if(missionSelect) missionSelect.innerHTML += `<option value="${m.id}">${m.title}</option>`; });
-    }
+    const { data: students } = await supabase.from('users').select('id, display_name').eq('role', 'student').eq('grade', currentGrade);
+    if(studentSelect) studentSelect.innerHTML = '<option value="">เลือกนักเรียน</option>';
+    if (students) students.forEach(s => { if(studentSelect) studentSelect.innerHTML += `<option value="${s.id}">${s.display_name}</option>`; });
+    const { data: missions } = await supabase.from('missions').select('id, title').eq('grade', currentGrade);
+    if(missionSelect) missionSelect.innerHTML = '<option value="">เลือกภารกิจ</option>';
+    if (missions) missions.forEach(m => { if(missionSelect) missionSelect.innerHTML += `<option value="${m.id}">${m.title}</option>`; });
 }
 async function handleGradeSubmission(event) {
     event.preventDefault();
@@ -537,7 +529,7 @@ async function showCustomizationModal() {
         settingsBtn = document.createElement('button');
         settingsBtn.id = 'settings-btn';
         settingsBtn.textContent = 'ตั้งค่า (รูปโปรไฟล์ / รหัสผ่าน)';
-        settingsBtn.onclick = () => { closeModal(customizationModal); showProfileModalActual(); };
+        settingsBtn.onclick = showProfileModalActual; // Changed to actual profile modal
         previewContainer.appendChild(settingsBtn);
     }
     updatePreview();
@@ -612,8 +604,8 @@ async function handleItemClick(item, locked, equipped) {
         currentUser = updatedUser;
         localStorage.setItem('app_user_session', JSON.stringify(currentUser));
         alert(data);
-        showCustomizationModal();
-        fetchAndDisplayLeaderboard();
+        showCustomizationModal(); // Re-render the shop
+        fetchAndDisplayLeaderboard(); // Update the main leaderboard
     } catch (error) {
         alert(`เกิดข้อผิดพลาด: ${error.message}`);
     }
@@ -718,11 +710,11 @@ async function handleChangePassword(event) {
 }
 
 function setupEventListeners() {
-    // Top-level DOM elements
-    if (loginForm) loginForm.addEventListener('submit', handleLogin);
+    // Listeners for elements in the top-level HTML (not inside modals, mostly)
+    const loginFormEl = document.querySelector('#login-form');
+    if (loginFormEl) loginFormEl.addEventListener('submit', handleLogin);
     
     // Admin button is now a general floating button, not part of header per se.
-    // Its click handler should be simple.
     if (adminPanelButton) adminPanelButton.addEventListener('click', showAdminModal);
 
     // General modal close listeners for ALL modals
@@ -734,13 +726,14 @@ function setupEventListeners() {
         // Clicking outside the modal content should close it
         modal.addEventListener('click', (event) => {
             const modalContent = modal.querySelector('.modal-content');
-            if (modalContent && !modalContent.contains(event.target)) {
+            // Check if the click is outside the content and not on the close button itself
+            if (modalContent && !modalContent.contains(event.target) && event.target !== closeBtn) {
                 closeModal(modal);
             }
         });
     });
 
-    // Tab button listeners
+    // Tab button listeners (handle switching sections)
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             const targetId = button.dataset.content;
@@ -753,23 +746,18 @@ function setupEventListeners() {
         });
     });
 
-    // Specific listeners for forms and buttons inside modals
-    // Mission Modal
-    if (missionModal && submissionForm) {
-        submissionForm.addEventListener('submit', handleMissionSubmit);
-    }
+    // Specific listeners for forms and buttons inside modals (check if element exists)
+    if (submissionForm) submissionForm.addEventListener('submit', handleMissionSubmit);
     
-    // Admin Modal
     if (adminModal) {
         if (addMissionForm) addMissionForm.addEventListener('submit', handleAddMission);
         if (gradeSubmissionForm) gradeSubmissionForm.addEventListener('submit', handleGradeSubmission);
     }
 
     // Profile Modal (for changing profile pic)
-    if (profileModal && saveProfileButton) {
-        saveProfileButton.addEventListener('click', handleProfilePicSubmit);
-        const profileFileInputEl = profileModal.querySelector('#profile-file-input');
-        if(profileFileInputEl) profileFileInputEl.addEventListener('change', (event) => {
+    if (profileModal) {
+        if (saveProfileButton) saveProfileButton.addEventListener('click', handleProfilePicSubmit);
+        if(profileFileInput) profileFileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
                 const profilePicDisplay = profileModal.querySelector('#profile-pic-display');
@@ -793,16 +781,19 @@ function setupEventListeners() {
         if(settingsBtn) settingsBtn.onclick = () => { closeModal(customizationModal); showProfileModalActual(); };
     }
 
-    // Profile page specific buttons (Dynamically added, so their listeners are in renderProfilePage)
-    // - customize-button -> showCustomizationModal
-    // - change-password-button-in-profile -> showChangePasswordModal
-    // - profile-picture-button-in-profile -> showProfileModalActual
+    // Leaderboard item clicks (to show student detail modal)
+    if (leaderboardContainer) {
+        leaderboardContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('.leaderboard-item');
+            if (item && item.dataset.userId) showStudentDetailModal(item.dataset.userId);
+        });
+    }
 }
 
 async function init() {
     currentGrade = getGradeFromHostname();
     if (classTitleMain) classTitleMain.textContent = `ENGLISH QUEST M.${currentGrade}`;
-    if (schoolName) schoolName.textContent = `NONPAKCHEE SCHOOL 2568`; // Ensure school name is set
+    if (schoolName) schoolName.textContent = `NONPAKCHEE SCHOOL 2568`; 
 
     // Initial display setup (main content visible, modals hidden)
     if (mainContent) mainContent.style.display = 'block';
@@ -817,12 +808,12 @@ async function init() {
     updateHeaderUI(); // Update header based on initial user status
     
     // Set initial active tab and fetch its content
-    switchTab('feed-container'); // Start on Feed tab
-    fetchAndDisplayFeed(); // Fetch content for the default tab
+    switchTab('leaderboard-container'); // Start on Leaderboard as requested
+    fetchAndDisplayLeaderboard(); // Fetch content for the default tab
 
     // Pre-fetch/render other tab contents in background
-    fetchAndDisplayMissions(); 
-    fetchAndDisplayLeaderboard();
+    fetchAndDisplayFeed();
+    fetchAndDisplayMissions();
     renderProfilePage(); 
 
     // If no user is logged in, show login modal after initial content is loaded

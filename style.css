@@ -641,3 +641,180 @@ h1, h2, h3 {
     ); /* เพิ่มลายเส้นทะแยงให้ดูสวยขึ้น */
     background-size: 20px 20px;
 }
+
+/* =============================================================== */
+/* สไตล์สำหรับระบบของตกแต่ง */
+/* =============================================================== */
+
+/* -- 1. การแสดงผลบน Leaderboard -- */
+
+.leaderboard-item .profile-pic-wrapper {
+    position: relative;
+    padding: 3px; /* ระยะห่างสำหรับกรอบ */
+    border-radius: 50%;
+    margin: 0 15px;
+    background-clip: padding-box; /* สำคัญ: ทำให้ background อยู่แค่ใน padding */
+    border: 3px solid transparent; /* สร้างขอบใสๆ ไว้ก่อน */
+}
+
+.leaderboard-item .profile-pic {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.student-name-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.equipped-badge {
+    width: 20px;
+    height: 20px;
+    margin-left: 8px;
+}
+
+/* -- 2. เอฟเฟกต์พิเศษ (Special Effects) -- */
+
+@keyframes glow {
+    0% { box-shadow: 0 0 3px rgba(255, 255, 10, 0.7); }
+    50% { box-shadow: 0 0 10px rgba(255, 255, 10, 0.9); }
+    100% { box-shadow: 0 0 3px rgba(255, 255, 10, 0.7); }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.effect-glow {
+    animation: glow 2s ease-in-out infinite;
+}
+
+.effect-pulse {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* -- 3. หน้าต่างตกแต่งโปรไฟล์ (Customization Modal) -- */
+
+.modal-content.large {
+    max-width: 900px; /* ทำให้หน้าต่างใหญ่ขึ้น */
+}
+
+.customization-container {
+    display: flex;
+    gap: 20px;
+    margin-top: 15px;
+    height: 65vh; /* จำกัดความสูงรวม */
+}
+
+.customization-preview {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #333;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.preview-item {
+    width: 100%;
+    max-width: 400px;
+    background-color: #444; /* สีเริ่มต้น */
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.preview-badge {
+    display: none; /* ซ่อนไว้ก่อน JS จะทำให้แสดง */
+}
+
+.customization-shop {
+    flex: 1;
+    overflow-y: auto; /* ทำให้ส่วนร้านค้า scroll ได้ */
+    padding-right: 10px;
+    border-left: 1px solid #ddd;
+    padding-left: 20px;
+}
+
+.shop-category {
+    margin-bottom: 20px;
+}
+
+.shop-category h3 {
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+}
+
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 10px;
+}
+
+.shop-item {
+    cursor: pointer;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    position: relative;
+    height: 80px;
+    background-color: #f9f9f9;
+}
+
+.shop-item:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary-color);
+}
+
+.shop-item.locked {
+    cursor: not-allowed;
+    background-color: #e0e0e0;
+    opacity: 0.7;
+}
+
+.shop-item.equipped {
+    border-color: #4caf50;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.7);
+}
+
+.shop-item img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.shop-item-points {
+    position: absolute;
+    bottom: 3px;
+    right: 5px;
+    font-size: 0.7em;
+    font-weight: bold;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.locked .shop-item-points {
+    color: #ffc107;
+}
+
+.lock-icon {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    font-size: 1.2em;
+    color: rgba(0, 0, 0, 0.5);
+}

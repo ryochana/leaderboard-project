@@ -1,5 +1,3 @@
-// main.js (V3.1 - Simple Username/Password Auth)
-
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
 
@@ -22,7 +20,15 @@ const modalBody = document.getElementById('modal-body');
 const missionModal = document.getElementById('mission-modal');
 const adminPanelButton = document.getElementById('admin-panel-button');
 const adminModal = document.getElementById('admin-modal');
+const adminModalCloseButton = adminModal ? adminModal.querySelector('.close-button') : null;
+const addMissionForm = document.getElementById('add-mission-form');
+const gradeSubmissionForm = document.getElementById('grade-submission-form');
 const profileModal = document.getElementById('profile-modal');
+const profileModalCloseButton = profileModal ? profileModal.querySelector('.close-button') : null;
+const profilePicDisplay = document.getElementById('profile-pic-display');
+const profileFileInput = document.getElementById('profile-file-input');
+const saveProfileButton = document.getElementById('save-profile-button');
+const profileUploadStatus = document.getElementById('profile-upload-status');
 const customizationModal = document.getElementById('customization-modal');
 const previewCardBackground = document.getElementById('preview-card-background');
 const previewProfileEffect = document.getElementById('preview-profile-effect');
@@ -30,6 +36,9 @@ const previewProfileImage = document.getElementById('preview-profile-image');
 const previewUsername = document.getElementById('preview-username');
 const previewBadge = document.getElementById('preview-badge');
 const previewPoints = document.getElementById('preview-points');
+const changePasswordModal = document.getElementById('change-password-modal');
+const changePasswordForm = document.getElementById('change-password-form');
+const passwordError = document.getElementById('password-error');
 
 let currentUser = null;
 let currentGrade = 0;
@@ -49,32 +58,19 @@ async function handleLogin(event) {
     loginError.textContent = '';
     const usernameInput = document.getElementById('username').value;
     const passwordInput = document.getElementById('password').value;
-
-    const { data: users, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', usernameInput);
-    
+    const { data: users, error } = await supabase.from('users').select('*').eq('username', usernameInput);
     if (error || !users || users.length === 0) {
-        loginError.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
-        return;
+        loginError.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'; return;
     }
-
     const user = users[0];
-
     if (user.password !== passwordInput) {
-        loginError.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
-        return;
+        loginError.textContent = 'รหัสผ่านไม่ถูกต้อง'; return;
     }
-
     if (user.role === 'student' && user.grade !== currentGrade) {
-        loginError.textContent = `คุณเป็นนักเรียน ม.${user.grade} กรุณาไปที่เว็บของชั้นเรียนให้ถูกต้อง`;
-        return;
+        loginError.textContent = `คุณเป็นนักเรียน ม.${user.grade} กรุณาไปที่เว็บของชั้นเรียนให้ถูกต้อง`; return;
     }
-
     currentUser = user;
     localStorage.setItem('app_user_session', JSON.stringify(currentUser));
-    
     closeModal(loginScreen);
     updateHeaderUI();
     fetchAndDisplayMissions();
@@ -90,7 +86,7 @@ function handleLogout() {
 function updateHeaderUI() {
     if (currentUser) {
         const profileImageUrl = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=50x50`;
-        userProfile.innerHTML = `<img src="${profileImageUrl}" alt="Profile" class="profile-pic"><span>สวัสดี, ${currentUser.username}</span>${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}`;
+        userProfile.innerHTML = `<img src="${profileImageUrl}" alt="Profile" class="profile-pic"><span>สวัสดี, ${currentUser.display_name}</span>${currentUser.role === 'admin' ? '<span class="admin-badge">Admin</span>' : ''}`;
         userProfile.style.display = 'flex';
         userProfile.classList.add('clickable');
         userProfile.onclick = showCustomizationModal;
@@ -160,7 +156,7 @@ function renderLeaderboard(leaderboardData) {
             </div>
             <div class="student-info">
                 <div class="student-name-wrapper">
-                    <div class="student-name">${student.username}</div>
+                    <div class="student-name">${student.display_name}</div>
                     ${student.equipped_badge_url ? `<img src="${student.equipped_badge_url}" alt="Badge" class="equipped-badge">` : ''}
                 </div>
                 <div class="progress-bar-container">
@@ -269,13 +265,7 @@ async function handleMissionSubmit(event) {
             proofUrl = data.publicUrl;
             fileStatus.textContent = 'อัปโหลดไฟล์สำเร็จ!';
         }
-        const { error: dbError } = await supabase.from('submissions').upsert({
-            student_id: currentUser.id,
-            mission_id: currentlyOpenMission.id,
-            submitted_at: new Date().toISOString(),
-            status: 'pending',
-            proof_url: proofUrl
-        }, { onConflict: 'student_id, mission_id' });
+        const { error: dbError } = await supabase.from('submissions').upsert({ student_id: currentUser.id, mission_id: currentlyOpenMission.id, submitted_at: new Date().toISOString(), status: 'pending', proof_url: proofUrl }, { onConflict: 'student_id, mission_id' });
         if (dbError) throw dbError;
         alert('ส่งงานสำเร็จ!');
         hideMissionModal();
@@ -302,7 +292,7 @@ async function showStudentDetailModal(userId) {
     const submissionMap = new Map(studentSubmissions ? studentSubmissions.map(s => [s.mission_id, s]) : []);
     const profileImageUrl = studentInfo.avatar_url || `https://robohash.org/${studentInfo.student_id}.png?set=set4&size=80x80`;
     studentDetailModal.querySelector('.modal-content').style.background = studentInfo.equipped_card_bg || '#fefefe';
-    modalHeader.innerHTML = `<img src="${profileImageUrl}" alt="Profile"><div class="student-summary"><h3>${studentInfo.username}</h3><p>คะแนนรวม: ${studentInfo.points || 0}</p></div>`;
+    modalHeader.innerHTML = `<img src="${profileImageUrl}" alt="Profile"><div class="student-summary"><h3>${studentInfo.display_name}</h3><p>คะแนนรวม: ${studentInfo.points || 0}</p></div>`;
     modalBody.innerHTML = '';
     (allMissions || []).forEach(mission => {
         const submission = submissionMap.get(mission.id);
@@ -327,64 +317,8 @@ async function showStudentDetailModal(userId) {
 }
 function hideStudentDetailModal() { closeModal(studentDetailModal); }
 
-function showProfileModal() {
-    if (!currentUser) {
-        alert("กรุณาล็อกอินก่อน");
-        showLoginModal();
-        return;
-    }
-    openModal(profileModal);
-    const profilePicDisplay = profileModal.querySelector('#profile-pic-display');
-    const profileFileInput = profileModal.querySelector('#profile-file-input');
-    const profileUploadStatus = profileModal.querySelector('#profile-upload-status');
-    const saveProfileButton = profileModal.querySelector('#save-profile-button');
-    profilePicDisplay.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=100x100`;
-    profileFileInput.value = '';
-    profileUploadStatus.textContent = '';
-    saveProfileButton.disabled = false;
-    saveProfileButton.textContent = 'บันทึกรูปโปรไฟล์';
-}
-function hideProfileModal() { closeModal(profileModal); }
-
-async function handleProfilePicSubmit(event) {
-    event.preventDefault();
-    const saveBtn = event.target.closest('.modal-content').querySelector('#save-profile-button');
-    const statusEl = event.target.closest('.modal-content').querySelector('#profile-upload-status');
-    const fileInput = event.target.closest('.modal-content').querySelector('#profile-file-input');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'กำลังบันทึก...';
-    const file = fileInput.files[0];
-    if (!file) {
-        statusEl.textContent = 'กรุณาเลือกรูปภาพ';
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'บันทึกรูปโปรไฟล์';
-        return;
-    }
-    try {
-        statusEl.textContent = `กำลังอัปโหลด: ${file.name}`;
-        const fileExtension = file.name.split('.').pop();
-        const filePath = `avatars/${currentUser.id}.${fileExtension}`;
-        const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-        if (uploadError) throw uploadError;
-        const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-        const newProfileUrl = data.publicUrl;
-        const { error: dbError } = await supabase.from('users').update({ avatar_url: newProfileUrl }).eq('id', currentUser.id);
-        if (dbError) throw dbError;
-        currentUser.avatar_url = newProfileUrl;
-        updateHeaderUI();
-        alert('เปลี่ยนรูปโปรไฟล์สำเร็จ!');
-        hideProfileModal();
-    } catch (error) {
-        console.error("Error uploading profile pic:", error);
-        alert(`เกิดข้อผิดพลาด: ${error.message}`);
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'ลองอีกครั้ง';
-    }
-}
-
 function showAdminModal() { if (!currentUser || currentUser.role !== 'admin') return; openModal(adminModal); populateGradeSubmissionDropdowns(); }
 function hideAdminModal() { closeModal(adminModal); }
-
 async function handleAddMission(event) {
     event.preventDefault();
     const title = document.getElementById('add-mission-topic').value;
@@ -404,18 +338,17 @@ async function handleAddMission(event) {
         fetchAndDisplayMissions();
     }
 }
-
 async function populateGradeSubmissionDropdowns() {
     const studentSelect = document.getElementById('grade-student-id');
     const missionSelect = document.getElementById('grade-mission-topic');
     studentSelect.innerHTML = '<option value="">กำลังโหลด...</option>';
     missionSelect.innerHTML = '<option value="">กำลังโหลด...</option>';
-    const { data: students, error: studentError } = await supabase.from('users').select('id, username').eq('role', 'student').eq('grade', currentGrade);
+    const { data: students, error: studentError } = await supabase.from('users').select('id, display_name').eq('role', 'student').eq('grade', currentGrade);
     if (studentError) {
         studentSelect.innerHTML = '<option value="">ไม่สามารถโหลดนักเรียนได้</option>';
     } else {
         studentSelect.innerHTML = '<option value="">เลือกนักเรียน</option>';
-        if (students) students.forEach(s => { studentSelect.innerHTML += `<option value="${s.id}">${s.username}</option>`; });
+        if (students) students.forEach(s => { studentSelect.innerHTML += `<option value="${s.id}">${s.display_name}</option>`; });
     }
     const { data: missions, error: missionError } = await supabase.from('missions').select('id, title').eq('grade', currentGrade);
     if (missionError) {
@@ -425,7 +358,6 @@ async function populateGradeSubmissionDropdowns() {
         if (missions) missions.forEach(m => { missionSelect.innerHTML += `<option value="${m.id}">${m.title}</option>`; });
     }
 }
-
 async function handleGradeSubmission(event) {
     event.preventDefault();
     const studentId = document.getElementById('grade-student-id').value;
@@ -453,13 +385,27 @@ async function showCustomizationModal() {
         return;
     }
     openModal(customizationModal);
-    updatePreview();
-    const { data: allItems, error: itemsError } = await supabase.from('cosmetic_items').select('*').order('unlock_points', { ascending: true });
-    const { data: userInventory, error: inventoryError } = await supabase.from('user_inventory').select('item_id, equipped').eq('user_id', currentUser.id);
-    if (itemsError || inventoryError) {
-        console.error("Error fetching cosmetic data");
-        return;
+    
+    const previewContainer = customizationModal.querySelector('.customization-preview');
+    let settingsBtn = previewContainer.querySelector('#settings-btn');
+    if (!settingsBtn) {
+        settingsBtn = document.createElement('button');
+        settingsBtn.id = 'settings-btn';
+        settingsBtn.textContent = 'เปลี่ยนรหัสผ่าน / รูปโปรไฟล์';
+        settingsBtn.style.marginTop = '20px';
+        settingsBtn.onclick = () => {
+            closeModal(customizationModal);
+            showProfileModal();
+        };
+        previewContainer.appendChild(settingsBtn);
     }
+    updatePreview();
+
+    const { data: allItems } = await supabase.from('cosmetic_items').select('*').order('unlock_points', { ascending: true });
+    const { data: userInventory } = await supabase.from('user_inventory').select('item_id, equipped').eq('user_id', currentUser.id);
+
+    if (!allItems || !userInventory) return;
+
     const inventoryMap = new Map(userInventory.map(item => [item.item_id, { equipped: item.equipped }]));
     const groupedItems = allItems.reduce((acc, item) => {
         if (!acc[item.type]) acc[item.type] = [];
@@ -489,7 +435,7 @@ async function showCustomizationModal() {
 function updatePreview() {
     if (!currentUser) return;
     previewProfileImage.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=50x50`;
-    previewUsername.textContent = currentUser.username;
+    previewUsername.textContent = currentUser.display_name;
     previewPoints.textContent = `${currentUser.points || 0} คะแนน`;
     const frameStyle = currentUser.equipped_frame_color && currentUser.equipped_frame_color.startsWith('linear-gradient')
         ? `border-image: ${currentUser.equipped_frame_color} 1; background-image: ${currentUser.equipped_frame_color};`
@@ -512,17 +458,100 @@ async function handleItemClick(item, locked, equipped) {
     }
     if (equipped) return;
     try {
-        const { data, error } = await supabase.rpc('equip_cosmetic_item', { p_item_id: item.id });
-        if (error) throw error;
+        const { error: equipError } = await supabase.rpc('equip_cosmetic_item_simple', { p_item_id: item.id, p_user_id: currentUser.id });
+        if (equipError) throw equipError;
+        
         const { data: updatedUser, error: userError } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
         if (userError) throw userError;
+        
         currentUser = updatedUser;
-        alert(data);
+        localStorage.setItem('app_user_session', JSON.stringify(currentUser));
+        
+        alert('สวมใส่ไอเทมสำเร็จ!');
         showCustomizationModal();
         fetchAndDisplayLeaderboard();
     } catch (error) {
         alert(`เกิดข้อผิดพลาด: ${error.message}`);
     }
+}
+
+function showProfileModal() {
+    if (!currentUser) return;
+    openModal(profileModal);
+    profilePicDisplay.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=100x100`;
+    profileFileInput.value = '';
+    profileUploadStatus.textContent = '';
+    saveProfileButton.disabled = false;
+    saveProfileButton.textContent = 'บันทึกรูปโปรไฟล์';
+    
+    // แยกส่วนของ Change Password
+    openModal(changePasswordModal);
+    passwordError.textContent = '';
+    changePasswordForm.reset();
+}
+function hideProfileModal() { closeModal(profileModal); }
+
+async function handleProfilePicSubmit(event) {
+    event.preventDefault();
+    const saveBtn = document.getElementById('save-profile-button');
+    const statusEl = document.getElementById('profile-upload-status');
+    const fileInput = document.getElementById('profile-file-input');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'กำลังบันทึก...';
+    const file = fileInput.files[0];
+    if (!file) {
+        statusEl.textContent = 'กรุณาเลือกรูปภาพ';
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'บันทึกรูปโปรไฟล์';
+        return;
+    }
+    try {
+        statusEl.textContent = `กำลังอัปโหลด: ${file.name}`;
+        const fileExtension = file.name.split('.').pop();
+        const filePath = `avatars/${currentUser.id}.${fileExtension}`;
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        const newProfileUrl = data.publicUrl;
+        const { data: updatedUser, error: dbError } = await supabase.from('users').update({ avatar_url: newProfileUrl }).eq('id', currentUser.id).select().single();
+        if (dbError) throw dbError;
+        currentUser = updatedUser;
+        localStorage.setItem('app_user_session', JSON.stringify(currentUser));
+        updateHeaderUI();
+        alert('เปลี่ยนรูปโปรไฟล์สำเร็จ!');
+        closeModal(profileModal);
+    } catch (error) {
+        console.error("Error uploading profile pic:", error);
+        alert(`เกิดข้อผิดพลาด: ${error.message}`);
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'ลองอีกครั้ง';
+    }
+}
+
+async function handleChangePassword(event) {
+    event.preventDefault();
+    passwordError.textContent = '';
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+
+    if (newPassword !== confirmPassword) {
+        passwordError.textContent = 'รหัสผ่านใหม่ไม่ตรงกัน'; return;
+    }
+    if (newPassword.length < 6) {
+        passwordError.textContent = 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร'; return;
+    }
+    if (currentUser.password !== currentPassword) {
+        passwordError.textContent = 'รหัสผ่านปัจจุบันไม่ถูกต้อง'; return;
+    }
+    const { data, error } = await supabase.from('users').update({ password: newPassword }).eq('id', currentUser.id).select().single();
+    if (error) {
+        passwordError.textContent = `เกิดข้อผิดพลาด: ${error.message}`; return;
+    }
+    currentUser = data;
+    localStorage.setItem('app_user_session', JSON.stringify(currentUser));
+    alert('เปลี่ยนรหัสผ่านสำเร็จ!');
+    closeModal(changePasswordModal);
 }
 
 function setupEventListeners() {
@@ -554,17 +583,7 @@ function setupEventListeners() {
         const closeBtn = profileModal.querySelector('.close-button');
         if (closeBtn) closeBtn.addEventListener('click', hideProfileModal);
         profileModal.addEventListener('click', (event) => { if (event.target === profileModal) hideProfileModal(); });
-        const saveBtn = profileModal.querySelector('#save-profile-button');
-        if (saveBtn) saveBtn.addEventListener('click', handleProfilePicSubmit);
-        const fileInput = profileModal.querySelector('#profile-file-input');
-        if(fileInput) fileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => { profileModal.querySelector('#profile-pic-display').src = e.target.result; };
-                reader.readAsDataURL(file);
-            }
-        });
+        if (saveProfileButton) saveProfileButton.addEventListener('click', handleProfilePicSubmit);
     }
     if (customizationModal) {
         const closeBtn = customizationModal.querySelector('.close-button');
@@ -575,6 +594,12 @@ function setupEventListeners() {
         const closeBtn = loginScreen.querySelector('.close-button');
         if(closeBtn) closeBtn.addEventListener('click', () => closeModal(loginScreen));
     }
+    if (changePasswordForm) changePasswordForm.addEventListener('submit', handleChangePassword);
+    if(changePasswordModal){
+        const closeBtn = changePasswordModal.querySelector('.close-button');
+        if(closeBtn) closeBtn.addEventListener('click', () => closeModal(changePasswordModal));
+        changePasswordModal.addEventListener('click', (event) => { if(event.target === changePasswordModal) closeModal(changePasswordModal); });
+    }
 }
 
 async function init() {
@@ -582,12 +607,10 @@ async function init() {
     classTitle.textContent = `ห้องเรียน ม.${currentGrade}`;
     document.getElementById('main-content').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
-    
     const storedSession = localStorage.getItem('app_user_session');
     if (storedSession) {
         currentUser = JSON.parse(storedSession);
     }
-
     setupEventListeners();
     updateHeaderUI();
     fetchAndDisplayLeaderboard();

@@ -1,4 +1,4 @@
-// main.js (V6.1 - Fully Integrated & Bug Fixed)
+// main.js (V6.2 - Fully Integrated & Bug Fixed - Final Push)
 // Last Updated: 2025-07-20
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
@@ -6,8 +6,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// DOM Elements
+// DOM Elements (Declared at the top for clarity and accessibility)
 const appContainer = document.getElementById('app-container');
+const topHeader = document.getElementById('top-header');
 const classTitleMain = document.getElementById('class-title-main');
 const schoolName = document.getElementById('school-name');
 const headerUserControls = document.querySelector('.header-user-controls');
@@ -107,7 +108,6 @@ function handleLogout() {
 
 function updateAfterLoginOrLogout() {
     updateHeaderUI();
-    // Re-fetch all data to ensure latest state after login/logout
     fetchAndDisplayFeed();
     fetchAndDisplayMissions();
     fetchAndDisplayLeaderboard();
@@ -343,7 +343,7 @@ function renderProfilePage() {
             </div>
         </div>
     `;
-    // Add event listeners for the new buttons within the profile page
+    // Event listeners for the new buttons within the profile page (dynamically added)
     const customizeBtn = document.getElementById('customize-button');
     if(customizeBtn) customizeBtn.addEventListener('click', showCustomizationModal);
     const changePassBtn = document.getElementById('change-password-button-in-profile');
@@ -710,11 +710,11 @@ async function handleChangePassword(event) {
 }
 
 function setupEventListeners() {
-    // Listeners for elements in the top-level HTML (not inside modals, mostly)
-    const loginFormEl = document.querySelector('#login-form');
-    if (loginFormEl) loginFormEl.addEventListener('submit', handleLogin);
+    // Top-level DOM elements
+    // Login Form Listener
+    if (loginForm) loginForm.addEventListener('submit', handleLogin);
     
-    // Admin button is now a general floating button, not part of header per se.
+    // Admin Panel Button Listener
     if (adminPanelButton) adminPanelButton.addEventListener('click', showAdminModal);
 
     // General modal close listeners for ALL modals
@@ -746,9 +746,13 @@ function setupEventListeners() {
         });
     });
 
-    // Specific listeners for forms and buttons inside modals (check if element exists)
-    if (submissionForm) submissionForm.addEventListener('submit', handleMissionSubmit);
+    // Specific listeners for forms and buttons inside modals
+    // Mission Modal (Submit form)
+    if (missionModal && submissionForm) {
+        submissionForm.addEventListener('submit', handleMissionSubmit);
+    }
     
+    // Admin Modal (Add Mission & Grade Submission forms)
     if (adminModal) {
         if (addMissionForm) addMissionForm.addEventListener('submit', handleAddMission);
         if (gradeSubmissionForm) gradeSubmissionForm.addEventListener('submit', handleGradeSubmission);
@@ -770,7 +774,7 @@ function setupEventListeners() {
         });
     }
 
-    // Change Password Modal
+    // Change Password Modal (Change Password form)
     if (changePasswordModal && changePasswordForm) {
         changePasswordForm.addEventListener('submit', handleChangePassword);
     }
@@ -817,10 +821,8 @@ async function init() {
     renderProfilePage(); 
 
     // If no user is logged in, show login modal after initial content is loaded
-    if (!currentUser) {
-        // Delay showing login modal slightly to ensure page renders
-        setTimeout(showLoginModal, 500); 
-    }
+    // This is managed by the specific actions now (e.g., clicking on Mission, Profile tab)
+    // No direct showLoginModal() on init anymore.
 }
 
 init();

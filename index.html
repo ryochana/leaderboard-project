@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leaderboard</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div id="app-container">
@@ -28,7 +29,7 @@
             <span class="close-button">×</span>
             <h2>กรุณาเข้าสู่ระบบ</h2>
             <form id="login-form">
-                <input type="email" id="username" placeholder="Email" required>
+                <input type="text" id="username" placeholder="ชื่อผู้ใช้" required>
                 <input type="password" id="password" placeholder="รหัสผ่าน" required>
                 <button type="submit">เข้าสู่ระบบ</button>
             </form>
@@ -130,15 +131,11 @@
         </div>
     </div>
 
-<!-- =============================================================== -->
-<!-- Profile Customization Modal -->
-<!-- =============================================================== -->
 <div id="customization-modal" class="modal">
     <div class="modal-content large">
         <span class="close-button">×</span>
         <h2>ตกแต่งโปรไฟล์</h2>
         <div class="customization-container">
-            <!-- ส่วนแสดงผลตัวอย่าง -->
             <div class="customization-preview">
                 <div id="preview-card-background" class="leaderboard-item preview-item">
                     <div class="rank">1</div>
@@ -158,30 +155,25 @@
                 </div>
             </div>
 
-            <!-- ส่วนเลือกของตกแต่ง -->
             <div class="customization-shop">
                 <div class="shop-category">
                     <h3>กรอบโปรไฟล์</h3>
                     <div id="shop-frame_color" class="shop-grid">
-                        <!-- ไอเทมจะถูกสร้างโดย JS -->
                     </div>
                 </div>
                 <div class="shop-category">
                     <h3>ป้ายแสดง</h3>
                     <div id="shop-badge" class="shop-grid">
-                        <!-- ไอเทมจะถูกสร้างโดย JS -->
                     </div>
                 </div>
                 <div class="shop-category">
                     <h3>เอฟเฟกต์พิเศษ</h3>
                     <div id="shop-profile_effect" class="shop-grid">
-                        <!-- ไอเทมจะถูกสร้างโดย JS -->
                     </div>
                 </div>
                 <div class="shop-category">
                     <h3>พื้นหลังการ์ด</h3>
                     <div id="shop-card_background" class="shop-grid">
-                        <!-- ไอเทมจะถูกสร้างโดย JS -->
                     </div>
                 </div>
             </div>
@@ -189,6 +181,6 @@
     </div>
 </div>
 
-    <script type="module" src="main.js"></script>
+    <script src="main.js" defer></script>
 </body>
 </html>

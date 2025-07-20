@@ -434,17 +434,22 @@ async function handleGradeSubmission(event) {
     }
 }
 
+// *** ฟังก์ชันที่แก้ไข ***
 function setupEventListeners() {
-    loginForm.addEventListener('submit', handleLogin);
-    modalCloseButton.addEventListener('click', hideStudentDetailModal);
-    studentDetailModal.addEventListener('click', (event) => { if (event.target === studentDetailModal) hideStudentDetailModal(); });
-    leaderboardContainer.addEventListener('click', (e) => {
+    // ใช้ if เพื่อตรวจสอบว่า element มีอยู่จริงหรือไม่ก่อนจะ .addEventListener
+    if (loginForm) loginForm.addEventListener('submit', handleLogin);
+    if (modalCloseButton) modalCloseButton.addEventListener('click', hideStudentDetailModal);
+    if (studentDetailModal) studentDetailModal.addEventListener('click', (event) => { if (event.target === studentDetailModal) hideStudentDetailModal(); });
+    if (leaderboardContainer) leaderboardContainer.addEventListener('click', (e) => {
         const item = e.target.closest('.leaderboard-item');
         if (item && item.dataset.userId) showStudentDetailModal(item.dataset.userId);
     });
-    missionModal.querySelector('.close-button').addEventListener('click', hideMissionModal);
-    missionModal.addEventListener('click', (event) => { if (event.target === missionModal) hideMissionModal(); });
-    submissionForm.addEventListener('submit', handleMissionSubmit);
+    if (missionModal) {
+        const missionCloseButton = missionModal.querySelector('.close-button');
+        if (missionCloseButton) missionCloseButton.addEventListener('click', hideMissionModal);
+        missionModal.addEventListener('click', (event) => { if (event.target === missionModal) hideMissionModal(); });
+    }
+    if (submissionForm) submissionForm.addEventListener('submit', handleMissionSubmit);
     if (adminPanelButton) adminPanelButton.addEventListener('click', showAdminModal);
     if (adminModalCloseButton) adminModalCloseButton.addEventListener('click', hideAdminModal);
     if (adminModal) adminModal.addEventListener('click', (event) => { if (event.target === adminModal) hideAdminModal(); });
@@ -463,8 +468,12 @@ function setupEventListeners() {
             }
         });
     }
-    loginScreen.querySelector('.close-button').addEventListener('click', () => closeModal(loginScreen));
+    if (loginScreen) {
+        const loginCloseButton = loginScreen.querySelector('.close-button');
+        if(loginCloseButton) loginCloseButton.addEventListener('click', () => closeModal(loginScreen));
+    }
 }
+
 
 async function init() {
     currentGrade = getGradeFromHostname();

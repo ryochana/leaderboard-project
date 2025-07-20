@@ -1,3 +1,8 @@
+// main.js (V2.1 - Modern Import)
+// ปรับปรุง:
+// - เปลี่ยนมาใช้ ES Module import สำหรับ Supabase เพื่อความเสถียร
+// - แก้ไขปัญหา "No API key found" ที่เกิดจากการโหลดไม่สมบูรณ์
+
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';

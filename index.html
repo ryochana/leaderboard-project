@@ -37,18 +37,42 @@
         </div>
     </div>
 
-    <div id="profile-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">×</span>
-            <h2>แก้ไขรูปโปรไฟล์</h2>
-            <div class="profile-edit-area">
-                <img id="profile-pic-display" src="https://robohash.org/default.png?set=set4&size=100x100" alt="Current Profile Picture" class="profile-pic-lg">
-                <input type="file" id="profile-file-input" accept="image/png, image/jpeg, image/gif">
-                <p id="profile-upload-status" class="status-message"></p>
-                <button id="save-profile-button" class="button primary">บันทึกรูปโปรไฟล์</button>
-            </div>
+<div id="profile-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-button">×</span>
+        <h2>แก้ไขรูปโปรไฟล์</h2>
+        <div class="profile-edit-area">
+            <img id="profile-pic-display" src="https://robohash.org/default.png?set=set4&size=100x100" alt="Current Profile Picture" class="profile-pic-lg">
+            <input type="file" id="profile-file-input" accept="image/png, image/jpeg, image/gif">
+            <p id="profile-upload-status" class="status-message"></p>
+            <button id="save-profile-button" class="button primary">บันทึกรูปโปรไฟล์</button>
         </div>
     </div>
+</div>
+
+<!-- Change Password Modal (สำหรับเปลี่ยนรหัสผ่านเท่านั้น) -->
+<div id="change-password-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-button">×</span>
+        <h2>เปลี่ยนรหัสผ่าน</h2>
+        <form id="change-password-form">
+            <div class="form-group">
+                <label for="current-password">รหัสผ่านปัจจุบัน</label>
+                <input type="password" id="current-password" required>
+            </div>
+            <div class="form-group">
+                <label for="new-password">รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)</label>
+                <input type="password" id="new-password" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label for="confirm-password">ยืนยันรหัสผ่านใหม่</label>
+                <input type="password" id="confirm-password" required minlength="6">
+            </div>
+            <p id="password-error" class="error-message"></p>
+            <button type="submit" id="submit-password-change">ยืนยันการเปลี่ยนแปลง</button>
+        </form>
+    </div>
+</div>
 
     <div id="student-detail-modal" class="modal">
         <div class="modal-content">

@@ -49,6 +49,19 @@
 
 <!-- ADD THIS HTML CODE BEFORE THE </body> TAG -->
 
+<div id="profile-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-button">×</span>
+        <h2>แก้ไขรูปโปรไฟล์</h2>
+        <div class="profile-edit-area">
+            <img id="profile-pic-display" src="https://robohash.org/default.png?set=set4&size=100x100" alt="Current Profile Picture" class="profile-pic-lg">
+            <input type="file" id="profile-file-input" accept="image/png, image/jpeg, image/gif">
+            <p id="profile-upload-status" class="status-message"></p>
+            <button id="save-profile-button" class="button primary">บันทึกรูปโปรไฟล์</button>
+        </div>
+    </div>
+</div>
+
 <div id="student-detail-modal" class="modal">
     <div class="modal-content">
         <span class="close-button">×</span>

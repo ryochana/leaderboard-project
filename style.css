@@ -3,43 +3,31 @@
 /* 1. SETUP & THEME */
 /* =============================================================== */
 
-/* --- Google Fonts --- */
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&family=Cinzel:wght@700&display=swap');
 
-/* --- Theme Variables (CSS Variables) --- */
 :root {
-    /* Fonts */
     --font-primary: 'Sarabun', sans-serif;
     --font-display: 'Cinzel', serif;
-
-    /* Colors */
-    --color-background: #1C2833; /* Dark Slate Blue */
-    --color-surface: #273746; /* Lighter Slate */
+    --color-background: #1C2833;
+    --color-surface: #273746;
     --color-text-primary: #FDFEFE;
     --color-text-secondary: #ABB2B9;
     --color-border: #34495E;
-
-    /* Accent Colors */
-    --color-primary: #8E44AD; /* Royal Purple */
-    --color-secondary: #F1C40F; /* Amber Gold */
-    --color-success: #2ECC71; /* Emerald Green */
-    --color-danger: #E74C3C; /* Alizarin Crimson */
-    
-    /* Spacing & Sizing */
-    --spacing-xs: 0.25rem;  /* 4px */
-    --spacing-sm: 0.5rem;   /* 8px */
-    --spacing-md: 1rem;     /* 16px */
-    --spacing-lg: 1.5rem;   /* 24px */
-    --spacing-xl: 2rem;     /* 32px */
-    
-    /* Border Radius */
+    --color-primary: #8E44AD;
+    --color-secondary: #F1C40F;
+    --color-success: #2ECC71;
+    --color-danger: #E74C3C;
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
     --border-radius-sm: 4px;
     --border-radius-md: 8px;
     --border-radius-lg: 16px;
-    --border-radius-pill: 999px; /* For capsule-shaped buttons */
+    --border-radius-pill: 999px;
 }
 
-/* --- Base Styles --- */
 *, *::before, *::after {
     box-sizing: border-box;
 }
@@ -115,7 +103,6 @@ header {
     font-weight: 700;
 }
 
-/* --- Buttons --- */
 button, #logout-button {
     font-family: var(--font-primary);
     font-weight: 700;
@@ -134,6 +121,13 @@ button:hover, #logout-button:hover {
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
 
+button:disabled {
+    background-color: var(--color-border);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 #logout-button {
     background-color: var(--color-surface);
 }
@@ -145,6 +139,7 @@ button:hover, #logout-button:hover {
     bottom: var(--spacing-lg);
     right: var(--spacing-lg);
     z-index: 999;
+    display: none;
 }
 
 /* =============================================================== */
@@ -190,7 +185,6 @@ button:hover, #logout-button:hover {
     flex-shrink: 0;
 }
 
-/* --- Profile Picture & Cosmetics --- */
 .profile-pic-wrapper {
     position: relative;
     width: 64px;
@@ -217,7 +211,7 @@ button:hover, #logout-button:hover {
 
 .student-info {
     flex-grow: 1;
-    min-width: 0; /* Important for flexbox text ellipsis */
+    min-width: 0;
 }
 
 .student-name-wrapper {
@@ -263,11 +257,13 @@ button:hover, #logout-button:hover {
     flex-shrink: 0;
 }
 
-/* --- Missions --- */
-#missions-container {
+#missions-container.card {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: var(--spacing-md);
+    background-color: transparent;
+    padding: 0;
+    box-shadow: none;
 }
 
 .mission-node {
@@ -300,13 +296,10 @@ button:hover, #logout-button:hover {
     font-size: 1.2rem;
 }
 
-/* Mission Status Colors */
 .status-not-submitted { border-left-color: var(--color-text-secondary); }
 .status-pending { border-left-color: var(--color-secondary); color: var(--color-secondary); }
 .status-graded { border-left-color: var(--color-success); color: var(--color-success); }
-.status-overdue { border-left-color: var(--color-danger); } /* Not used in new system, but kept */
-.status-urgent { border-left-color: #E67E22; } /* Not used, kept */
-
+.status-overdue { border-left-color: var(--color-danger); }
 
 /* =============================================================== */
 /* 4. MODALS */
@@ -320,9 +313,8 @@ button:hover, #logout-button:hover {
     top: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden; /* Prevent body scroll */
+    overflow: hidden;
     background-color: rgba(0,0,0,0.7);
-    display: flex;
     align-items: center;
     justify-content: center;
     padding: var(--spacing-md);
@@ -362,13 +354,13 @@ button:hover, #logout-button:hover {
 
 .close-button:hover {
     transform: scale(1.2);
+    color: #212529;
 }
 
 .modal h2, .modal h3 {
     color: #212529;
 }
 
-/* --- Forms inside Modals --- */
 .form-group {
     margin-bottom: var(--spacing-md);
     text-align: left;
@@ -397,15 +389,10 @@ button:hover, #logout-button:hover {
     box-shadow: 0 0 0 3px rgba(142, 68, 173, 0.2);
 }
 
-/* --- Login Modal --- */
-.login-card {
-    text-align: center;
-}
 .login-card h2 {
     font-size: 1.75rem;
 }
 
-/* --- Student Detail Modal --- */
 #student-detail-modal .modal-header {
     display: flex;
     align-items: center;
@@ -443,18 +430,15 @@ button:hover, #logout-button:hover {
 .status-pending { background-color: var(--color-secondary); color: var(--color-background); }
 .status-not-submitted { background-color: #6c757d; color: white; }
 
-/* --- Customization Modal --- */
 .modal-content.large {
     max-width: 900px;
 }
-
 .customization-container {
     display: flex;
     gap: var(--spacing-lg);
     margin-top: var(--spacing-md);
     height: 65vh;
 }
-
 .customization-preview {
     flex-basis: 40%;
     display: flex;
@@ -465,7 +449,6 @@ button:hover, #logout-button:hover {
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-lg);
 }
-
 .preview-item {
     width: 100%;
     max-width: 400px;
@@ -475,23 +458,22 @@ button:hover, #logout-button:hover {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     transition: background 0.3s ease;
 }
-
+.preview-badge {
+    display: none;
+}
 .customization-shop {
     flex-basis: 60%;
     overflow-y: auto;
     padding-right: var(--spacing-sm);
 }
-
 .shop-category h3 {
     margin-top: var(--spacing-md);
 }
-
 .shop-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     gap: var(--spacing-md);
 }
-
 .shop-item {
     cursor: pointer;
     border: 2px solid #dee2e6;
@@ -506,40 +488,33 @@ button:hover, #logout-button:hover {
     height: 100px;
     background-color: white;
 }
-
 .shop-item:hover {
     transform: scale(1.05);
     border-color: var(--color-primary);
 }
-
 .shop-item.locked {
     cursor: not-allowed;
     background-color: #e9ecef;
     opacity: 0.7;
 }
-
 .shop-item.equipped {
     border-color: var(--color-success);
     box-shadow: 0 0 10px rgba(46, 204, 113, 0.7);
 }
-
 .shop-item img {
     width: 48px;
     height: 48px;
     object-fit: contain;
     margin-bottom: var(--spacing-xs);
 }
-
 .shop-item-points {
     font-size: 0.8em;
     font-weight: 700;
     color: var(--color-text-secondary);
 }
-
 .locked .shop-item-points {
     color: var(--color-danger);
 }
-
 .lock-icon {
     position: absolute;
     top: var(--spacing-sm);
@@ -547,11 +522,24 @@ button:hover, #logout-button:hover {
     font-size: 1.1em;
     color: rgba(0,0,0,0.4);
 }
-
 #settings-btn {
     width: 100%;
     margin-top: var(--spacing-lg);
     background-color: var(--color-text-secondary);
+}
+
+#profile-modal .profile-edit-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+.profile-pic-lg {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--color-primary);
 }
 
 /* =============================================================== */
@@ -566,14 +554,14 @@ button:hover, #logout-button:hover {
         font-size: 1.5rem;
     }
     .leaderboard-item {
-        flex-wrap: wrap; /* Allow items to wrap */
+        flex-wrap: wrap;
         gap: var(--spacing-sm);
     }
     .leaderboard-item .rank, .profile-pic-wrapper {
         margin-bottom: var(--spacing-sm);
     }
     .leaderboard-item .student-info {
-        width: calc(100% - 96px); /* Full width minus rank and pic */
+        width: calc(100% - 96px);
     }
     .leaderboard-item .score {
         width: 100%;
@@ -584,6 +572,7 @@ button:hover, #logout-button:hover {
     .customization-container {
         flex-direction: column;
         height: auto;
+        max-height: 75vh;
     }
     .customization-shop {
         border-left: none;
@@ -593,7 +582,6 @@ button:hover, #logout-button:hover {
     }
 }
 
-/* --- Loader & Error Styles (Kept from original for functionality) --- */
 .loader {
     border: 4px solid rgba(255,255,255,0.2);
     border-top: 4px solid var(--color-secondary);
@@ -614,4 +602,20 @@ button:hover, #logout-button:hover {
 #app-container.blur-background {
     filter: blur(5px);
     pointer-events: none;
+}
+@keyframes glow {
+    0% { box-shadow: 0 0 3px rgba(255, 255, 10, 0.7); }
+    50% { box-shadow: 0 0 10px rgba(255, 255, 10, 0.9); }
+    100% { box-shadow: 0 0 3px rgba(255, 255, 10, 0.7); }
+}
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+.effect-glow {
+    animation: glow 2s ease-in-out infinite;
+}
+.effect-pulse {
+    animation: pulse 2s ease-in-out infinite;
 }

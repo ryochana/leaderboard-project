@@ -1,5 +1,4 @@
-// main.js (V4.0 - Robust Event Listeners)
-// Last Updated: 2025-07-20
+// main.js (V4.1 - Robust Event Listeners & Stable Init)
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
@@ -97,26 +96,27 @@ function updateHeaderUI() {
 
 function showLoginModal() {
     loginError.textContent = '';
-    document.getElementById('login-form').reset();
+    if(loginForm) loginForm.reset();
     openModal(loginScreen);
 }
 
 function openModal(modalElement) {
     if (!modalElement) return;
     modalElement.style.display = 'flex';
-    appContainer.classList.add('blur-background');
+    if(appContainer) appContainer.classList.add('blur-background');
 }
 
 function closeModal(modalElement) {
     if (!modalElement) return;
     modalElement.style.display = 'none';
     const openModals = document.querySelectorAll('.modal[style*="display: flex"]');
-    if (openModals.length === 0) {
+    if (openModals.length === 0 && appContainer) {
         appContainer.classList.remove('blur-background');
     }
 }
 
 async function fetchAndDisplayLeaderboard() {
+    if(!leaderboardContainer) return;
     leaderboardContainer.innerHTML = '<div class="loader"></div>';
     const { data, error } = await supabase.rpc('get_leaderboard_data', { p_grade_id: currentGrade });
     if (error) {
@@ -127,6 +127,7 @@ async function fetchAndDisplayLeaderboard() {
 }
 
 function renderLeaderboard(leaderboardData) {
+    if(!leaderboardContainer) return;
     leaderboardContainer.innerHTML = '';
     if (!leaderboardData || leaderboardData.length === 0) {
         leaderboardContainer.innerHTML = '<p>ยังไม่มีข้อมูล</p>';
@@ -161,6 +162,7 @@ function renderLeaderboard(leaderboardData) {
 }
 
 async function fetchAndDisplayMissions() {
+    if(!missionsContainer) return;
     missionsContainer.innerHTML = '<div class="loader"></div>';
     const { data: allMissions, error: missionsError } = await supabase.from('missions').select('*').eq('grade', currentGrade).order('created_at', { ascending: true });
     if (missionsError) {
@@ -178,6 +180,7 @@ async function fetchAndDisplayMissions() {
 }
 
 function renderMissions(missions, submissionMap) {
+    if(!missionsContainer) return;
     missionsContainer.innerHTML = '';
     if (!missions || missions.length === 0) {
         missionsContainer.innerHTML = '<p>ยังไม่มีภารกิจ</p>';
@@ -323,7 +326,6 @@ function hideStudentDetailModal() { closeModal(studentDetailModal); }
 
 function showAdminModal() { if (!currentUser || currentUser.role !== 'admin') return; openModal(adminModal); populateGradeSubmissionDropdowns(); }
 function hideAdminModal() { closeModal(adminModal); }
-
 async function handleAddMission(event) {
     event.preventDefault();
     const title = document.getElementById('add-mission-topic').value;
@@ -570,7 +572,6 @@ function setupEventListeners() {
         if (item && item.dataset.userId) showStudentDetailModal(item.dataset.userId);
     });
     
-    // Setup for all modals in a robust way
     document.querySelectorAll('.modal').forEach(modal => {
         const closeBtn = modal.querySelector('.close-button');
         if (closeBtn) closeBtn.addEventListener('click', () => closeModal(modal));
@@ -579,7 +580,6 @@ function setupEventListeners() {
         });
     });
 
-    // Specific form/button listeners
     const submissionFormEl = missionModal ? missionModal.querySelector('#submission-form') : null;
     if (submissionFormEl) submissionFormEl.addEventListener('submit', handleMissionSubmit);
 
@@ -599,14 +599,18 @@ function setupEventListeners() {
 
 async function init() {
     currentGrade = getGradeFromHostname();
-    classTitle.textContent = `ห้องเรียน ม.${currentGrade}`;
-    document.getElementById('main-content').style.display = 'flex';
-    document.getElementById('login-screen').style.display = 'none';
     
+    if (classTitle) classTitle.textContent = `ห้องเรียน ม.${currentGrade}`;
+    if (mainContent) mainContent.style.display = 'none';
+    if (loginScreen) loginScreen.style.display = 'none';
+
     const storedSession = localStorage.getItem('app_user_session');
     if (storedSession) {
         currentUser = JSON.parse(storedSession);
     }
+    
+    // แสดง main content เสมอ
+    if (mainContent) mainContent.style.display = 'flex';
 
     setupEventListeners();
     updateHeaderUI();

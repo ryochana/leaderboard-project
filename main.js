@@ -1,4 +1,4 @@
-// main.js (V6.3 - Final Integration & Bug Fixes)
+// main.js (V6.4 - Final Bug Fixes)
 // Last Updated: 2025-07-20
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
@@ -345,8 +345,6 @@ function renderProfilePage() {
         </div>
     `;
     // Event listeners for the new buttons within the profile page (dynamically added)
-    // IMPORTANT: THESE LISTENERS NEED TO BE ATTACHED AFTER THE HTML IS RENDERED.
-    // They are called from renderProfilePage(), so the elements should exist by then.
     const customizeBtn = document.getElementById('customize-button');
     if(customizeBtn) customizeBtn.addEventListener('click', showCustomizationModal);
     const changePassBtn = document.getElementById('change-password-button-in-profile');
@@ -358,12 +356,7 @@ function renderProfilePage() {
 // main.js (V6.3 - Final Integration & Bug Fixes) - Part 3/3
 
 function openMissionModal(mission, submission) {
-    // Check if user is logged in
-    if (!currentUser) { 
-        alert("กรุณาล็อกอินก่อนส่งงาน"); 
-        showLoginModal(); 
-        return; 
-    }
+    if (!currentUser) { alert("กรุณาล็อกอินก่อนส่งงาน"); showLoginModal(); return; }
     currentlyOpenMission = mission;
     openModal(missionModal);
     if(missionModalHeader) missionModalHeader.innerHTML = `<h3>${mission.title}</h3><p>${mission.description || 'ไม่มีคำอธิบายเพิ่มเติม'}</p>`;
@@ -412,7 +405,9 @@ async function handleMissionSubmit(event) {
             formData.append('image', file);
             const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
             const result = await response.json();
-            if (!result.success) throw new Error(result.error.message || 'ImgBB upload failed');
+            if (!result.success) {
+                throw new Error(result.error.message || 'ImgBB upload failed');
+            }
             proofUrl = result.data.url;
             fileStatus.textContent = 'อัปโหลดไฟล์สำเร็จ!';
         }
@@ -599,7 +594,7 @@ function updatePreview() {
 }
 
 async function handleItemClick(item, locked, equipped) {
-    if (!currentUser) { alert("กรุณาล็อกอินก่อน"); showLoginModal(); return; } // Ensure user is logged in
+    if (!currentUser) { alert("กรุณาล็อกอินก่อน"); showLoginModal(); return; }
     if (locked) {
         alert(`คุณต้องมี ${item.unlock_points} คะแนนเพื่อปลดล็อกไอเทมนี้!`);
         return;
@@ -621,7 +616,7 @@ async function handleItemClick(item, locked, equipped) {
 }
 
 function showProfileModalActual() { // Actual Profile Picture & Password Change settings
-    if (!currentUser) return; // Should already be logged in
+    if (!currentUser) return;
     closeModal(customizationModal); // Close customization modal
     openModal(profileModal); // Open profile modal
     
@@ -718,15 +713,14 @@ async function handleChangePassword(event) {
     closeModal(changePasswordModal);
 }
 
-// *** Final setupEventListeners function ***
 function setupEventListeners() {
-    // 1. Login Form Listener
+    // Top-level DOM elements
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
     
-    // 2. Admin Panel Button Listener
+    // Admin Panel Button Listener
     if (adminPanelButton) adminPanelButton.addEventListener('click', showAdminModal);
 
-    // 3. General modal close listeners for ALL modals
+    // General modal close listeners for ALL modals
     document.querySelectorAll('.modal').forEach(modal => {
         const closeBtn = modal.querySelector('.close-button');
         if (closeBtn) {
@@ -742,7 +736,7 @@ function setupEventListeners() {
         });
     });
 
-    // 4. Tab button listeners (handle switching sections)
+    // Tab button listeners (handle switching sections)
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             const targetId = button.dataset.content;
@@ -751,11 +745,11 @@ function setupEventListeners() {
             if (targetId === 'feed-container') fetchAndDisplayFeed();
             else if (targetId === 'missions-container') fetchAndDisplayMissions();
             else if (targetId === 'leaderboard-container') fetchAndDisplayLeaderboard();
-            else if (targetId === 'profile-container') renderProfilePage(); // Render profile page when tab is clicked
+            else if (targetId === 'profile-container') renderProfilePage();
         });
     });
 
-    // 5. Specific listeners for forms and buttons inside modals (check if element exists)
+    // Specific listeners for forms and buttons inside modals
     // Mission Modal (Submit form)
     if (submissionForm) { // missionModal is checked above in DOM element declarations
         submissionForm.addEventListener('submit', handleMissionSubmit);
@@ -769,17 +763,22 @@ function setupEventListeners() {
 
     // Profile Modal (for changing profile pic)
     if (profileModal) {
+        const saveProfileButton = profileModal.querySelector('#save-profile-button');
         if (saveProfileButton) saveProfileButton.addEventListener('click', handleProfilePicSubmit);
+        const profileFileInput = profileModal.querySelector('#profile-file-input');
         if(profileFileInput) profileFileInput.addEventListener('change', (event) => {
+            const profilePicDisplay = profileModal.querySelector('#profile-pic-display');
             const file = event.target.files[0];
-            if (file) {
-                const profilePicDisplay = profileModal.querySelector('#profile-pic-display');
-                if(profilePicDisplay) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => { profilePicDisplay.src = e.target.result; };
-                    reader.readAsDataURL(file);
-                }
+            if (file && profilePicDisplay) { // Check if file and display element exist
+                const reader = new FileReader();
+                reader.onload = (e) => { profilePicDisplay.src = e.target.result; };
+                reader.readAsDataURL(file);
             }
+        });
+        const goToChangePassBtn = profileModal.querySelector('#go-to-change-password-btn');
+        if(goToChangePassBtn) goToChangePassBtn.addEventListener('click', () => {
+            closeModal(profileModal);
+            showChangePasswordModal();
         });
     }
 
@@ -829,9 +828,8 @@ async function init() {
     fetchAndDisplayMissions();
     renderProfilePage(); // Render profile page initially
 
-    // If no user is logged in, and user clicks on a tab/action that requires login, show login modal.
-    // This is handled within the functions themselves (e.g., openMissionModal, showCustomizationModal).
-    // No direct showLoginModal() on init anymore to avoid it popping up on page load.
+    // If no user is logged in, show login modal (only if NOT on a tab that requires login yet)
+    // No direct showLoginModal() on init anymore. Login is now triggered by specific actions (e.g., mission click).
 }
 
 init();

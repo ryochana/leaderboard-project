@@ -1,5 +1,5 @@
-// main.js (V6.4 - Final Bug Fixes)
-// Last Updated: 2025-07-20
+// main.js (V6.4 - Implemented Toast Notifications - Fix for Code Cut)
+// Last Updated: 2025-07-21
 
 const SUPABASE_URL = 'https://nmykdendjmttjvvtsuxk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5teWtkZW5kam10dGp2dnRzdXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3Mzk4MTksImV4cCI6MjA2ODMxNTgxOX0.gp1hzku2fDBH_9PvMsDCIwlkM0mssuke40smgU4-paE';
@@ -69,6 +69,27 @@ let currentUser = null;
 let currentGrade = 0;
 let currentlyOpenMission = null;
 
+// Helper function for showing toasts
+function showToast(message, type = 'info') {
+    let backgroundColor;
+    if (type === 'success') backgroundColor = 'linear-gradient(to right, #28a745, #218838)';
+    else if (type === 'error') backgroundColor = 'linear-gradient(to right, #dc3545, #c82333)';
+    else backgroundColor = 'linear-gradient(to right, #007bff, #0056b3)';
+
+    Toastify({
+        text: message,
+        duration: 3000,
+        close: true,
+        gravity: "top", // `top` or `bottom`
+        position: "right", // `left`, `center` or `right`
+        stopOnFocus: true, // Prevents dismissing on hover
+        style: {
+            background: backgroundColor,
+        },
+        onClick: function(){} // Callback after click
+    }).showToast();
+}
+
 function getGradeFromHostname() {
     const hostname = window.location.hostname;
     if (hostname.includes('m1')) return 1;
@@ -97,12 +118,16 @@ async function handleLogin(event) {
     currentUser = user;
     localStorage.setItem('app_user_session', JSON.stringify(currentUser));
     closeModal(loginScreen);
+    showToast(`ยินดีต้อนรับ ${currentUser.display_name}!`, 'success');
     updateAfterLoginOrLogout();
 }
+
+// main.js (V6.4 - Implemented Toast Notifications - Fix for Code Cut) - Part 2/6
 
 function handleLogout() {
     localStorage.removeItem('app_user_session');
     currentUser = null;
+    showToast('ออกจากระบบแล้ว', 'info');
     updateAfterLoginOrLogout();
 }
 
@@ -172,6 +197,7 @@ async function fetchAndDisplayFeed() {
     const { data: upcomingMissions, error } = await supabase.from('missions').select('*').eq('grade', currentGrade).gte('due_date', now.toISOString()).lte('due_date', threeDaysFromNow.toISOString()).order('due_date', { ascending: true });
     if (error) {
         feedContainer.innerHTML += '<p class="error-message">ไม่สามารถโหลดข้อมูลฟีดได้</p>';
+        showToast('ไม่สามารถโหลดฟีดได้', 'error');
         return;
     }
     feedContainer.innerHTML = '<h2>ฟีดข่าวสาร</h2>';
@@ -195,10 +221,13 @@ async function fetchAndDisplayLeaderboard() {
     const { data, error } = await supabase.rpc('get_leaderboard_data', { p_grade_id: currentGrade });
     if (error) {
         leaderboardContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลด Leaderboard ได้</p>`;
+        showToast('ไม่สามารถโหลด Leaderboard ได้', 'error');
         return;
     }
     renderLeaderboard(data);
 }
+
+// main.js (V6.4 - Final & Complete) - Part 3/6
 
 function renderLeaderboard(leaderboardData) {
     if(!leaderboardContainer) return;
@@ -259,8 +288,9 @@ async function fetchAndDisplayMissions() {
     if(!missionsContainer) return;
     missionsContainer.innerHTML = '<h2>บันทึกภารกิจ (Quest Log)</h2><div class="loader"></div>';
     const { data: allMissions, error: missionsError } = await supabase.from('missions').select('*').eq('grade', currentGrade).order('created_at', { ascending: true });
-    if (missionsError) {
+    if (error) {
         missionsContainer.innerHTML = `<p class="error-message">ไม่สามารถโหลดภารกิจได้</p>`;
+        showToast('ไม่สามารถโหลดภารกิจได้', 'error');
         return;
     }
     let submissionMap = new Map();
@@ -309,6 +339,8 @@ function renderMissions(missions, submissionMap) {
     missionsContainer.appendChild(missionsGrid);
 }
 
+// main.js (V6.4 - Final & Complete) - Part 4/6
+
 function renderProfilePage() {
     if (!profileContainer) return;
     profileContainer.innerHTML = ''; // Clear existing content
@@ -345,6 +377,7 @@ function renderProfilePage() {
         </div>
     `;
     // Event listeners for the new buttons within the profile page (dynamically added)
+    // These need to be attached *after* the HTML is added to the DOM.
     const customizeBtn = document.getElementById('customize-button');
     if(customizeBtn) customizeBtn.addEventListener('click', showCustomizationModal);
     const changePassBtn = document.getElementById('change-password-button-in-profile');
@@ -353,10 +386,12 @@ function renderProfilePage() {
     if(profilePicBtn) profilePicBtn.addEventListener('click', showProfileModalActual);
 }
 
-// main.js (V6.3 - Final Integration & Bug Fixes) - Part 3/3
-
 function openMissionModal(mission, submission) {
-    if (!currentUser) { alert("กรุณาล็อกอินก่อนส่งงาน"); showLoginModal(); return; }
+    if (!currentUser) { 
+        alert("กรุณาล็อกอินก่อนส่งงาน"); 
+        showLoginModal(); 
+        return; 
+    }
     currentlyOpenMission = mission;
     openModal(missionModal);
     if(missionModalHeader) missionModalHeader.innerHTML = `<h3>${mission.title}</h3><p>${mission.description || 'ไม่มีคำอธิบายเพิ่มเติม'}</p>`;
@@ -419,16 +454,18 @@ async function handleMissionSubmit(event) {
         }
         const { error: dbError } = await supabase.from('submissions').upsert({ student_id: currentUser.id, mission_id: currentlyOpenMission.id, submitted_at: new Date().toISOString(), status: 'pending', proof_url: proofUrl }, { onConflict: 'student_id, mission_id' });
         if (dbError) throw dbError;
-        alert('ส่งงานสำเร็จ!');
+        showToast('ส่งงานสำเร็จ!', 'success'); // Use toast
         hideMissionModal();
         fetchAndDisplayMissions();
     } catch (error) {
         console.error('Submission Error:', error);
-        alert(`เกิดข้อผิดพลาดในการส่งงาน: ${error.message}`);
+        showToast(`เกิดข้อผิดพลาดในการส่งงาน: ${error.message}`, 'error'); // Use toast
         submitBtn.disabled = false;
         submitBtn.textContent = 'ลองอีกครั้ง';
     }
 }
+
+// main.js (V6.4 - Final & Complete) - Part 5/6
 
 async function showStudentDetailModal(userId) {
     openModal(studentDetailModal);
@@ -444,18 +481,15 @@ async function showStudentDetailModal(userId) {
     const { data: allMissions } = await supabase.from('missions').select('id, title, max_points').eq('grade', currentGrade).order('created_at', { ascending: false });
     const { data: studentSubmissions } = await supabase.from('submissions').select('mission_id, status, grade, proof_url').eq('student_id', userId);
     const submissionMap = new Map(studentSubmissions ? studentSubmissions.map(s => [s.mission_id, s]) : []);
-    const profileImageUrl = studentInfo.avatar_url || `https://robohash.org/${studentInfo.student_id}.png?set=set4&size=120x120`;
+    const profileImageUrl = studentInfo.avatar_url || `https://robohash.org/${studentInfo.student_id}.png?set=set4&size=80x80`; // Ensure size is 80x80
     if(studentDetailModal) studentDetailModal.querySelector('.modal-content').style.background = studentInfo.equipped_card_bg || '#fefefe';
     if(modalHeader) modalHeader.innerHTML = `
-    <div class="profile-pic-wrapper">
-        <img src="${profileImageUrl}" alt="Profile" class="profile-pic">
-    </div>
-    <div class="student-summary">
-        <h3>${studentInfo.display_name}</h3>
-        <p>คะแนนรวม: ${studentInfo.points || 0} คะแนน</p>
-    </div>
-`;
-    if(modalBody) modalBody.innerHTML = '';
+        <img src="${profileImageUrl}" alt="Profile" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
+        <div class="student-summary">
+            <h3>${studentInfo.display_name}</h3>
+            <p>คะแนนรวม: ${studentInfo.points || 0} EXP</p>
+        </div>`;
+    if(modalBody) modalBody.innerHTML = ''; // Clear previous content
     (allMissions || []).forEach(mission => {
         const submission = submissionMap.get(mission.id);
         let status, scoreText, statusClass, proofLink = '';
@@ -477,11 +511,7 @@ async function showStudentDetailModal(userId) {
 }
 function hideStudentDetailModal() { closeModal(studentDetailModal); }
 
-function showAdminModal() { 
-    if (!currentUser || currentUser.role !== 'admin') return; 
-    openModal(adminModal); 
-    populateGradeSubmissionDropdowns(); 
-}
+function showAdminModal() { if (!currentUser || currentUser.role !== 'admin') return; openModal(adminModal); populateGradeSubmissionDropdowns(); }
 function hideAdminModal() { closeModal(adminModal); }
 
 async function handleAddMission(event) {
@@ -492,13 +522,13 @@ async function handleAddMission(event) {
     const dueDate = form.querySelector('#add-mission-due-date').value;
     const maxPoints = parseInt(form.querySelector('#add-mission-max-points').value, 10);
     if (!title || !dueDate || isNaN(maxPoints)) {
-        alert('กรุณากรอกข้อมูลภารกิจให้ครบถ้วน'); return;
+        showToast('กรุณากรอกข้อมูลภารกิจให้ครบถ้วน', 'error'); return;
     }
     const { error } = await supabase.from('missions').insert({ title, description, due_date: dueDate, max_points: maxPoints, grade: currentGrade, is_active: true });
     if (error) {
-        alert(`เกิดข้อผิดพลาด: ${error.message}`);
+        showToast(`เกิดข้อผิดพลาด: ${error.message}`, 'error');
     } else {
-        alert('เพิ่มภารกิจสำเร็จ!');
+        showToast('เพิ่มภารกิจสำเร็จ!', 'success');
         form.reset();
         fetchAndDisplayMissions();
     }
@@ -522,228 +552,23 @@ async function handleGradeSubmission(event) {
     const missionId = form.querySelector('#grade-mission-topic').value;
     const score = parseFloat(form.querySelector('#grade-score').value);
     if (!studentId || !missionId || isNaN(score)) {
-        alert('กรุณาเลือกข้อมูลให้ครบถ้วน'); return;
+        showToast('กรุณาเลือกข้อมูลให้ครบถ้วน', 'error'); return;
     }
-
-    try {
-        // อัปเดตคะแนนในตาราง submissions
-        const { error: submissionError } = await supabase.from('submissions')
-            .upsert({ student_id: studentId, mission_id: missionId, grade: score, status: 'graded' }, { onConflict: 'student_id, mission_id' });
-
-        if (submissionError) {
-            throw submissionError;
-        }
-
-        // *** ส่วนที่แก้ไข: เรียกใช้ฟังก์ชัน RPC เพื่อคำนวณคะแนนรวมในตาราง users ใหม่ ***
-        // ฟังก์ชัน recalculate_all_points จะคำนวณคะแนนรวมของนักเรียนทุกคน
-        // แต่เราต้องการแค่ของคนๆ เดียว
-        // ดังนั้น เราจะเรียกใช้ rpc function ที่เราจะสร้างขึ้นมาใหม่
-        // ชื่อว่า update_single_student_points
-        const { error: rpcError } = await supabase.rpc('update_single_student_points', { p_user_id: studentId });
-
-        if (rpcError) {
-            throw rpcError;
-        }
-        // *** สิ้นสุดส่วนที่แก้ไข ***
-
-        alert('บันทึกคะแนนสำเร็จ!');
-        form.reset();
-        fetchAndDisplayLeaderboard(); // รีเฟรช Leaderboard เพื่อแสดงคะแนนใหม่
-        fetchAndDisplayMissions(); // รีเฟรช Missions เพื่อแสดงสถานะงานที่ตรวจแล้ว
-    } catch (error) {
-        alert(`เกิดข้อผิดพลาดในการบันทึกคะแนน: ${error.message}`);
+    const { error: submissionError } = await supabase.from('submissions').upsert({ student_id: studentId, mission_id: missionId, grade: score, status: 'graded' }, { onConflict: 'student_id, mission_id' });
+    if (submissionError) {
+        showToast(`เกิดข้อผิดพลาดในการบันทึกงาน: ${submissionError.message}`, 'error'); return;
     }
+    const { error: rpcError } = await supabase.rpc('update_single_student_points', { p_user_id: studentId });
+    if (rpcError) {
+        showToast(`เกิดข้อผิดพลาดในการอัปเดตคะแนนรวม: ${rpcError.message}`, 'error'); return;
+    }
+    showToast('ให้คะแนนสำเร็จ!', 'success');
+    form.reset();
+    fetchAndDisplayLeaderboard();
+    fetchAndDisplayMissions();
 }
 
-async function showCustomizationModal() {
-    if (!currentUser) { alert("กรุณาล็อกอินก่อน"); showLoginModal(); return; }
-    openModal(customizationModal);
-    const previewContainer = customizationModal.querySelector('.customization-preview');
-    let settingsBtn = previewContainer ? previewContainer.querySelector('#settings-btn') : null;
-    if (previewContainer && !settingsBtn) {
-        settingsBtn = document.createElement('button');
-        settingsBtn.id = 'settings-btn';
-        settingsBtn.textContent = 'ตั้งค่า (รูปโปรไฟล์ / รหัสผ่าน)';
-        settingsBtn.onclick = showProfileModalActual; // Changed to actual profile modal
-        previewContainer.appendChild(settingsBtn);
-    }
-    updatePreview();
-    const { data: allItems } = await supabase.from('cosmetic_items').select('*').order('unlock_points', { ascending: true });
-    const { data: userInventory } = await supabase.from('user_inventory').select('item_id, equipped').eq('user_id', currentUser.id);
-    if (!allItems || !userInventory) return;
-    const inventoryMap = new Map(userInventory.map(item => [item.item_id, { equipped: item.equipped }]));
-    const groupedItems = allItems.reduce((acc, item) => {
-        if (!acc[item.type]) acc[item.type] = [];
-        acc[item.type].push(item);
-        return acc;
-    }, {});
-    for (const type in groupedItems) {
-        const container = document.getElementById(`shop-${type}`);
-        if (container) {
-            container.innerHTML = '';
-            groupedItems[type].forEach(item => {
-                const owned = inventoryMap.has(item.id);
-                const equipped = owned && inventoryMap.get(item.id).equipped;
-                const locked = !owned && currentUser.points < item.unlock_points;
-                const itemEl = document.createElement('div');
-                itemEl.className = 'shop-item';
-                if (equipped) itemEl.classList.add('equipped');
-                if (locked) itemEl.classList.add('locked');
-                itemEl.innerHTML = `<img src="${item.icon_url || 'https://via.placeholder.com/40'}" alt="${item.name}"><span class="shop-item-points">${item.unlock_points} pts</span>${locked ? '<span class="lock-icon">🔒</span>' : ''}`;
-                itemEl.onclick = () => handleItemClick(item, locked, equipped);
-                container.appendChild(itemEl);
-            });
-        }
-    }
-}
-
-function updatePreview() {
-    if (!currentUser) return;
-    const previewProfileImage = customizationModal.querySelector('#preview-profile-image');
-    const previewUsername = customizationModal.querySelector('#preview-username');
-    const previewPoints = customizationModal.querySelector('#preview-points');
-    const previewProfileEffect = customizationModal.querySelector('#preview-profile-effect');
-    const previewCardBackground = customizationModal.querySelector('#preview-card-background');
-    const previewBadge = customizationModal.querySelector('#preview-badge');
-
-    if(previewProfileImage) previewProfileImage.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=50x50`;
-    if(previewUsername) previewUsername.textContent = currentUser.display_name;
-    if(previewPoints) previewPoints.textContent = `${currentUser.points || 0} EXP`;
-    const frameStyle = currentUser.equipped_frame_color && currentUser.equipped_frame_color.startsWith('linear-gradient')
-        ? `border-image: ${currentUser.equipped_frame_color} 1; background-image: ${currentUser.equipped_frame_color};`
-        : `border-color: ${currentUser.equipped_frame_color || '#555'};`;
-    if(previewProfileEffect) previewProfileEffect.style = frameStyle;
-    if(previewProfileEffect) previewProfileEffect.className = `profile-pic-wrapper ${currentUser.equipped_profile_effect || ''}`;
-    if(previewCardBackground) previewCardBackground.style.background = currentUser.equipped_card_bg || '#f8f9fa';
-    if (previewBadge) {
-        if (currentUser.equipped_badge_url) {
-            previewBadge.src = currentUser.equipped_badge_url;
-            previewBadge.style.display = 'inline-block';
-        } else {
-            previewBadge.style.display = 'none';
-        }
-    }
-}
-
-async function handleItemClick(item, locked, equipped) {
-    if (!currentUser) { alert("กรุณาล็อกอินก่อน"); showLoginModal(); return; }
-    if (locked) {
-        alert(`คุณต้องมี ${item.unlock_points} คะแนนเพื่อปลดล็อกไอเทมนี้!`);
-        return;
-    }
-    if (equipped) return;
-    try {
-        const { data, error } = await supabase.rpc('equip_cosmetic_item_simple', { p_user_id: currentUser.id, p_item_id: item.id });
-        if (error) throw error;
-        const { data: updatedUser } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
-        if (!updatedUser) throw new Error("ไม่พบข้อมูลผู้ใช้หลังอัปเดต");
-        currentUser = updatedUser;
-        localStorage.setItem('app_user_session', JSON.stringify(currentUser));
-        alert(data);
-        showCustomizationModal(); // Re-render the shop
-        fetchAndDisplayLeaderboard(); // Update the main leaderboard
-    } catch (error) {
-        alert(`เกิดข้อผิดพลาด: ${error.message}`);
-    }
-}
-
-function showProfileModalActual() { // Actual Profile Picture & Password Change settings
-    if (!currentUser) return;
-    closeModal(customizationModal); // Close customization modal
-    openModal(profileModal); // Open profile modal
-    
-    if(profilePicDisplay) profilePicDisplay.src = currentUser.avatar_url || `https://robohash.org/${currentUser.student_id}.png?set=set4&size=100x100`;
-    if(profileFileInput) profileFileInput.value = '';
-    if(profileUploadStatus) profileUploadStatus.textContent = '';
-    if(saveProfileButton) saveProfileButton.disabled = false;
-    if(saveProfileButton) saveProfileButton.textContent = 'บันทึกรูปโปรไฟล์';
-    
-    const profileEditArea = profileModal.querySelector('.profile-edit-area');
-    let changePassBtn = profileEditArea ? profileEditArea.querySelector('#go-to-change-password-btn') : null;
-    if (profileEditArea && !changePassBtn) {
-        changePassBtn = document.createElement('button');
-        changePassBtn.id = 'go-to-change-password-btn';
-        changePassBtn.textContent = 'ต้องการเปลี่ยนรหัสผ่าน?';
-        changePassBtn.onclick = () => {
-            closeModal(profileModal);
-            showChangePasswordModal();
-        };
-        profileEditArea.appendChild(changePassBtn);
-    }
-}
-
-function showChangePasswordModal() {
-    openModal(changePasswordModal);
-    if(passwordError) passwordError.textContent = '';
-    if(changePasswordForm) changePasswordForm.reset();
-}
-
-async function handleProfilePicSubmit(event) {
-    event.preventDefault();
-    const saveBtn = document.getElementById('save-profile-button');
-    const statusEl = document.getElementById('profile-upload-status');
-    const fileInput = document.getElementById('profile-file-input');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'กำลังบันทึก...';
-    const file = fileInput.files[0];
-    if (!file) {
-        statusEl.textContent = 'กรุณาเลือกรูปภาพ';
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'บันทึกรูปโปรไฟล์';
-        return;
-    }
-    const IMGBB_API_KEY = 'e5fca6e1e9823fa93eff7017fe015d54';
-    const formData = new FormData();
-    formData.append('key', IMGBB_API_KEY);
-    formData.append('image', file);
-    try {
-        statusEl.textContent = `กำลังอัปโหลดไปที่ ImgBB...`;
-        const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData, });
-        const result = await response.json();
-        if (!result.success) {
-            throw new Error(result.error.message || 'ImgBB upload failed');
-        }
-        const newProfileUrl = result.data.url;
-        statusEl.textContent = 'อัปโหลดสำเร็จ! กำลังบันทึก...';
-        const { data: updatedUser, error: dbError } = await supabase.from('users').update({ avatar_url: newProfileUrl }).eq('id', currentUser.id).select().single();
-        if (dbError) throw dbError;
-        currentUser = updatedUser;
-        localStorage.setItem('app_user_session', JSON.stringify(currentUser));
-        updateHeaderUI();
-        alert('เปลี่ยนรูปโปรไฟล์สำเร็จ!');
-        closeModal(profileModal);
-    } catch (error) {
-        console.error("Error uploading profile pic:", error);
-        alert(`เกิดข้อผิดพลาด: ${error.message}`);
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'ลองอีกครั้ง';
-    }
-}
-
-async function handleChangePassword(event) {
-    event.preventDefault();
-    if(passwordError) passwordError.textContent = '';
-    const currentPassword = document.getElementById('current-password').value;
-    const newPassword = document.getElementById('new-password').value;
-    const confirmPassword = document.getElementById('confirm-password').value;
-    if (newPassword !== confirmPassword) {
-        if(passwordError) passwordError.textContent = 'รหัสผ่านใหม่ไม่ตรงกัน'; return;
-    }
-    if (newPassword.length < 6) {
-        if(passwordError) passwordError.textContent = 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร'; return;
-    }
-    if (currentUser.password !== currentPassword) {
-        if(passwordError) passwordError.textContent = 'รหัสผ่านปัจจุบันไม่ถูกต้อง'; return;
-    }
-    const { data, error } = await supabase.from('users').update({ password: newPassword }).eq('id', currentUser.id).select().single();
-    if (error) {
-        if(passwordError) passwordError.textContent = `เกิดข้อผิดพลาด: ${error.message}`; return;
-    }
-    currentUser = data;
-    localStorage.setItem('app_user_session', JSON.stringify(currentUser));
-    alert('เปลี่ยนรหัสผ่านสำเร็จ!');
-    closeModal(changePasswordModal);
-}
+// main.js (V6.4 - Final & Complete) - Part 6/6
 
 function setupEventListeners() {
     // Top-level DOM elements
@@ -795,16 +620,16 @@ function setupEventListeners() {
 
     // Profile Modal (for changing profile pic)
     if (profileModal) {
-        const saveProfileButton = profileModal.querySelector('#save-profile-button');
         if (saveProfileButton) saveProfileButton.addEventListener('click', handleProfilePicSubmit);
-        const profileFileInput = profileModal.querySelector('#profile-file-input');
         if(profileFileInput) profileFileInput.addEventListener('change', (event) => {
-            const profilePicDisplay = profileModal.querySelector('#profile-pic-display');
             const file = event.target.files[0];
-            if (file && profilePicDisplay) { // Check if file and display element exist
-                const reader = new FileReader();
-                reader.onload = (e) => { profilePicDisplay.src = e.target.result; };
-                reader.readAsDataURL(file);
+            if (file) {
+                const profilePicDisplay = profileModal.querySelector('#profile-pic-display');
+                if(profilePicDisplay) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => { profilePicDisplay.src = e.target.result; };
+                    reader.readAsDataURL(file);
+                }
             }
         });
         const goToChangePassBtn = profileModal.querySelector('#go-to-change-password-btn');
@@ -860,8 +685,8 @@ async function init() {
     fetchAndDisplayMissions();
     renderProfilePage(); // Render profile page initially
 
-    // If no user is logged in, show login modal (only if NOT on a tab that requires login yet)
-    // No direct showLoginModal() on init anymore. Login is now triggered by specific actions (e.g., mission click).
+    // If no user is logged in, show login modal (only if NOT on a tab that requires login now)
+    // Removed explicit setTimeout(showLoginModal, 500); as login is triggered by specific actions.
 }
 
 init();

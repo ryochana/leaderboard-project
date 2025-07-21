@@ -469,7 +469,11 @@ async function showStudentDetailModal(userId) {
 }
 function hideStudentDetailModal() { closeModal(studentDetailModal); }
 
-function showAdminModal() { if (!currentUser || currentUser.role !== 'admin') return; openModal(adminModal); populateGradeSubmissionDropdowns(); }
+function showAdminModal() { 
+    if (!currentUser || currentUser.role !== 'admin') return; 
+    openModal(adminModal); 
+    populateGradeSubmissionDropdowns(); 
+}
 function hideAdminModal() { closeModal(adminModal); }
 
 async function handleAddMission(event) {

@@ -139,6 +139,13 @@ button:disabled { background-color: var(--color-text-secondary); cursor: not-all
     font-size: 0.9em;
     display: none; /* Controlled by JS */
 }
+#admin-modal .modal-content {
+    /* ใช้ max-width เหมือน modal-content ทั่วไป */
+    max-width: 500px; /* หรือปรับตามความเหมาะสม */
+    max-height: 90vh; /* กำหนดความสูงสูงสุด (อาจจะเคยมีแล้ว) */
+    overflow-y: auto; /* *** สำคัญ: ทำให้ส่วนนี้เลื่อนได้ *** */
+    padding-right: var(--spacing-md); /* เพื่อไม่ให้ Scrollbar ติดขอบเกินไป */
+}
 
 #main-content {
     flex-grow: 1; /* Allow content to fill available space */

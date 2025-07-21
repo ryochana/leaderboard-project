@@ -446,7 +446,15 @@ async function showStudentDetailModal(userId) {
     const submissionMap = new Map(studentSubmissions ? studentSubmissions.map(s => [s.mission_id, s]) : []);
     const profileImageUrl = studentInfo.avatar_url || `https://robohash.org/${studentInfo.student_id}.png?set=set4&size=80x80`;
     if(studentDetailModal) studentDetailModal.querySelector('.modal-content').style.background = studentInfo.equipped_card_bg || '#fefefe';
-    if(modalHeader) modalHeader.innerHTML = `<img src="${profileImageUrl}" alt="Profile"><div class="student-summary"><h3>${studentInfo.display_name}</h3><p>คะแนนรวม: ${studentInfo.points || 0} EXP</p></div>`;
+    if(modalHeader) modalHeader.innerHTML = `
+    <div class="profile-pic-wrapper">
+        <img src="${profileImageUrl}" alt="Profile" class="profile-pic">
+    </div>
+    <div class="student-summary">
+        <h3>${studentInfo.display_name}</h3>
+        <p>คะแนนรวม: ${studentInfo.points || 0} EXP</p>
+    </div>
+`;
     if(modalBody) modalBody.innerHTML = '';
     (allMissions || []).forEach(mission => {
         const submission = submissionMap.get(mission.id);

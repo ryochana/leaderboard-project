@@ -444,7 +444,7 @@ async function showStudentDetailModal(userId) {
     const { data: allMissions } = await supabase.from('missions').select('id, title, max_points').eq('grade', currentGrade).order('created_at', { ascending: false });
     const { data: studentSubmissions } = await supabase.from('submissions').select('mission_id, status, grade, proof_url').eq('student_id', userId);
     const submissionMap = new Map(studentSubmissions ? studentSubmissions.map(s => [s.mission_id, s]) : []);
-    const profileImageUrl = studentInfo.avatar_url || `https://robohash.org/${studentInfo.student_id}.png?set=set4&size=80x80`;
+    const profileImageUrl = studentInfo.avatar_url || `https://robohash.org/${studentInfo.student_id}.png?set=set4&size=120x120`;
     if(studentDetailModal) studentDetailModal.querySelector('.modal-content').style.background = studentInfo.equipped_card_bg || '#fefefe';
     if(modalHeader) modalHeader.innerHTML = `
     <div class="profile-pic-wrapper">
@@ -452,7 +452,7 @@ async function showStudentDetailModal(userId) {
     </div>
     <div class="student-summary">
         <h3>${studentInfo.display_name}</h3>
-        <p>คะแนนรวม: ${studentInfo.points || 0} EXP</p>
+        <p>คะแนนรวม: ${studentInfo.points || 0} คะแนน</p>
     </div>
 `;
     if(modalBody) modalBody.innerHTML = '';

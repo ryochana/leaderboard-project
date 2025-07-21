@@ -524,14 +524,34 @@ async function handleGradeSubmission(event) {
     if (!studentId || !missionId || isNaN(score)) {
         alert('กรุณาเลือกข้อมูลให้ครบถ้วน'); return;
     }
-    const { error } = await supabase.rpc('grade_submission', { p_student_id: studentId, p_mission_id: missionId, p_score: score });
-    if (error) {
-        alert(`เกิดข้อผิดพลาด: ${error.message}`);
-    } else {
-        alert('ให้คะแนนสำเร็จ!');
+
+    try {
+        // อัปเดตคะแนนในตาราง submissions
+        const { error: submissionError } = await supabase.from('submissions')
+            .upsert({ student_id: studentId, mission_id: missionId, grade: score, status: 'graded' }, { onConflict: 'student_id, mission_id' });
+
+        if (submissionError) {
+            throw submissionError;
+        }
+
+        // *** ส่วนที่แก้ไข: เรียกใช้ฟังก์ชัน RPC เพื่อคำนวณคะแนนรวมในตาราง users ใหม่ ***
+        // ฟังก์ชัน recalculate_all_points จะคำนวณคะแนนรวมของนักเรียนทุกคน
+        // แต่เราต้องการแค่ของคนๆ เดียว
+        // ดังนั้น เราจะเรียกใช้ rpc function ที่เราจะสร้างขึ้นมาใหม่
+        // ชื่อว่า update_single_student_points
+        const { error: rpcError } = await supabase.rpc('update_single_student_points', { p_user_id: studentId });
+
+        if (rpcError) {
+            throw rpcError;
+        }
+        // *** สิ้นสุดส่วนที่แก้ไข ***
+
+        alert('บันทึกคะแนนสำเร็จ!');
         form.reset();
-        fetchAndDisplayLeaderboard();
-        fetchAndDisplayMissions();
+        fetchAndDisplayLeaderboard(); // รีเฟรช Leaderboard เพื่อแสดงคะแนนใหม่
+        fetchAndDisplayMissions(); // รีเฟรช Missions เพื่อแสดงสถานะงานที่ตรวจแล้ว
+    } catch (error) {
+        alert(`เกิดข้อผิดพลาดในการบันทึกคะแนน: ${error.message}`);
     }
 }
 

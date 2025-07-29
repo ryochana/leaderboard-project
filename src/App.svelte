@@ -22,7 +22,18 @@
   // 2. STATE MANAGEMENT
   // ===============================================================
   let activeTab = 'leaderboard'; // หน้าเริ่มต้น
-  let currentGrade = 1; // เว็บ M1 แสดงข้อมูล ม.1
+  
+  // ตรวจจับ grade จาก URL อัตโนมัติ
+  let currentGrade = 1; // default
+  const hostname = window.location.hostname;
+  
+  if (hostname.includes('eng-m1') || hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+    currentGrade = 1;
+  } else if (hostname.includes('eng-m2')) {
+    currentGrade = 2;
+  } else if (hostname.includes('eng-m3')) {
+    currentGrade = 3;
+  }
   
   // State สำหรับควบคุมการเปิด/ปิด Modals
   let isLoginModalOpen = false;

@@ -1,19 +1,5 @@
 <script>
-  import { onMount }  // onMount คือฟังก์ชันที่จะรันแค่ครั้งเดียว ตอนที่ Component นี้ถูกแสดงผลครั้งแรก
-  // เหมือนฟังก์ชัน init() หรือ document.addEventListener('DOMContentLoaded', ...)
-  onMount(async () => {
-    // นี่คือ Logic จากฟังก์ชัน fetchAndDisplayLeaderboard ของคุณ
-    // ตรวจจับ grade จาก URL อัตโนมัติ
-    let currentGrade = 1; // default
-    const hostname = window.location.hostname;
-    
-    if (hostname.includes('eng-m1') || hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-      currentGrade = 1;
-    } else if (hostname.includes('eng-m2')) {
-      currentGrade = 2;
-    } else if (hostname.includes('eng-m3')) {
-      currentGrade = 3;
-    }'svelte';
+  import { onMount } from 'svelte';
   import { supabase } from '../supabaseClient.js';
   import StudentDetailModal from './StudentDetailModal.svelte';
   import { fly } from 'svelte/transition';
@@ -46,8 +32,18 @@
   // เหมือนฟังก์ชัน init() หรือ document.addEventListener('DOMContentLoaded', ...)
   onMount(async () => {
     // นี่คือ Logic จากฟังก์ชัน fetchAndDisplayLeaderboard ของคุณ
-    // เว็บ M1 ควรแสดงข้อมูล grade 1
-    const currentGrade = 1; 
+    // ตรวจจับ grade จาก URL อัตโนมัติ
+    let currentGrade = 1; // default
+    const hostname = window.location.hostname;
+    
+    if (hostname.includes('eng-m1') || hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+      currentGrade = 1;
+    } else if (hostname.includes('eng-m2')) {
+      currentGrade = 2;
+    } else if (hostname.includes('eng-m3')) {
+      currentGrade = 3;
+    }
+    
     const { data, error: rpcError } = await supabase.rpc('get_leaderboard_data', { p_grade_id: currentGrade });
 
     if (rpcError) {

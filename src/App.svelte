@@ -22,7 +22,7 @@
   // 2. STATE MANAGEMENT
   // ===============================================================
   let activeTab = 'leaderboard'; // หน้าเริ่มต้น
-  let currentGrade = 2; // ค่าเริ่มต้น สามารถเปลี่ยนตามที่ต้องการ
+  let currentGrade = 1; // เว็บ M1 แสดงข้อมูล ม.1
   
   // State สำหรับควบคุมการเปิด/ปิด Modals
   let isLoginModalOpen = false;

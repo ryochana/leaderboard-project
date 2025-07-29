@@ -32,8 +32,8 @@
   // เหมือนฟังก์ชัน init() หรือ document.addEventListener('DOMContentLoaded', ...)
   onMount(async () => {
     // นี่คือ Logic จากฟังก์ชัน fetchAndDisplayLeaderboard ของคุณ
-    // เราจะสมมติว่าเป็น ม.2 ไปก่อนนะครับ
-    const currentGrade = 2; 
+    // เว็บ M1 ควรแสดงข้อมูล grade 1
+    const currentGrade = 1; 
     const { data, error: rpcError } = await supabase.rpc('get_leaderboard_data', { p_grade_id: currentGrade });
 
     if (rpcError) {

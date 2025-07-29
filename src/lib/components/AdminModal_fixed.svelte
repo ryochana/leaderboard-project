@@ -10,19 +10,8 @@
   // --- State สำหรับแท็บ ---
   let adminTab = 'add'; // 'add', 'edit', 'grade'
 
-  // --- ตรวจจับ grade จาก URL อัตโนมัติ (เหมือน Leaderboard) ---
-  let currentGrade = 1; // default
-  const hostname = window.location.hostname;
-  
-  if (hostname.includes('eng-m1') || hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-    currentGrade = 1;
-  } else if (hostname.includes('eng-m2')) {
-    currentGrade = 2;
-  } else if (hostname.includes('eng-m3')) {
-    currentGrade = 3;
-  }
-
   // --- State สำหรับฟอร์มเพิ่มภารกิจ ---
+  let selectedGrade = "1";
   let selectedStudentId = "";
   let selectedMissionId = "";
   let score = "";
@@ -72,12 +61,13 @@
 
   // --- ฟังก์ชันดึงข้อมูล ---
   async function fetchMissions() {
-    console.log('Fetching missions for grade:', currentGrade);
+    const gradeNum = parseInt(selectedGrade);
+    console.log('Fetching missions for grade:', gradeNum);
     
-    const { data, error } = await supabase.from('missions').select('*').eq('grade_id', currentGrade);
+    const { data, error } = await supabase.from('missions').select('*').eq('grade_id', gradeNum);
     if (!error) {
       missions = data || [];
-      console.log('Filtered missions for grade', currentGrade, ':', missions);
+      console.log('Filtered missions for grade', gradeNum, ':', missions);
     } else {
       console.error('Error fetching missions:', error);
       missions = [];
@@ -85,12 +75,13 @@
   }
 
   async function fetchStudents() {
-    console.log('Fetching students for grade:', currentGrade);
+    const gradeNum = parseInt(selectedGrade);
+    console.log('Fetching students for grade:', gradeNum);
     
-    const { data, error } = await supabase.from('students').select('*').eq('grade_id', currentGrade);
+    const { data, error } = await supabase.from('students').select('*').eq('grade_id', gradeNum);
     if (!error) {
       students = data || [];
-      console.log('Filtered students for grade', currentGrade, ':', students);
+      console.log('Filtered students for grade', gradeNum, ':', students);
     } else {
       console.error('Error fetching students:', error);
       students = [];
@@ -111,7 +102,7 @@
         description: missionDescription.trim(),
         due_date: missionDueDate,
         max_points: missionMaxPoints,
-        grade_id: currentGrade
+        grade_id: parseInt(selectedGrade)
       });
       if (error) {
         showToastMsg('เกิดข้อผิดพลาด: ' + error.message);
@@ -215,6 +206,31 @@
     }
   });
 
+  // อัปเดตข้อมูลเมื่อเปลี่ยนเกรด
+  let prevSelectedGrade = selectedGrade;
+  let debounceTimer;
+  $: if ($user?.role === 'admin' && selectedGrade !== prevSelectedGrade) {
+    console.log('Grade changed from', prevSelectedGrade, 'to', selectedGrade);
+    prevSelectedGrade = selectedGrade;
+    selectedStudentId = '';
+    selectedMissionId = '';
+    score = '';
+    selectedSubmissionId = '';
+    isLoadingData = true;
+    loadError = '';
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      console.log('Starting to fetch data for grade:', selectedGrade);
+      Promise.all([fetchStudents(), fetchMissions()])
+        .catch(err => {
+          console.error('Error loading data:', err);
+          loadError = 'โหลดข้อมูลล้มเหลว: ' + err.message;
+          showToastMsg(loadError);
+        })
+        .finally(() => { isLoadingData = false; });
+    }, 300);
+  }
+
   // อัปเดต selectedMissionMaxPoints เมื่อเลือก mission
   $: if (selectedMissionId) {
     const selectedMission = missions.find(m => m.id === selectedMissionId);
@@ -242,8 +258,16 @@
     <!-- เพิ่มภารกิจใหม่ -->
     {#if adminTab === 'add'}
       <div class="admin-section">
-        <h3>เพิ่มภารกิจใหม่ (ม.{currentGrade})</h3>
+        <h3>เพิ่มภารกิจใหม่</h3>
         <form class="admin-form" on:submit|preventDefault={handleAddMission}>
+          <div class="form-group">
+            <label for="add-mission-grade">เลือกระดับชั้น</label>
+            <select id="add-mission-grade" bind:value={selectedGrade} required>
+              <option value="1">ม.1</option>
+              <option value="2">ม.2</option>
+              <option value="3">ม.3</option>
+            </select>
+          </div>
           <div class="form-group">
             <label for="add-mission-topic">หัวข้อภารกิจ</label>
             <input type="text" id="add-mission-topic" bind:value={missionTitle} required>
@@ -261,7 +285,7 @@
             <input type="number" id="add-mission-max-points" min="1" bind:value={missionMaxPoints} required>
           </div>
           <button type="submit" class="primary" disabled={isMissionLoading}>
-            {isMissionLoading ? 'กำลังบันทึก...' : `เพิ่มภารกิจสำหรับ ม.${currentGrade}`}
+            {isMissionLoading ? 'กำลังบันทึก...' : `เพิ่มภารกิจสำหรับ ม.${selectedGrade}`}
           </button>
         </form>
         {#if missionStatusMessage}<p class="status">{missionStatusMessage}</p>{/if}
@@ -270,12 +294,20 @@
     <!-- แก้ไขภารกิจเดิม -->
     {:else if adminTab === 'edit'}
       <div class="admin-section">
-        <h3>แก้ไขภารกิจเดิม (ม.{currentGrade})</h3>
+        <h3>แก้ไขภารกิจเดิม</h3>
+        <div class="form-group">
+          <label for="edit-grade-select">เลือกระดับชั้น</label>
+          <select id="edit-grade-select" bind:value={selectedGrade}>
+            <option value="1">ม.1</option>
+            <option value="2">ม.2</option>
+            <option value="3">ม.3</option>
+          </select>
+        </div>
         
         {#if isLoadingData}
           <p class="loading">กำลังโหลดข้อมูลภารกิจ...</p>
         {:else if missions.length === 0}
-          <p class="no-data">ไม่มีภารกิจสำหรับชั้น ม.{currentGrade}</p>
+          <p class="no-data">ไม่มีภารกิจสำหรับชั้น ม.{selectedGrade}</p>
         {:else}
           <div class="mission-list">
             {#each missions as m}
@@ -316,7 +348,15 @@
     <!-- บันทึกคะแนนงาน -->
     {:else if adminTab === 'grade'}
       <div class="admin-section">
-        <h3>บันทึกคะแนนงาน (ม.{currentGrade})</h3>
+        <h3>บันทึกคะแนนงาน</h3>
+        <div class="form-group">
+          <label for="select-grade">เลือกเกรด</label>
+          <select id="select-grade" bind:value={selectedGrade}>
+            <option value="1">ม.1</option>
+            <option value="2">ม.2</option>
+            <option value="3">ม.3</option>
+          </select>
+        </div>
         {#if isLoadingData}
           <div class="loading">กำลังโหลดข้อมูล...</div>
         {:else if loadError}

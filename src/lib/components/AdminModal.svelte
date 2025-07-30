@@ -75,7 +75,7 @@
     console.log('Fetching missions for grade:', currentGrade);
     
     try {
-      const { data, error } = await supabase.from('missions').select('*').eq('grade', currentGrade).order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('missions').select('*').eq('grade', currentGrade).order('id', { ascending: false });
       if (error) {
         console.error('Error fetching missions:', error);
         missions = [];
@@ -145,8 +145,7 @@
         description: missionDescription.trim() || null,
         due_date: missionDueDate,
         max_points: Number(missionMaxPoints),
-        grade: currentGrade,
-        created_at: new Date().toISOString()
+        grade: currentGrade
       });
       
       if (error) {
@@ -190,8 +189,7 @@
         title: editTitle.trim(),
         description: editDescription.trim() || null,
         due_date: editDueDate,
-        max_points: Number(editMaxPoints),
-        updated_at: new Date().toISOString()
+        max_points: Number(editMaxPoints)
       }).eq('id', editingMission.id);
       
       if (error) {
@@ -284,8 +282,7 @@
           mission_id: selectedMissionId,
           grade: Number(score),
           status: 'graded',
-          submitted_at: new Date().toISOString(),
-          graded_at: new Date().toISOString()
+          submitted_at: new Date().toISOString()
         }, { onConflict: 'student_id,mission_id' });
       
       if (submissionError) {

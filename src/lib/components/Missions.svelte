@@ -41,7 +41,7 @@
       currentGrade = 3;
     }
     
-    const { data, error: missionError } = await supabase.from('missions').select('*').eq('grade', currentGrade).order('created_at', { ascending: true });
+    const { data, error: missionError } = await supabase.from('missions').select('*').eq('grade', currentGrade).order('id', { ascending: true });
     
     if (missionError) {
       error = "ไม่สามารถโหลดข้อมูลภารกิจได้";

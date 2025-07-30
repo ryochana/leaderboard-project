@@ -50,7 +50,70 @@
       console.error('Error fetching leaderboard:', rpcError);
       error = "ไม่สามารถโหลด Leaderboard ได้";
     } else {
-      leaderboardData = data;
+      // ก่อนอื่นให้ดูว่าในระบบมีภารกิจทั้งหมดกี่อันใน grade นี้
+      const { data: allMissions } = await supabase
+        .from('missions')
+        .select('id')
+        .eq('grade', currentGrade);
+      
+      const actualTotalMissions = allMissions ? allMissions.length : 0;
+      const assumedTotalMissions = 50; // สมมุติว่าจะมี 50 ภารกิจเมื่อครบ
+      
+      // แก้ไขการคำนวณ progress ให้อิงตามจำนวนภารกิจที่ส่งแล้ว
+      leaderboardData = await Promise.all(data.map(async (student) => {
+        // ดึงจำนวนภารกิจที่นักเรียนส่งแล้ว (submissions ที่มี status = 'graded' หรือ 'pending')
+        const { data: submittedMissions } = await supabase
+          .from('submissions')
+          .select('mission_id, created_at')
+          .eq('student_id', student.id)
+          .in('status', ['graded', 'pending'])
+          .order('created_at', { ascending: false });
+        
+        const submittedCount = submittedMissions ? submittedMissions.length : 0;
+        
+        // หาเวลาส่งงานล่าสุด
+        const latestSubmissionTime = submittedMissions && submittedMissions.length > 0 
+          ? new Date(submittedMissions[0].created_at).getTime() 
+          : 0;
+        
+        // คำนวณ progress อย่างง่าย: เปอร์เซ็นต์ของภารกิจที่ส่งเทียบกับภารกิจที่มีอยู่จริง
+        let progress = 0;
+        if (actualTotalMissions > 0) {
+          progress = (submittedCount / actualTotalMissions) * 100;
+        }
+        
+        return {
+          ...student,
+          progress: Math.round(Math.min(progress, 100)), // ปัดเศษและไม่เกิน 100%
+          submittedMissions: submittedCount,
+          actualTotalMissions: actualTotalMissions,
+          latestSubmissionTime: latestSubmissionTime
+        };
+      }));
+      
+      // เรียงลำดับใหม่ตาม EXP (points) จากมากไปน้อย
+      // ถ้าคะแนนเท่ากัน ให้เรียงตามเวลาส่งงานล่าสุด (ใหม่กว่าได้อันดับดีกว่า)
+      leaderboardData.sort((a, b) => {
+        const pointsDiff = (b.points || 0) - (a.points || 0);
+        if (pointsDiff === 0) {
+          // คะแนนเท่ากัน เรียงตามเวลาส่งงานล่าสุด (เวลาใหม่กว่าอันดับดีกว่า)
+          return (b.latestSubmissionTime || 0) - (a.latestSubmissionTime || 0);
+        }
+        return pointsDiff;
+      });
+      
+      // ปรับ progress ให้แสดงตามคะแนน EXP (ถ้าคะแนนเท่ากัน progress ก็เท่ากัน)
+      const maxPoints = leaderboardData[0]?.points || 1; // คะแนนสูงสุด
+      leaderboardData = leaderboardData.map((student, index) => {
+        // คำนวณ progress ตามสัดส่วนคะแนน: คะแนนสูงสุด = 100%
+        const pointsProgress = Math.round((student.points / maxPoints) * 100);
+        
+        return {
+          ...student,
+          progress: Math.max(pointsProgress, 5), // ไม่ต่ำกว่า 5% เพื่อให้เห็นแถบ
+          rank: index + 1
+        };
+      });
     }
     
     // เมื่อเสร็จแล้ว ให้ปิดการโหลด
@@ -72,11 +135,19 @@
       <!-- นี่คือวิธีวนลูปแสดงผลของ Svelte สะอาดและอ่านง่ายมาก! -->
       {#each leaderboardData as student, index (student.id)}
         <div class="leaderboard-item clickable {index < 3 ? 'top3' : ''}"
+          role="button"
+          tabindex="0"
           on:click={() => {
             selectedStudentId = student.id;
             if(index === 0) triggerConfetti();
           }}
-          on:mouseenter={(e) => showTooltip(`${student.display_name} - อันดับ ${index+1} (${student.points} EXP)`, e)}
+          on:keydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              selectedStudentId = student.id;
+              if(index === 0) triggerConfetti();
+            }
+          }}
+          on:mouseenter={(e) => showTooltip(`${student.display_name} - อันดับ ${index+1} (${student.points} EXP, ส่งแล้ว ${student.submittedMissions || 0}/${student.actualTotalMissions || 0} ภารกิจ)`, e)}
           on:mouseleave={hideTooltip}
           in:fly={{ y: 30, duration: 400, delay: index*60 }}
           style="background:{student.equipped_card_bg ? `url('${student.equipped_card_bg}') center/cover` : ''}; position:relative;"
@@ -110,6 +181,7 @@
             </div>
             <div class="progress-bar-container">
               <div class="progress-bar" style="width: {student.progress || 0}%; transition: width 1s cubic-bezier(.5,1.5,.5,1);"></div>
+              <div class="progress-text">{student.submittedMissions || 0}/{student.actualTotalMissions || 0}</div>
             </div>
           </div>
 
@@ -220,7 +292,7 @@
   .student-name-wrapper {
     display: flex;
     align-items: center;
-    margin-bottom: 0.2em;
+    margin-bottom: 0.6em;
   }
 
   .student-name {
@@ -240,6 +312,7 @@
     overflow: hidden;
     height: 8px;
     width: 100%;
+    position: relative;
   }
 
   .progress-bar {
@@ -249,6 +322,16 @@
     overflow: hidden;
     animation: moveBar 1.2s linear infinite;
     background-size: 200% 100%;
+  }
+
+  .progress-text {
+    position: absolute;
+    top: -20px;
+    right: 0;
+    font-size: 0.7em;
+    color: #666;
+    font-weight: 500;
+    white-space: nowrap;
   }
   @keyframes moveBar {
     0% { background-position: 0% 0; }
@@ -335,56 +418,5 @@
 
   .avatar-anim:hover img {
     transform: scale(1.12) rotate(-6deg);
-  }
-
-  /* Styles for the StudentDetailModal */
-  .modal-content {
-    padding: 2em;
-    border-radius: 12px;
-    background: #fff;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-  }
-
-  .close-button {
-    background: transparent;
-    border: none;
-    font-size: 1.5em;
-    cursor: pointer;
-    position: absolute;
-    top: 1em;
-    right: 1em;
-  }
-
-  .student-detail {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .student-detail h3 {
-    margin-bottom: 0.5em;
-  }
-
-  .student-avatar {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    margin-bottom: 1em;
-    border: 4px solid #4caf50;
-  }
-
-  .student-info-item {
-    margin-bottom: 0.5em;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .student-info-item label {
-    font-weight: bold;
-  }
-
-  .student-info-item div {
-    text-align: right;
   }
 </style>

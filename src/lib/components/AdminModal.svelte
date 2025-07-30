@@ -59,6 +59,58 @@
   let editDueDate = '';
   let editMaxPoints = 1;
 
+  // --- State สำหรับการเลือกหลายรายการ (Bulk Operations) ---
+  let selectedMissions = new Set();
+  let selectedStudents = new Set();
+  let bulkMode = false; // โหมดเลือกหลายรายการ
+  let bulkAction = ''; // 'delete-missions', 'grade-students'
+  let bulkScore = '';
+  let bulkMissionId = '';
+  let isBulkLoading = false;
+
+  function toggleBulkMode() {
+    bulkMode = !bulkMode;
+    if (!bulkMode) {
+      selectedMissions.clear();
+      selectedStudents.clear();
+      selectedMissions = selectedMissions;
+      selectedStudents = selectedStudents;
+    }
+  }
+
+  function toggleMissionSelection(missionId) {
+    if (selectedMissions.has(missionId)) {
+      selectedMissions.delete(missionId);
+    } else {
+      selectedMissions.add(missionId);
+    }
+    selectedMissions = selectedMissions;
+  }
+
+  function toggleStudentSelection(studentId) {
+    if (selectedStudents.has(studentId)) {
+      selectedStudents.delete(studentId);
+    } else {
+      selectedStudents.add(studentId);
+    }
+    selectedStudents = selectedStudents;
+  }
+
+  function selectAllMissions() {
+    selectedMissions = new Set(missions.map(m => m.id));
+  }
+
+  function selectAllStudents() {
+    selectedStudents = new Set(students.map(s => s.id));
+  }
+
+  function clearAllSelections() {
+    selectedMissions.clear();
+    selectedStudents.clear();
+    selectedMissions = selectedMissions;
+    selectedStudents = selectedStudents;
+  }
+
   function startEditMission(m) {
     editingMission = m;
     editTitle = m.title;
@@ -278,6 +330,125 @@
     }
   }
 
+  // --- Bulk Operations Functions ---
+  async function handleBulkDeleteMissions() {
+    if (selectedMissions.size === 0) {
+      showToastMsg('กรุณาเลือกภารกิจที่ต้องการลบ');
+      return;
+    }
+    
+    if (!confirm(`แน่ใจหรือไม่ที่จะลบภารกิจ ${selectedMissions.size} รายการ? การลบจะไม่สามารถย้อนกลับได้`)) {
+      return;
+    }
+    
+    isBulkLoading = true;
+    try {
+      const missionIds = Array.from(selectedMissions);
+      
+      // ลบ submissions ที่เกี่ยวข้องก่อน
+      const { error: submissionError } = await supabase
+        .from('submissions')
+        .delete()
+        .in('mission_id', missionIds);
+      
+      if (submissionError) {
+        console.warn('Warning deleting submissions:', submissionError);
+      }
+      
+      // ลบภารกิจทั้งหมด
+      const { error: missionError } = await supabase
+        .from('missions')
+        .delete()
+        .in('id', missionIds);
+        
+      if (missionError) {
+        showToastMsg('เกิดข้อผิดพลาดในการลบภารกิจ: ' + missionError.message);
+      } else {
+        showToastMsg(`ลบภารกิจ ${selectedMissions.size} รายการสำเร็จ!`);
+        clearAllSelections();
+        await fetchMissions();
+      }
+    } catch (err) {
+      showToastMsg('เกิดข้อผิดพลาด: ' + err.message);
+    } finally {
+      isBulkLoading = false;
+    }
+  }
+
+  async function handleBulkGradeStudents() {
+    if (selectedStudents.size === 0) {
+      showToastMsg('กรุณาเลือกนักเรียน');
+      return;
+    }
+    if (!bulkMissionId) {
+      showToastMsg('กรุณาเลือกภารกิจ');
+      return;
+    }
+    if (bulkScore === '' || isNaN(Number(bulkScore))) {
+      showToastMsg('กรุณากรอกคะแนนที่ถูกต้อง');
+      return;
+    }
+    if (!Number.isInteger(Number(bulkScore))) {
+      showToastMsg('กรุณากรอกคะแนนเป็นจำนวนเต็ม');
+      return;
+    }
+    if (Number(bulkScore) < 0) {
+      showToastMsg('คะแนนต้องไม่ติดลบ');
+      return;
+    }
+    
+    // ตรวจสอบคะแนนเต็ม
+    const selectedMission = missions.find(m => m.id == bulkMissionId);
+    if (selectedMission && Number(bulkScore) > selectedMission.max_points) {
+      showToastMsg(`คะแนนต้องไม่เกิน ${selectedMission.max_points}`);
+      return;
+    }
+    
+    if (!confirm(`แน่ใจหรือไม่ที่จะให้คะแนน ${bulkScore} แก่นักเรียน ${selectedStudents.size} คน?`)) {
+      return;
+    }
+    
+    isBulkLoading = true;
+    try {
+      const studentIds = Array.from(selectedStudents);
+      const submissions = studentIds.map(studentId => ({
+        student_id: studentId,
+        mission_id: bulkMissionId,
+        grade: Number(bulkScore),
+        status: 'graded',
+        submitted_at: new Date().toISOString()
+      }));
+      
+      // บันทึกคะแนนทั้งหมด
+      const { error: submissionError } = await supabase
+        .from('submissions')
+        .upsert(submissions, { onConflict: 'student_id,mission_id' });
+      
+      if (submissionError) {
+        showToastMsg('เกิดข้อผิดพลาดในการบันทึกคะแนน: ' + submissionError.message);
+        return;
+      }
+      
+      // อัพเดทคะแนนรวมของนักเรียนทั้งหมด
+      for (const studentId of studentIds) {
+        const { error: rpcError } = await supabase.rpc('update_single_student_points', { p_user_id: studentId });
+        if (rpcError) {
+          console.warn('Warning updating points for student:', studentId, rpcError);
+        }
+      }
+      
+      showToastMsg(`บันทึกคะแนนให้นักเรียน ${selectedStudents.size} คนสำเร็จ!`);
+      clearAllSelections();
+      bulkScore = '';
+      bulkMissionId = '';
+      
+    } catch (err) {
+      showToastMsg('เกิดข้อผิดพลาด: ' + err.message);
+    } finally {
+      isBulkLoading = false;
+    }
+  }
+
   async function handleGradeSubmission() {
     if (!selectedStudentId) {
       showToastMsg('กรุณาเลือกนักเรียน');
@@ -404,6 +575,7 @@
       <button class:active={adminTab === 'add'} on:click={() => adminTab = 'add'}>เพิ่มภารกิจ</button>
       <button class:active={adminTab === 'edit'} on:click={() => adminTab = 'edit'}>แก้ไข</button>
       <button class:active={adminTab === 'grade'} on:click={() => adminTab = 'grade'}>ให้คะแนน</button>
+      <button class:active={adminTab === 'bulk'} on:click={() => adminTab = 'bulk'}>จัดการเป็นชุด</button>
     </div>
 
     <!-- เพิ่มภารกิจใหม่ -->
@@ -540,6 +712,119 @@
             </button>
           </form>
           {#if gradeStatusMessage}<p class="status">{gradeStatusMessage}</p>{/if}
+        {/if}
+      </div>
+    {/if}
+
+    <!-- จัดการเป็นชุด (Bulk Operations) -->
+    {#if adminTab === 'bulk'}
+      <div class="admin-section">
+        <h3>จัดการเป็นชุด (ม.{currentGrade})</h3>
+        
+        <!-- Bulk Mode Toggle -->
+        <div class="bulk-controls">
+          <button class="bulk-toggle" class:active={bulkMode} on:click={toggleBulkMode}>
+            {bulkMode ? '🔲 ออกจากโหมดเลือกหลายรายการ' : '☑️ เข้าโหมดเลือกหลายรายการ'}
+          </button>
+          
+          {#if bulkMode}
+            <div class="bulk-actions">
+              <button on:click={selectAllMissions} disabled={missions.length === 0}>เลือกภารกิจทั้งหมด</button>
+              <button on:click={selectAllStudents} disabled={students.length === 0}>เลือกนักเรียนทั้งหมด</button>
+              <button on:click={clearAllSelections}>ยกเลิกการเลือกทั้งหมด</button>
+            </div>
+          {/if}
+        </div>
+
+        {#if bulkMode}
+          <!-- ลบภารกิจหลายรายการ -->
+          <div class="bulk-section">
+            <h4>🗑️ ลบภารกิจหลายรายการ</h4>
+            <p class="section-desc">เลือกภารกิจที่ต้องการลบ ({selectedMissions.size} รายการถูกเลือก)</p>
+            
+            {#if missions.length > 0}
+              <div class="mission-list bulk-list">
+                {#each missions as mission}
+                  <div class="mission-item bulk-item" class:selected={selectedMissions.has(mission.id)}>
+                    <label class="bulk-checkbox">
+                      <input type="checkbox" checked={selectedMissions.has(mission.id)} 
+                             on:change={() => toggleMissionSelection(mission.id)}>
+                      <span class="mission-info">
+                        <strong>{mission.title}</strong>
+                        <small>คะแนนเต็ม: {mission.max_points} | วันส่ง: {mission.due_date || 'ไม่ระบุ'}</small>
+                      </span>
+                    </label>
+                  </div>
+                {/each}
+              </div>
+              
+              {#if selectedMissions.size > 0}
+                <button class="danger-btn" on:click={handleBulkDeleteMissions} disabled={isBulkLoading}>
+                  {isBulkLoading ? 'กำลังลบ...' : `ลบภารกิจ ${selectedMissions.size} รายการ`}
+                </button>
+              {/if}
+            {:else}
+              <div class="empty-state">ไม่มีภารกิจในระบบ</div>
+            {/if}
+          </div>
+
+          <!-- ให้คะแนนหลายคน -->
+          <div class="bulk-section">
+            <h4>📝 ให้คะแนนนักเรียนหลายคน</h4>
+            <p class="section-desc">เลือกนักเรียนที่ต้องการให้คะแนน ({selectedStudents.size} คนถูกเลือก)</p>
+            
+            {#if students.length > 0}
+              <div class="student-list bulk-list">
+                {#each students as student}
+                  <div class="student-item bulk-item" class:selected={selectedStudents.has(student.id)}>
+                    <label class="bulk-checkbox">
+                      <input type="checkbox" checked={selectedStudents.has(student.id)} 
+                             on:change={() => toggleStudentSelection(student.id)}>
+                      <span class="student-info">
+                        <strong>{student.display_name}</strong>
+                        <small>รหัส: {student.student_id || student.id}</small>
+                      </span>
+                    </label>
+                  </div>
+                {/each}
+              </div>
+              
+              {#if selectedStudents.size > 0}
+                <div class="bulk-grade-form">
+                  <div class="form-group">
+                    <label for="bulk-mission">เลือกภารกิจ</label>
+                    <select id="bulk-mission" bind:value={bulkMissionId} required>
+                      <option value="">-- เลือกภารกิจ --</option>
+                      {#each missions as mission}
+                        <option value={mission.id}>{mission.title} (เต็ม {mission.max_points})</option>
+                      {/each}
+                    </select>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="bulk-score">คะแนน</label>
+                    <input type="number" id="bulk-score" min="0" bind:value={bulkScore} 
+                           placeholder="กรอกคะแนน" required>
+                  </div>
+                  
+                  <button class="primary" on:click={handleBulkGradeStudents} 
+                          disabled={isBulkLoading || !bulkMissionId || bulkScore === ''}>
+                    {isBulkLoading ? 'กำลังบันทึก...' : `ให้คะแนนนักเรียน ${selectedStudents.size} คน`}
+                  </button>
+                </div>
+              {/if}
+            {:else}
+              <div class="empty-state">ไม่มีนักเรียนในระบบ</div>
+            {/if}
+          </div>
+        {:else}
+          <div class="bulk-help">
+            <p>💡 คลิกปุ่ม "เข้าโหมดเลือกหลายรายการ" เพื่อเริ่มใช้งานฟีเจอร์จัดการเป็นชุด</p>
+            <ul>
+              <li>🗑️ <strong>ลบภารกิจหลายรายการ:</strong> เลือกภารกิจที่ต้องการลบพร้อมกัน</li>
+              <li>📝 <strong>ให้คะแนนหลายคน:</strong> เลือกนักเรียนหลายคนให้คะแนนเดียวกันในภารกิจเดียวกัน</li>
+            </ul>
+          </div>
         {/if}
       </div>
     {/if}
@@ -761,5 +1046,169 @@
     font-size: 0.85em;
     margin-top: 0.25em;
     display: block;
+  }
+
+  /* Bulk Operations Styles */
+  .bulk-controls {
+    margin-bottom: 1.5em;
+    padding: 1em;
+    background: #f0f8ff;
+    border-radius: 8px;
+    border: 1px solid #e3f2fd;
+  }
+
+  .bulk-toggle {
+    background: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.7em 1.5em;
+    cursor: pointer;
+    font-size: 1em;
+    margin-bottom: 1em;
+    transition: background 0.2s;
+  }
+
+  .bulk-toggle:hover {
+    background: #1976d2;
+  }
+
+  .bulk-toggle.active {
+    background: #4caf50;
+  }
+
+  .bulk-actions {
+    display: flex;
+    gap: 0.5em;
+    flex-wrap: wrap;
+  }
+
+  .bulk-actions button {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.5em 1em;
+    cursor: pointer;
+    font-size: 0.9em;
+  }
+
+  .bulk-actions button:hover {
+    background: #f5f5f5;
+  }
+
+  .bulk-section {
+    margin-bottom: 2em;
+    padding: 1.5em;
+    background: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #eee;
+  }
+
+  .bulk-section h4 {
+    margin: 0 0 0.5em 0;
+    color: #333;
+    font-size: 1.1em;
+  }
+
+  .section-desc {
+    color: #666;
+    margin: 0 0 1em 0;
+    font-size: 0.95em;
+  }
+
+  .bulk-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    margin-bottom: 1em;
+  }
+
+  .bulk-item {
+    padding: 0.5em;
+    border-bottom: 1px solid #eee;
+    transition: background 0.2s;
+  }
+
+  .bulk-item:last-child {
+    border-bottom: none;
+  }
+
+  .bulk-item.selected {
+    background: #e3f2fd;
+  }
+
+  .bulk-checkbox {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .bulk-checkbox input[type="checkbox"] {
+    margin-right: 0.5em;
+    transform: scale(1.2);
+  }
+
+  .mission-info, .student-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mission-info strong, .student-info strong {
+    margin-bottom: 0.2em;
+  }
+
+  .mission-info small, .student-info small {
+    color: #666;
+    font-size: 0.85em;
+  }
+
+  .danger-btn {
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.7em 1.5em;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background 0.2s;
+  }
+
+  .danger-btn:hover {
+    background: #d32f2f;
+  }
+
+  .danger-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+
+  .bulk-grade-form {
+    background: white;
+    padding: 1em;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    margin-top: 1em;
+  }
+
+  .bulk-help {
+    text-align: center;
+    padding: 2em;
+    color: #666;
+  }
+
+  .bulk-help ul {
+    text-align: left;
+    max-width: 500px;
+    margin: 1em auto;
+  }
+
+  .bulk-help li {
+    margin: 0.5em 0;
+    padding: 0.5em;
+    background: #f9f9f9;
+    border-radius: 4px;
   }
 </style>

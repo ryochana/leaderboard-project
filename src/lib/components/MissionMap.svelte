@@ -29,23 +29,8 @@
     };
   }) : [];
 
-  // สำหรับ scroll/drag
+  // Remove dragging/scrolling functionality since we no longer need it
   let mapContainer;
-  let isDragging = false;
-  let startX, scrollLeft;
-  function handleMouseDown(e) {
-    isDragging = true;
-    startX = e.pageX - mapContainer.offsetLeft;
-    scrollLeft = mapContainer.scrollLeft;
-  }
-  function handleMouseMove(e) {
-    if (!isDragging) return;
-    e.preventDefault();
-    const x = e.pageX - mapContainer.offsetLeft;
-    const walk = (x - startX) * 1.2;
-    mapContainer.scrollLeft = scrollLeft - walk;
-  }
-  function handleMouseUp() { isDragging = false; }
 
   import { createEventDispatcher } from 'svelte';
   const dispatch = createEventDispatcher();
@@ -75,33 +60,6 @@
 </script>
 
 <style>
-.mission-map-bg {
-  width: 100vw;
-  min-width: 600px;
-  height: 220px;
-  background: url(''); /* ใส่ url พื้นหลังทีหลัง */
-  background-size: cover;
-  background-position: center;
-  position: relative;
-  overflow: visible;
-}
-.mission-map-scroll {
-  width: 100vw;
-  overflow-x: auto;
-  overflow-y: visible;
-  white-space: nowrap;
-  cursor: grab;
-  padding-bottom: 1em;
-}
-.mission-node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: absolute;
-  width: 64px;
-  top: 70px;
-  z-index: 2;
-}
 .mission-badge {
   width: 64px;
   height: 64px;
@@ -155,30 +113,6 @@
   margin-top: 0.1em;
   font-weight: 600;
   text-align: center;
-}
-.mission-map-scroll-vertical {
-  width: 100vw;
-  height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  position: relative;
-  background: none;
-}
-.mission-map-bg-vertical {
-  width: 100vw;
-  min-width: 0;
-  min-height: 100vh;
-  position: relative;
-}
-.mission-node-vertical {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: absolute;
-  width: 120px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2;
 }
 .mission-badge {
   width: 120px;
@@ -241,19 +175,16 @@
   font-weight: 600;
   text-align: center;
 }
-.mission-connector {
-  pointer-events: none;
-}
 .mission-map-scroll-grid {
-  width: 100vw;
+  width: 100%;
   min-height: 400px;
-  overflow-x: auto;
-  overflow-y: auto;
+  overflow: visible;
   position: relative;
   background: none;
+  padding: 1em;
 }
 .mission-map-bg-grid {
-  width: 100vw;
+  width: 100%;
   min-width: 0;
   min-height: 400px;
   position: relative;
@@ -264,9 +195,12 @@
 }
 .mission-row {
   display: grid;
-  grid-template-columns: repeat(4, 140px);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 2em;
   margin-bottom: 1.5em;
+  justify-content: center;
+  max-width: 800px;
+  width: 100%;
 }
 .mission-node-grid {
   display: flex;
@@ -336,22 +270,24 @@
   text-align: center;
 }
 @media (max-width: 900px) {
-  .mission-row { grid-template-columns: repeat(2, 120px); gap: 1em; }
+  .mission-row { 
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+    gap: 1.5em; 
+    max-width: 600px;
+  }
 }
 @media (max-width: 600px) {
-  .mission-row { grid-template-columns: repeat(1, 100px); gap: 0.5em; }
+  .mission-row { 
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); 
+    gap: 1em; 
+    max-width: 400px;
+  }
   .mission-node-grid, .mission-badge { width: 80px; height: 80px; font-size: 0.9em; }
   .star { width: 12px; height: 12px; }
 }
 </style>
 
-<div class="mission-map-scroll-grid"
-  bind:this={mapContainer}
-  on:mousedown={handleMouseDown}
-  on:mousemove={handleMouseMove}
-  on:mouseup={handleMouseUp}
-  on:mouseleave={handleMouseUp}
->
+<div class="mission-map-scroll-grid" bind:this={mapContainer}>
   {#if !gridRows || gridRows.length === 0}
     <div class="no-missions">ยังไม่มีภารกิจ</div>
   {:else}

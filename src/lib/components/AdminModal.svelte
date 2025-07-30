@@ -126,6 +126,18 @@
       return;
     }
     
+    // ตรวจสอบว่ามีภารกิจที่ชื่อเดียวกันในเกรดนี้หรือไม่
+    const { data: existingMissions } = await supabase
+      .from('missions')
+      .select('id')
+      .eq('title', missionTitle.trim())
+      .eq('grade', currentGrade);
+    
+    if (existingMissions && existingMissions.length > 0) {
+      showToastMsg('มีภารกิจที่ชื่อเดียวกันในเกรดนี้อยู่แล้ว กรุณาใช้ชื่ออื่น');
+      return;
+    }
+    
     // ตรวจสอบวันที่ไม่ให้เป็นอดีต
     const selectedDate = new Date(missionDueDate);
     const today = new Date();
@@ -150,7 +162,12 @@
       
       if (error) {
         console.error('Insert mission error:', error);
-        showToastMsg('เกิดข้อผิดพลาด: ' + error.message);
+        if (error.code === '23505') {
+          // Unique constraint violation
+          showToastMsg('มีภารกิจที่ชื่อเดียวกันในเกรดนี้อยู่แล้ว กรุณาใช้ชื่ออื่น');
+        } else {
+          showToastMsg('เกิดข้อผิดพลาด: ' + error.message);
+        }
       } else {
         showToastMsg('เพิ่มภารกิจสำเร็จ!');
         missionTitle = '';
@@ -183,6 +200,21 @@
       return;
     }
     
+    // ตรวจสอบว่ามีภารกิจอื่นที่ชื่อเดียวกันในเกรดนี้หรือไม่ (ยกเว้นภารกิจที่กำลังแก้ไข)
+    if (editTitle.trim() !== editingMission.title) {
+      const { data: existingMissions } = await supabase
+        .from('missions')
+        .select('id')
+        .eq('title', editTitle.trim())
+        .eq('grade', currentGrade)
+        .neq('id', editingMission.id);
+      
+      if (existingMissions && existingMissions.length > 0) {
+        showToastMsg('มีภารกิจที่ชื่อเดียวกันในเกรดนี้อยู่แล้ว กรุณาใช้ชื่ออื่น');
+        return;
+      }
+    }
+    
     isMissionLoading = true;
     try {
       const { error } = await supabase.from('missions').update({
@@ -194,7 +226,12 @@
       
       if (error) {
         console.error('Update mission error:', error);
-        showToastMsg('เกิดข้อผิดพลาด: ' + error.message);
+        if (error.code === '23505') {
+          // Unique constraint violation
+          showToastMsg('มีภารกิจที่ชื่อเดียวกันในเกรดนี้อยู่แล้ว กรุณาใช้ชื่ออื่น');
+        } else {
+          showToastMsg('เกิดข้อผิดพลาด: ' + error.message);
+        }
       } else {
         showToastMsg('บันทึกการแก้ไขสำเร็จ!');
         await fetchMissions();
@@ -377,6 +414,7 @@
           <div class="form-group">
             <label for="add-mission-topic">หัวข้อภารกิจ</label>
             <input type="text" id="add-mission-topic" bind:value={missionTitle} required>
+            <small class="form-hint">หมายเหตุ: ชื่อภารกิจต้องไม่ซ้ำกับภารกิจอื่นในเกรดเดียวกัน</small>
           </div>
           <div class="form-group">
             <label for="add-mission-detail">รายละเอียด</label>
@@ -716,5 +754,12 @@
     color: #f44336;
     font-weight: bold;
     text-align: center;
+  }
+  
+  .form-hint {
+    color: #666;
+    font-size: 0.85em;
+    margin-top: 0.25em;
+    display: block;
   }
 </style>

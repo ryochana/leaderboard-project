@@ -74,46 +74,83 @@
   async function fetchMissions() {
     console.log('Fetching missions for grade:', currentGrade);
     
-    const { data, error } = await supabase.from('missions').select('*').eq('grade_id', currentGrade);
-    if (!error) {
-      missions = data || [];
-      console.log('Filtered missions for grade', currentGrade, ':', missions);
-    } else {
-      console.error('Error fetching missions:', error);
+    try {
+      const { data, error } = await supabase.from('missions').select('*').eq('grade', currentGrade).order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error fetching missions:', error);
+        missions = [];
+        throw new Error(`ไม่สามารถโหลดภารกิจได้: ${error.message}`);
+      } else {
+        missions = data || [];
+        console.log('Filtered missions for grade', currentGrade, ':', missions);
+      }
+    } catch (err) {
+      console.error('Error in fetchMissions:', err);
       missions = [];
+      throw err;
     }
   }
 
   async function fetchStudents() {
     console.log('Fetching students for grade:', currentGrade);
     
-    const { data, error } = await supabase.from('students').select('*').eq('grade_id', currentGrade);
-    if (!error) {
-      students = data || [];
-      console.log('Filtered students for grade', currentGrade, ':', students);
-    } else {
-      console.error('Error fetching students:', error);
+    try {
+      const { data, error } = await supabase.from('users').select('*').eq('grade', currentGrade).order('display_name', { ascending: true });
+      if (error) {
+        console.error('Error fetching students:', error);
+        students = [];
+        throw new Error(`ไม่สามารถโหลดรายชื่อนักเรียนได้: ${error.message}`);
+      } else {
+        students = data || [];
+        console.log('Filtered students for grade', currentGrade, ':', students);
+      }
+    } catch (err) {
+      console.error('Error in fetchStudents:', err);
       students = [];
+      throw err;
     }
   }
 
   // --- ฟังก์ชันการทำงาน ---
   async function handleAddMission() {
-    if (!missionTitle.trim() || !missionDueDate || !missionMaxPoints) {
-      showToastMsg('กรุณากรอกข้อมูลภารกิจให้ครบถ้วน');
+    if (!missionTitle.trim()) {
+      showToastMsg('กรุณากรอกหัวข้อภารกิจ');
       return;
     }
+    if (!missionDueDate) {
+      showToastMsg('กรุณาเลือกวันที่ส่งงาน');
+      return;
+    }
+    if (!missionMaxPoints || missionMaxPoints < 1) {
+      showToastMsg('กรุณากรอกคะแนนเต็มที่ถูกต้อง (ต้องมากกว่า 0)');
+      return;
+    }
+    
+    // ตรวจสอบวันที่ไม่ให้เป็นอดีต
+    const selectedDate = new Date(missionDueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+      showToastMsg('วันที่ส่งงานต้องเป็นวันนี้หรือในอนาคต');
+      return;
+    }
+    
     isMissionLoading = true;
     missionStatusMessage = '';
     try {
       const { error } = await supabase.from('missions').insert({
         title: missionTitle.trim(),
-        description: missionDescription.trim(),
+        description: missionDescription.trim() || null,
         due_date: missionDueDate,
-        max_points: missionMaxPoints,
-        grade_id: currentGrade
+        max_points: Number(missionMaxPoints),
+        grade: currentGrade,
+        created_at: new Date().toISOString()
       });
+      
       if (error) {
+        console.error('Insert mission error:', error);
         showToastMsg('เกิดข้อผิดพลาด: ' + error.message);
       } else {
         showToastMsg('เพิ่มภารกิจสำเร็จ!');
@@ -124,7 +161,8 @@
         await fetchMissions();
       }
     } catch (err) {
-      showToastMsg('เกิดข้อผิดพลาด: ' + err.message);
+      console.error('Error in handleAddMission:', err);
+      showToastMsg('เกิดข้อผิดพลาด: ' + (err.message || 'ไม่ทราบสาเหตุ'));
     } finally {
       isMissionLoading = false;
     }
@@ -132,26 +170,94 @@
 
   async function handleEditMission() {
     if (!editingMission) return;
-    isMissionLoading = true;
-    const { error } = await supabase.from('missions').update({
-      title: editTitle.trim(),
-      description: editDescription.trim(),
-      due_date: editDueDate,
-      max_points: editMaxPoints
-    }).eq('id', editingMission.id);
-    if (error) {
-      showToastMsg('เกิดข้อผิดพลาด: ' + error.message);
-    } else {
-      showToastMsg('บันทึกการแก้ไขสำเร็จ!');
-      await fetchMissions();
-      editingMission = null;
+    
+    if (!editTitle.trim()) {
+      showToastMsg('กรุณากรอกหัวข้อภารกิจ');
+      return;
     }
-    isMissionLoading = false;
+    if (!editDueDate) {
+      showToastMsg('กรุณาเลือกวันที่ส่งงาน');
+      return;
+    }
+    if (!editMaxPoints || editMaxPoints < 1) {
+      showToastMsg('กรุณากรอกคะแนนเต็มที่ถูกต้อง (ต้องมากกว่า 0)');
+      return;
+    }
+    
+    isMissionLoading = true;
+    try {
+      const { error } = await supabase.from('missions').update({
+        title: editTitle.trim(),
+        description: editDescription.trim() || null,
+        due_date: editDueDate,
+        max_points: Number(editMaxPoints),
+        updated_at: new Date().toISOString()
+      }).eq('id', editingMission.id);
+      
+      if (error) {
+        console.error('Update mission error:', error);
+        showToastMsg('เกิดข้อผิดพลาด: ' + error.message);
+      } else {
+        showToastMsg('บันทึกการแก้ไขสำเร็จ!');
+        await fetchMissions();
+        editingMission = null;
+      }
+    } catch (err) {
+      console.error('Error in handleEditMission:', err);
+      showToastMsg('เกิดข้อผิดพลาด: ' + (err.message || 'ไม่ทราบสาเหตุ'));
+    } finally {
+      isMissionLoading = false;
+    }
+  }
+
+  async function handleDeleteMission(missionId) {
+    if (!confirm('แน่ใจหรือไม่ที่จะลบภารกิจนี้? การลบจะไม่สามารถย้อนกลับได้')) {
+      return;
+    }
+    
+    try {
+      // ลบ submissions ที่เกี่ยวข้องก่อน
+      const { error: submissionError } = await supabase
+        .from('submissions')
+        .delete()
+        .eq('mission_id', missionId);
+      
+      if (submissionError) {
+        console.warn('Warning deleting submissions:', submissionError);
+      }
+      
+      // ลบภารกิจ
+      const { error: missionError } = await supabase
+        .from('missions')
+        .delete()
+        .eq('id', missionId);
+        
+      if (missionError) {
+        showToastMsg('เกิดข้อผิดพลาดในการลบภารกิจ: ' + missionError.message);
+      } else {
+        showToastMsg('ลบภารกิจสำเร็จ!');
+        await fetchMissions();
+      }
+    } catch (err) {
+      showToastMsg('เกิดข้อผิดพลาด: ' + err.message);
+    }
   }
 
   async function handleGradeSubmission() {
-    if (!selectedStudentId || !selectedMissionId || score === '' || isNaN(Number(score))) {
-      showToastMsg('กรุณาเลือกข้อมูลให้ครบถ้วนและกรอกคะแนน');
+    if (!selectedStudentId) {
+      showToastMsg('กรุณาเลือกนักเรียน');
+      return;
+    }
+    if (!selectedMissionId) {
+      showToastMsg('กรุณาเลือกภารกิจ');
+      return;
+    }
+    if (score === '' || score === null || score === undefined) {
+      showToastMsg('กรุณากรอกคะแนน');
+      return;
+    }
+    if (isNaN(Number(score))) {
+      showToastMsg('กรุณากรอกคะแนนเป็นตัวเลข');
       return;
     }
     if (!Number.isInteger(Number(score))) {
@@ -171,28 +277,46 @@
     gradeStatusMessage = '';
 
     try {
+      // บันทึกคะแนนในตาราง submissions
       const { error: submissionError } = await supabase.from('submissions')
         .upsert({
           student_id: selectedStudentId,
           mission_id: selectedMissionId,
           grade: Number(score),
           status: 'graded',
-          submitted_at: new Date().toISOString()
+          submitted_at: new Date().toISOString(),
+          graded_at: new Date().toISOString()
         }, { onConflict: 'student_id,mission_id' });
-      if (submissionError) throw submissionError;
+      
+      if (submissionError) {
+        console.error('Submission error:', submissionError);
+        throw new Error('ไม่สามารถบันทึกคะแนนได้: ' + submissionError.message);
+      }
 
-      const { error: rpcError } = await supabase.rpc('update_single_student_points', { p_user_id: selectedStudentId });
-      if (rpcError) throw rpcError;
+      // อัปเดตคะแนนรวมของนักเรียน
+      const { error: rpcError } = await supabase.rpc('update_single_student_points', { 
+        p_user_id: selectedStudentId 
+      });
+      
+      if (rpcError) {
+        console.error('RPC error:', rpcError);
+        // แม้ RPC ล้มเหลว แต่การบันทึกคะแนนสำเร็จแล้ว
+        console.warn('Points update failed but grade was saved:', rpcError.message);
+      }
 
       gradeStatusMessage = 'บันทึกคะแนนสำเร็จ!';
       showToastMsg(gradeStatusMessage);
 
+      // รีเซ็ตฟอร์ม
       selectedStudentId = '';
       selectedMissionId = '';
       score = '';
       selectedSubmissionId = '';
+      selectedMissionMaxPoints = null;
+      
     } catch (error) {
-      gradeStatusMessage = `เกิดข้อผิดพลาด: ${error.message}`;
+      console.error('Error in handleGradeSubmission:', error);
+      gradeStatusMessage = `เกิดข้อผิดพลาด: ${error.message || 'ไม่ทราบสาเหตุ'}`;
       showToastMsg(gradeStatusMessage);
     } finally {
       isGradingLoading = false;
@@ -201,14 +325,23 @@
 
   // onMount จะทำงานเมื่อ Modal ถูกเปิดขึ้นมา
   onMount(async () => {
-    if (!$user) return;
+    if (!$user) {
+      loadError = 'กรุณาเข้าสู่ระบบก่อนใช้งาน Admin Panel';
+      return;
+    }
+    if ($user.role !== 'admin') {
+      loadError = 'คุณไม่มีสิทธิ์เข้าถึง Admin Panel';
+      return;
+    }
+    
     isLoadingData = true;
     loadError = '';
     try {
-      await fetchStudents();
-      await fetchMissions();
+      console.log('Loading admin data for grade:', currentGrade);
+      await Promise.all([fetchStudents(), fetchMissions()]);
     } catch (err) {
-      loadError = 'โหลดข้อมูลล้มเหลว: ' + err.message;
+      console.error('Error loading admin data:', err);
+      loadError = 'โหลดข้อมูลล้มเหลว: ' + (err.message || 'ไม่ทราบสาเหตุ');
       showToastMsg(loadError);
     } finally {
       isLoadingData = false;
@@ -283,7 +416,10 @@
                 <div>
                   <b>{m.title}</b> <small>({m.due_date})</small> คะแนนเต็ม: {m.max_points}
                 </div>
-                <button type="button" class="edit-btn" on:click={() => startEditMission(m)}>แก้ไข</button>
+                <div class="mission-actions">
+                  <button type="button" class="edit-btn" on:click={() => startEditMission(m)}>แก้ไข</button>
+                  <button type="button" class="delete-btn" on:click={() => handleDeleteMission(m.id)}>ลบ</button>
+                </div>
               </div>
               {#if editingMission && editingMission.id === m.id}
                 <form class="admin-form edit-form" on:submit|preventDefault={handleEditMission}>
@@ -533,6 +669,11 @@
     border-bottom: 1px solid #eee;
   }
   
+  .mission-actions {
+    display: flex;
+    gap: 0.5em;
+  }
+  
   .edit-btn {
     background: #1976d2;
     color: #fff;
@@ -541,6 +682,24 @@
     padding: 0.2em 1em;
     cursor: pointer;
     font-size: 0.95em;
+  }
+  
+  .edit-btn:hover {
+    background: #1565c0;
+  }
+  
+  .delete-btn {
+    background: #d32f2f;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 0.2em 1em;
+    cursor: pointer;
+    font-size: 0.95em;
+  }
+  
+  .delete-btn:hover {
+    background: #c62828;
   }
   
   .edit-form {

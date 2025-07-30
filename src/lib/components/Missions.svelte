@@ -29,7 +29,18 @@
 
   // onMount จะดึงข้อมูล missions ที่ไม่ค่อยเปลี่ยนแค่ครั้งเดียว
   onMount(async () => {
-    const currentGrade = 2; // สมมติ ม.2 ไปก่อน
+    // ตรวจจับ grade จาก URL อัตโนมัติ (เหมือน Leaderboard)
+    let currentGrade = 1; // default
+    const hostname = window.location.hostname;
+    
+    if (hostname.includes('eng-m1') || hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+      currentGrade = 1;
+    } else if (hostname.includes('eng-m2')) {
+      currentGrade = 2;
+    } else if (hostname.includes('eng-m3')) {
+      currentGrade = 3;
+    }
+    
     const { data, error: missionError } = await supabase.from('missions').select('*').eq('grade', currentGrade).order('created_at', { ascending: true });
     
     if (missionError) {
